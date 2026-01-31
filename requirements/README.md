@@ -44,6 +44,11 @@ This directory contains the structured requirements for the Training Dynamics Wo
 - [REQ_008: Analysis Execution and Visualization Display](REQ_008_analysis_visualization_display.md)
   - Trigger analysis on completed training runs
   - Display all three visualizations in dashboard
+  - Global checkpoint slider synchronizing all visualizations
+
+- [REQ_009: Loss Curves with Epoch Indicator](REQ_009_loss_curves_epoch_indicator.md)
+  - Train/test loss curves with synchronized vertical line indicator
+  - Visual correlation between slider position and learning curve phase
 
 ## Status
 
