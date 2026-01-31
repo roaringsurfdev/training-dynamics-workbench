@@ -47,10 +47,10 @@ Workbench:
 Given a single simple toy Transformer model, execute a training run and generate animations for 3 visualizations to be displayed on a simple dashboard that does not accomodate customization.
 
 Toy model: 1-layer Transformer based on the Modulo Addition Grokking Experiment from Neel Nanda. Model definition will be provided in a config file. Training data will be synthetically generated.
-3 visualizations from the original notebook: 
+3 visualizations from the original notebook:
     - Dominant embedding frequencies summary. What, if any, frequencies have the most dominant coefficents over the course of training? The visualization should show a line graph of dominant frequencies over the learned embedding space. The line graph should plot ((fourier_bases @ W_E).norm(dim=-1), with fourier_bases=bases defined by the modulus as period, W_E = embedding weights, fourier bases along the x-axis, normed coefficients along the y-axis).
     - Activation Heat Maps. For a given neuron, what activation patterns emerge over training? The heatmap should be an image of (a, b, activation). The model spec calls for 512 mlps, which may be excessive for visualization. Some thought may be required to determine how best to show emergence across neuron activations.
-    - TBD
+    - Neuron frequency cluster analysis. Which neurons respond to which frequencies over training? The heatmap should show neuron_freq_norm with neurons on x-axis and frequencies on y-axis. Legend should be minimal/removed to avoid obscuring data.
 
 **Success criteria for MVP:**
 - [How we'll know MVP is working]
@@ -68,29 +68,64 @@ Toy model: 1-layer Transformer based on the Modulo Addition Grokking Experiment 
 - [Features that can wait]
 - Configuring the workbench visualizations
 - Alternate strategies for generating analysis artifacts
+- Real-time training progress visualization (status indicator acceptable)
 - [Optimizations that can come later]
-- Optimized asynchronous architecture
+- Asynchronous training/analysis operations (can run synchronously for MVP)
 
 ## Current Status
 **Completed:**
-- [What's done]
+- Project structure and collaboration framework (Claude.md, policies, requirements templates)
+- Baseline modulo addition model implementation (ModuloAdditionSpecification.py)
+- Fourier analysis utilities (FourierEvaluation.py)
+- Working end-to-end analysis script (ModuloAdditionRefactored.py)
+- Parameterized model by modulus (p) with dynamic dominant frequency detection
 
 **In Progress:**
-- [What we're working on]
+- Defining requirements for MVP implementation
 
 **Next Up:**
-- [What's coming]
+- Training Runner enhancements (configurable checkpoints, safetensors)
+- Analysis Engine modularization
+- Gradio workbench implementation
 
 ## Dependencies & Constraints
-[External factors, technical limitations, must-use technologies]
+
+**Technology Stack:**
+- Python 3.13
+- PyTorch with CUDA support
+- TransformerLens (latest stable version)
+- Plotly for visualizations
+- Gradio for dashboard UI (ML-focused, suitable for interpretability work)
+- pytest for testing
+- safetensors for model checkpoint persistence
+- JAX/Flax (optional, for data generation and analysis computations)
+
+**Checkpoint Strategy:**
+- Configurable as integer list of epoch checkpoints
+- Allows fine-tuning checkpoint density around grokking phase
+- Format: safetensors for model weights, separate metadata for training metrics
+
+**Storage:**
+- Local filesystem only for MVP
+- 1TB available after WSL instance migration
+- Future: Potential AWS deployment and mini rack
+
+**Training:**
+- Small toy models (Modulo Addition, p=113)
+- Local execution, training time not a concern for MVP
+- Model specs match Neel Nanda's Grokking Experiment
+
+**Logging:**
+- Custom logging for MVP (no external integrations like W&B, MLflow)
 
 
 ## Open Questions
-[Things we need to figure out]
-[Decisions that need to be made]
+- Analysis artifact storage format (flexibility for implementation - not critical for MVP)
+- Optimal visualization presentation for neuron frequency clusters (remove/minimize legend)
+- Post-MVP: Async architecture patterns for training and analysis
 
 ---
-**Last Updated:** [Date]
+**Last Updated:** 2026-01-30
 ```
 
 ## Where MVP Lives

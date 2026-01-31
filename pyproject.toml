@@ -4,4 +4,12 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "neel-plotly",
+    "numpy>=2.4.1",
+    "plotly>=6.5.2",
+    "transformer-lens>=2.17.0",
+]
+
+[tool.uv.sources]
+neel-plotly = { git = "https://github.com/neelnanda-io/neel-plotly.git" }
