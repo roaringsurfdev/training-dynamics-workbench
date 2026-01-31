@@ -58,6 +58,50 @@ This process ensures:
 
 See `/policies/debugging/README.md` for complete workflow and templates.
 
+### Git/GitHub Workflow
+
+**Branch Strategy:**
+- **Main branches:**
+  - `main` - stable, production-ready code
+  - `develop` - integration branch for ongoing development
+- **Feature branches:**
+  - Format: `feature/<requirement-name>`
+  - Tied to individual requirements (atomic units of work)
+  - Created at the start of each new requirement
+
+**Roles and Responsibilities:**
+
+*Claude's responsibilities:*
+- Create feature branches when starting new requirements
+- Make commits after completing logical units of work
+- Write descriptive commit messages
+- Pause before merging to `develop` and ask for approval
+
+*Human's responsibilities (initial phase):*
+- Approve merges back to `develop`
+- Push changes to remote repository
+- Provide feedback on commit granularity and workflow
+
+**Workflow Process:**
+1. When starting a new requirement:
+   - Claude announces: "Creating feature branch for [requirement X]"
+   - Claude creates and switches to `feature/<requirement-name>`
+2. During development:
+   - Claude commits at logical checkpoints
+   - Commit messages describe completed work
+3. When requirement is complete:
+   - Claude pauses and asks for merge approval
+   - Upon approval, Claude merges to `develop`
+   - Human pushes to remote
+
+**What is a "Logical Unit"?**
+A logical unit is a meaningful chunk of work that can be described as a complete thought in a commit message. Examples:
+- "Implemented User model with validation"
+- "Added database configuration"
+- "Created authentication middleware"
+
+*Note: This workflow is designed to evolve. As patterns emerge, responsibilities may shift (e.g., Claude taking on pushing to remote) and branch strategy may adapt (e.g., tying branches to issues).*
+
 ### Requirements
 
 Requirements are documented in `/requirements/` using a structured format that emphasizes:
@@ -215,6 +259,6 @@ The goal is not rigid rules but shared understanding that empowers both of us to
 
 ---
 
-**Version:** 0.2  
-**Last Updated:** 2026-01-30  
-**Status:** Added requirements collaboration framework
+**Version:** 0.3
+**Last Updated:** 2026-01-31
+**Status:** Added Git/GitHub workflow
