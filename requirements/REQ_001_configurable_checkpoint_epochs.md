@@ -35,6 +35,22 @@ We need to be able to specify an integer list of epoch numbers where checkpoints
 - Assumption: Epoch numbers in list are valid (< num_epochs)
 - Assumption: Checkpoint list is sorted (or can be sorted automatically)
 
+**Proposed default checkpoint strategy for ModuloAddition:**
+```python
+CHECKPOINTS = [
+    *range(0, 1000, 100),      # Early training - sparse
+    *range(1000, 5000, 500),   # Mid training - moderate
+    *range(5000, 6000, 50),    # Grokking region - dense
+    *range(6000, 10000, 500),  # Post-grokking - moderate
+]
+```
+This strategy provides:
+- ~10 checkpoints in early training (0-1000)
+- ~8 checkpoints in mid training (1000-5000)
+- ~20 checkpoints during grokking phase (5000-6000)
+- ~8 checkpoints post-grokking (6000-10000)
+- Total: ~46 checkpoints over 10000 epochs (vs 100 with fixed interval)
+
 ## Decision Authority
 - [x] Make reasonable decisions and flag for review
 
@@ -47,4 +63,17 @@ We need to be able to specify an integer list of epoch numbers where checkpoints
 
 ---
 ## Notes
-[Claude adds implementation notes, alternatives considered, things to revisit]
+
+**Implementation considerations:**
+- Default checkpoint list should be defined as a constant that can be easily modified
+- Consider making the default strategy a function that generates checkpoints based on total epochs
+- Grokking region (5000-6000) is specific to typical modular addition training; may need adjustment for other tasks
+- Dense checkpointing in grokking region enables fine-grained analysis of circuit formation
+- Reducing total checkpoints from 100 to ~46 saves disk space and analysis time while maintaining coverage
+
+**Alternative approaches considered:**
+- Logarithmic spacing: More principled but less intuitive, doesn't align with known grokking phases
+- Fixed interval with manual additions: Less clean, harder to reason about coverage
+- Adaptive checkpointing based on loss changes: More complex, requires online monitoring
+
+[Claude adds additional implementation notes]
