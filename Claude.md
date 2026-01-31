@@ -102,6 +102,17 @@ A logical unit is a meaningful chunk of work that can be described as a complete
 
 *Note: This workflow is designed to evolve. As patterns emerge, responsibilities may shift (e.g., Claude taking on pushing to remote) and branch strategy may adapt (e.g., tying branches to issues).*
 
+### Testing
+
+**Philosophy:** Conditions of Satisfaction define minimum test coverage, not maximum. Tests should exist for every CoS item. Additional tests are created as needed during development when assumptions or edge cases are discovered.
+
+**Approach:**
+- CoS items = required tests (the baseline)
+- Discovered complexity during implementation = additional tests as warranted
+- No upfront comprehensive test planning; coverage evolves with understanding
+
+This balances structure (clear minimum scope from CoS) with pragmatism (don't write speculative tests for hypothetical scenarios).
+
 ### Requirements
 
 Requirements are documented in `/requirements/` using a structured format that emphasizes:
@@ -259,6 +270,6 @@ The goal is not rigid rules but shared understanding that empowers both of us to
 
 ---
 
-**Version:** 0.3
+**Version:** 0.4
 **Last Updated:** 2026-01-31
-**Status:** Added Git/GitHub workflow
+**Status:** Added testing philosophy
