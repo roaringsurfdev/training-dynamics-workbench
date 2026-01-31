@@ -16,10 +16,11 @@ We need to be able to specify an integer list of epoch numbers where checkpoints
 **Must have:**
 - Backward compatible with existing ModuloAdditionSpecification interface
 - No performance degradation from checkpoint checking logic
+- Works with immediate disk writes (REQ_002) - no memory accumulation
 
 **Must avoid:**
 - Creating checkpoints at unintended epochs
-- Memory issues from holding too many checkpoints simultaneously
+- Off-by-one errors in epoch numbering
 
 **Flexible:**
 - How checkpoint list is passed to training (constructor, method parameter, config object)
@@ -27,18 +28,22 @@ We need to be able to specify an integer list of epoch numbers where checkpoints
 
 ## Context & Assumptions
 - Current implementation: ModuloAdditionSpecification.train() uses `checkpoint_every = 100`
-- Checkpoints stored as list in `model_checkpoints` array
+- Current implementation accumulates checkpoints in memory (will be replaced by immediate disk writes in REQ_002)
 - User wants to densify checkpoints around grokking phase based on prior knowledge of training dynamics
+- REQ_002 handles the actual checkpoint persistence (separate files, safetensors)
+- This requirement focuses on WHEN to checkpoint, REQ_002 handles HOW to persist
 - Assumption: Epoch numbers in list are valid (< num_epochs)
+- Assumption: Checkpoint list is sorted (or can be sorted automatically)
 
 ## Decision Authority
 - [x] Make reasonable decisions and flag for review
 
 ## Success Validation
 - Can train with custom checkpoint list: [100, 500, 1000, 2000, 5000, 10000]
-- Verify len(model_checkpoints) == len(checkpoint_list)
-- Verify checkpoint_epochs matches provided list
-- Training with default behavior still works
+- Verify correct number of checkpoint files created on disk
+- Verify checkpoint epochs match provided list exactly
+- Training with default behavior still works (reasonable default checkpoint schedule)
+- No checkpoints created at unspecified epochs
 
 ---
 ## Notes
