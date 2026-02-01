@@ -25,12 +25,14 @@ We need to migrate checkpoint persistence to use safetensors for model weights, 
 - Directory structure following pattern:
   ```
   results/
-    model_p{prime}_seed{seed}/
-      checkpoints/
-        checkpoint_epoch_{epoch:05d}.safetensors
-      artifacts/        # Analysis artifacts (created by REQ_003)
-      metadata.json     # training losses, indices
-      config.json       # model configuration
+    {model_name}/
+      {model_name}_p{prime}_seed{seed}/
+        {model_name}_p(prime)_seed{seed}.safetensors (final model after training run)
+        checkpoints/
+          checkpoint_epoch_{epoch:05d}.safetensors
+        artifacts/        # Analysis artifacts (created by REQ_003)
+        metadata.json     # training losses, indices
+        config.json       # model configuration
   ```
 
 **Must avoid:**
