@@ -18,7 +18,11 @@ requirements/
 
 ### Active Requirements
 
-No active requirements at this time. All MVP requirements have been completed.
+| Requirement | Description |
+|-------------|-------------|
+| [REQ_011](active/REQ_011_ruff_pyright_enforcement.md) | Make ruff/pyright CI checks blocking |
+| [REQ_012](active/REQ_012_remove_neel_plotly.md) | Remove neel-plotly dependency |
+| [REQ_013](active/REQ_013_python_311_compatibility.md) | Support Python 3.11+ |
 
 ### Completed Milestones
 
