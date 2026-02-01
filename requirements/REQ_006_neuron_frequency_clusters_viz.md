@@ -8,16 +8,16 @@ This analysis performs 2D Fourier transform on neuron activation patterns and co
 The current visualization (from ModuloAdditionRefactored.py line 202) has a problematic legend that obscures the data. The visualization needs cleaner presentation.
 
 ## Conditions of Satisfaction
-- [ ] Analysis computation generates artifact: neuron_freq_norm matrix per checkpoint
-- [ ] Artifact saved to disk (e.g., `neuron_freq_norm.npz`)
-- [ ] Artifact structure: shape (n_checkpoints, p//2, d_mlp)
-- [ ] Visualization loads from artifact (no recomputation of Fourier transforms)
-- [ ] Heatmap showing neuron_freq_norm: neurons (x-axis) vs frequencies (y-axis)
-- [ ] Color intensity shows fraction of variance explained (0 to 1)
-- [ ] Legend minimal or removed to avoid obscuring data
-- [ ] Y-axis labels readable (sparse labeling or hover tooltips)
-- [ ] Interactive slider to view evolution across checkpoints
-- [ ] Clear identification of neuron clusters for each key frequency
+- [x] Analysis computation generates artifact: neuron_freq_norm matrix per checkpoint
+- [x] Artifact saved to disk (e.g., `neuron_freq_norm.npz`)
+- [x] Artifact structure: shape (n_checkpoints, p//2, d_mlp)
+- [x] Visualization loads from artifact (no recomputation of Fourier transforms)
+- [x] Heatmap showing neuron_freq_norm: neurons (x-axis) vs frequencies (y-axis)
+- [x] Color intensity shows fraction of variance explained (0 to 1)
+- [x] Legend minimal or removed to avoid obscuring data
+- [x] Y-axis labels readable (sparse labeling or hover tooltips)
+- [x] Interactive slider to view evolution across checkpoints
+- [x] Clear identification of neuron clusters for each key frequency
 
 ## Constraints
 **Must have:**
@@ -69,4 +69,32 @@ The current visualization (from ModuloAdditionRefactored.py line 202) has a prob
 
 ---
 ## Notes
-[Claude adds implementation notes, alternatives considered, things to revisit]
+
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+**Key code location:**
+- `visualization/renderers/neuron_freq_clusters.py`
+
+**Functions implemented:**
+- `render_freq_clusters(artifact, epoch_idx, sparse_labels, label_interval, title, colorscale, show_colorbar, height, width)` → go.Figure
+  - Heatmap with neurons (x) vs frequencies (y)
+  - Viridis colorscale with 0-1 range
+  - Sparse y-axis labels (every Nth frequency) to avoid clutter
+  - Hover tooltips with neuron, frequency, and exact value
+  - Slim colorbar positioned to avoid obscuring data
+- `render_freq_clusters_comparison(artifact, epoch_indices)` → go.Figure
+  - Stacked heatmaps for comparing across epochs
+  - Shared x-axis for alignment
+- `get_specialized_neurons(artifact, epoch_idx, frequency, threshold)` → list[int]
+  - Returns neurons specialized for a specific frequency
+- `get_neuron_specialization(artifact, epoch_idx, neuron_idx)` → tuple[int, float]
+  - Returns dominant frequency for a specific neuron
+
+**Design decisions:**
+- Sparse labels (every 5th frequency by default) for readability
+- Hover tooltips provide exact values for all data points
+- Slim colorbar (15px) with minimal length to reduce obstruction
+- Viridis colorscale for 0-1 fraction data (perceptually uniform)
+- Custom hover template with 1-indexed frequencies (matching domain convention)
