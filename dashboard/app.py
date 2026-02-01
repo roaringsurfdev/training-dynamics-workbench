@@ -20,6 +20,7 @@ from analysis.analyzers import (
 )
 from dashboard.components.loss_curves import render_loss_curves_with_indicator
 from dashboard.state import DashboardState
+from dashboard.version import __version__
 from dashboard.utils import (
     discover_trained_models,
     get_model_choices,
@@ -333,7 +334,7 @@ def create_app() -> gr.Blocks:
         # Shared state
         state = gr.State(DashboardState())
 
-        gr.Markdown("# Training Dynamics Workbench")
+        gr.Markdown(f"# Training Dynamics Workbench <small>v{__version__}</small>")
         gr.Markdown("Explore grokking dynamics in modular addition models")
 
         with gr.Tabs():

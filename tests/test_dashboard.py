@@ -259,3 +259,45 @@ class TestDashboardImport:
         assert app is not None
         # Check it's a Gradio Blocks (duck typing)
         assert hasattr(app, "launch")
+
+
+class TestVersioning:
+    """Tests for REQ_010: Application Versioning."""
+
+    def test_version_importable_from_dashboard(self):
+        """Can import __version__ from dashboard package."""
+        from dashboard import __version__
+
+        assert __version__ is not None
+        assert isinstance(__version__, str)
+
+    def test_version_importable_from_version_module(self):
+        """Can import __version__ from dashboard.version."""
+        from dashboard.version import __version__
+
+        assert __version__ is not None
+        assert isinstance(__version__, str)
+
+    def test_version_format_semantic(self):
+        """Version follows MAJOR.MINOR.BUILD format."""
+        from dashboard import __version__
+
+        parts = __version__.split(".")
+        assert len(parts) == 3, f"Version should have 3 parts: {__version__}"
+
+        # All parts should be numeric
+        for part in parts:
+            assert part.isdigit(), f"Version parts should be numeric: {__version__}"
+
+    def test_version_is_mvp(self):
+        """Version starts with 0.x.x for MVP phase."""
+        from dashboard import __version__
+
+        assert __version__.startswith("0."), f"MVP version should start with 0.x: {__version__}"
+
+    def test_version_consistency(self):
+        """Version from dashboard matches version from version module."""
+        from dashboard import __version__ as pkg_version
+        from dashboard.version import __version__ as mod_version
+
+        assert pkg_version == mod_version
