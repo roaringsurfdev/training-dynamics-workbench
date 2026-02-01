@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-02-01
+
+### Fixed
+
+- Dashboard now uses GPU for training and analysis when CUDA is available (REQ_016, REQ_018)
+  - Training previously required `CUDA_VISIBLE_DEVICES` env var to detect GPU
+  - Analysis was hardcoded to CPU only
+
 ## [0.1.0] - 2026-02-01
 
 **MVP Release** - First functional version of the Training Dynamics Workbench.
