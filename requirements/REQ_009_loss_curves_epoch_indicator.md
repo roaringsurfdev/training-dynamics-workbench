@@ -6,14 +6,14 @@ When exploring training dynamics using the global checkpoint slider (REQ_008), u
 The loss curve visualization should display a vertical line that moves in sync with the global slider, helping users correlate specific checkpoints with their position in the learning curve.
 
 ## Conditions of Satisfaction
-- [ ] Train/test loss curve chart displays both training and test loss over epochs
-- [ ] Vertical line indicator overlaid on loss curves shows current epoch position
-- [ ] Line indicator synchronizes with global checkpoint slider from REQ_008
-- [ ] Moving global slider updates the vertical line position in real-time
-- [ ] Line is visually distinct but doesn't obscure the loss curves
-- [ ] Loss curve data loaded from training artifacts/logs
-- [ ] Interactive Plotly features (zoom, hover, pan) remain functional
-- [ ] Indicator position updates smoothly without lag
+- [x] Train/test loss curve chart displays both training and test loss over epochs
+- [x] Vertical line indicator overlaid on loss curves shows current epoch position
+- [x] Line indicator synchronizes with global checkpoint slider from REQ_008
+- [x] Moving global slider updates the vertical line position in real-time
+- [x] Line is visually distinct but doesn't obscure the loss curves
+- [x] Loss curve data loaded from training artifacts/logs
+- [x] Interactive Plotly features (zoom, hover, pan) remain functional
+- [x] Indicator position updates smoothly without lag
 
 ## Constraints
 **Must have:**
@@ -82,4 +82,36 @@ The loss curve visualization should display a vertical line that moves in sync w
 - Consider performance: regenerating entire figure vs. updating shape coordinates
 - Loss data likely stored separately from analysis artifacts (available sooner)
 
-[Claude adds implementation notes, alternatives considered, things to revisit]
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+**Key code location:**
+- `dashboard/components/loss_curves.py`
+
+**Function implemented:**
+```python
+def render_loss_curves_with_indicator(
+    train_losses: list[float] | None,
+    test_losses: list[float] | None,
+    current_epoch: int,
+    checkpoint_epochs: list[int] | None = None,
+    log_scale: bool = True,
+) -> go.Figure
+```
+
+**Features:**
+- Blue line for train loss, orange for test loss
+- Red vertical line at current epoch via `fig.add_vline()`
+- Annotation showing "Epoch {n}" at top right
+- Green diamond markers for checkpoint epochs
+- Log scale by default (configurable)
+- Hover template showing exact loss values
+
+**Design decisions:**
+- Uses `add_vline()` for epoch indicator (regenerates figure on each update)
+- Checkpoint markers help identify which epochs have saved states
+- Compact height (300px) to fit above analysis visualizations
+- Loss data loaded from metadata.json (available immediately after training)
+
+**Tests:** 4 tests for loss curves in `test_dashboard.py`
