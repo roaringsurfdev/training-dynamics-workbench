@@ -215,5 +215,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# PyTorch
+# Project-specific
+/results
 *.pth
+
+
