@@ -2,6 +2,7 @@
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
@@ -60,6 +61,7 @@ class AnalysisPipeline:
         epochs: list[int] | None = None,
         force: bool = False,
         save_every: int = 10,
+        progress_callback: Callable[[float, str], None] | None = None,
     ) -> None:
         """
         Execute analysis pipeline across checkpoints.
@@ -68,6 +70,8 @@ class AnalysisPipeline:
             epochs: Specific epochs to analyze, or None for all available
             force: If True, recompute even if artifacts exist
             save_every: Save artifacts to disk every N epochs
+            progress_callback: Optional callback(progress, description) for UI updates.
+                               Progress is a float from 0.0 to 1.0.
         """
         if not self._analyzers:
             return
@@ -92,15 +96,26 @@ class AnalysisPipeline:
 
         fourier_basis, _ = get_fourier_bases(self.model_spec.prime, self.model_spec.device)
 
+        total_epochs = len(all_epochs_needed)
         epochs_processed = 0
         for epoch in tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints"):
+            if progress_callback:
+                progress = epochs_processed / total_epochs
+                progress_callback(progress, f"Analyzing checkpoint {epoch} ({epochs_processed + 1}/{total_epochs})")
+
             self._run_single_epoch(epoch, work_queue, dataset, fourier_basis)
             epochs_processed += 1
 
             if epochs_processed % save_every == 0:
                 self._save_artifacts()
 
+        if progress_callback:
+            progress_callback(0.95, "Saving artifacts...")
+
         self._save_artifacts()
+
+        if progress_callback:
+            progress_callback(1.0, "Analysis complete")
 
     def get_completed_epochs(self, analyzer_name: str) -> list[int]:
         """

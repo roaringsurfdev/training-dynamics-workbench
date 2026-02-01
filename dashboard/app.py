@@ -227,14 +227,20 @@ def run_analysis(model_path: str | None, state: DashboardState, progress=gr.Prog
             seed=config.get("model_seed", config.get("seed", 999)),
         )
 
-        progress(0.1, desc="Running analysis pipeline...")
+        progress(0.1, desc="Starting analysis pipeline...")
 
-        # Run analysis
+        # Create progress callback that maps pipeline progress (0-1) to UI progress (0.1-1.0)
+        def pipeline_progress(pct: float, desc: str):
+            # Map pipeline 0-1 to UI 0.1-1.0 (reserving 0-0.1 for init)
+            ui_progress = 0.1 + (pct * 0.9)
+            progress(ui_progress, desc=desc)
+
+        # Run analysis with progress callback
         pipeline = AnalysisPipeline(spec)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.register(NeuronFreqClustersAnalyzer())
-        pipeline.run()
+        pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")
 
