@@ -1,64 +1,73 @@
 # Requirements
 
-This directory contains the structured requirements for the Training Dynamics Workbench MVP.
+This directory contains requirements for the Training Dynamics Workbench.
 
-## Requirements Overview
+## Directory Structure
 
-### Phase 1: Training Runner Enhancements
-**Goal:** Enhance existing training infrastructure for flexible checkpointing and modern persistence
+```
+requirements/
+├── README.md           # This file
+├── active/             # Requirements currently being worked on
+└── archive/            # Completed requirements organized by milestone
+    └── v0.1.0-mvp/     # MVP milestone (released 2026-02-01)
+```
 
-- [REQ_001: Configurable Checkpoint Epochs](REQ_001_configurable_checkpoint_epochs.md)
-  - Enable fine-grained control over checkpoint timing via integer list
-  - Supports densifying checkpoints around critical phases like grokking
+## Current Status
 
-- [REQ_002: Safetensors Persistence](REQ_002_safetensors_persistence.md)
-  - Migrate from pickle to safetensors format for model weights
-  - Maintain backward compatibility with existing checkpoints
+**Latest Version:** 0.1.0 (MVP)
 
-### Phase 2: Analysis Engine
-**Goal:** Modular analysis pipeline for generating visualizations from checkpoints
+### Active Requirements
 
-- [REQ_003: Analysis Pipeline Architecture](REQ_003_analysis_pipeline_architecture.md)
-  - Orchestration layer for loading checkpoints and running analysis
-  - Extensible framework for adding new analysis types
+No active requirements at this time. All MVP requirements have been completed.
 
-- [REQ_004: Dominant Embedding Frequencies Visualization](REQ_004_dominant_embedding_frequencies_viz.md)
-  - Fourier analysis of embedding space evolution
-  - Identify which frequencies emerge during training
+### Completed Milestones
 
-- [REQ_005: Activation Heat Maps Visualization](REQ_005_activation_heatmaps_viz.md)
-  - 2D heatmaps of neuron activations over input space
-  - Reveal computational patterns learned by neurons
-
-- [REQ_006: Neuron Frequency Cluster Visualization](REQ_006_neuron_frequency_clusters_viz.md)
-  - Show which neurons specialize in which frequencies
-  - Improved presentation (minimal legend to avoid obscuring data)
-
-### Phase 3: Workbench
-**Goal:** Gradio-based UI for training and analysis
-
-- [REQ_007: Gradio Dashboard with Training Controls](REQ_007_gradio_dashboard_training_controls.md)
-  - Configure and launch training runs through web interface
-  - Control modulus, seeds, checkpoints, and other parameters
-
-- [REQ_008: Analysis Execution and Visualization Display](REQ_008_analysis_visualization_display.md)
-  - Trigger analysis on completed training runs
-  - Display all three visualizations in dashboard
-  - Global checkpoint slider synchronizing all visualizations
-
-- [REQ_009: Loss Curves with Epoch Indicator](REQ_009_loss_curves_epoch_indicator.md)
-  - Train/test loss curves with synchronized vertical line indicator
-  - Visual correlation between slider position and learning curve phase
-
-## Status
-
-All requirements defined. Ready for implementation planning.
+| Version | Name | Date | Requirements |
+|---------|------|------|--------------|
+| [0.1.0](archive/v0.1.0-mvp/MILESTONE_SUMMARY.md) | MVP | 2026-02-01 | REQ_001 through REQ_010 |
 
 ## Working with Requirements
 
-To work on a specific requirement:
+### Adding New Requirements
+
+1. Create a new requirement file in `active/` using the naming convention:
+   ```
+   REQ_XXX_short_description.md
+   ```
+
+2. Use the template structure:
+   - Problem Statement
+   - Conditions of Satisfaction
+   - Constraints
+   - Context & Assumptions
+
+3. Reference by number: "Work on REQ_011"
+
+### Completing a Milestone
+
+When a set of requirements is complete:
+
+1. Create archive directory: `archive/vX.Y.Z-name/`
+2. Move completed requirements to archive
+3. Create `MILESTONE_SUMMARY.md` in archive
+4. Update `CHANGELOG.md` in project root
+5. Bump version in `dashboard/version.py`
+
+### Referencing Archived Requirements
+
+For historical context on any requirement:
 ```
-"Work on REQ_003"
+requirements/archive/v0.1.0-mvp/REQ_001_configurable_checkpoint_epochs.md
 ```
 
-See `/policies/requirements/templates/requirements_README.md` for collaboration workflow.
+The milestone summary provides quick reference:
+```
+requirements/archive/v0.1.0-mvp/MILESTONE_SUMMARY.md
+```
+
+## Quick Reference
+
+For current project capabilities, see:
+- [CHANGELOG.md](../CHANGELOG.md) - Version history and features
+- [README.md](../README.md) - Getting started guide
+- [PROJECT.md](../PROJECT.md) - Project scope and vision

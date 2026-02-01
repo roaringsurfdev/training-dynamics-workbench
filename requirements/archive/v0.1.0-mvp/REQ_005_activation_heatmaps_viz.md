@@ -12,16 +12,16 @@ The model has 512 MLP neurons, which is too many to show individually. We need a
 Computing activations requires expensive forward passes, so we need to generate activation artifacts once and reuse them for visualization iteration.
 
 ## Conditions of Satisfaction
-- [ ] Analysis computation generates artifact: neuron activations for all checkpoints
-- [ ] Artifact saved to disk (e.g., `neuron_activations.npz`)
-- [ ] Artifact structure: shape (n_checkpoints, d_mlp, p, p)
-- [ ] **Stage 1 - Explore trained model**: Browse all 512 neurons in final checkpoint
-- [ ] **Stage 2 - Historical view**: Select 3-5 neurons, view evolution across checkpoints
-- [ ] Heatmap visualization of neuron activations with (a, b) as axes
-- [ ] Activation values shown as color intensity
-- [ ] Interactive slider for checkpoint selection (historical view)
-- [ ] Neuron selector (dropdown or similar) for choosing which neurons to display
-- [ ] Visualization loads from artifact (no recomputation)
+- [x] Analysis computation generates artifact: neuron activations for all checkpoints
+- [x] Artifact saved to disk (e.g., `neuron_activations.npz`)
+- [x] Artifact structure: shape (n_checkpoints, d_mlp, p, p)
+- [x] **Stage 1 - Explore trained model**: Browse all 512 neurons in final checkpoint
+- [x] **Stage 2 - Historical view**: Select 3-5 neurons, view evolution across checkpoints
+- [x] Heatmap visualization of neuron activations with (a, b) as axes
+- [x] Activation values shown as color intensity
+- [x] Interactive slider for checkpoint selection (historical view)
+- [x] Neuron selector (dropdown or similar) for choosing which neurons to display
+- [x] Visualization loads from artifact (no recomputation)
 
 ## Constraints
 **Must have:**
@@ -72,4 +72,32 @@ Computing activations requires expensive forward passes, so we need to generate 
 
 ---
 ## Notes
-[Claude adds implementation notes, alternatives considered, things to revisit]
+
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+**Key code location:**
+- `visualization/renderers/neuron_activations.py`
+
+**Functions implemented:**
+- `render_neuron_heatmap(artifact, epoch_idx, neuron_idx, title, colorscale)` → go.Figure
+  - Single neuron heatmap with RdBu colorscale centered at 0
+  - Hover template showing (a, b) position and activation value
+- `render_neuron_grid(artifact, epoch_idx, neuron_indices, cols, title)` → go.Figure
+  - Grid of multiple neurons using subplots
+  - Shared colorscale across all neurons for comparison
+  - Configurable column count
+- `render_neuron_across_epochs(artifact, neuron_idx, epoch_indices, cols)` → go.Figure
+  - Single neuron shown across multiple epochs
+  - Useful for tracking pattern development during training
+- `get_most_active_neurons(artifact, epoch_idx, top_k)` → list[int]
+  - Returns neurons with highest activation variance
+  - Useful for identifying "interesting" neurons to display
+
+**Design decisions:**
+- RdBu colorscale centered at 0 for activation values
+- Global color range across subplots for consistent comparison
+- Hover tooltips with exact activation values
+- Uses plotly.subplots.make_subplots for grid layouts
+- Square aspect ratio maintained for (a, b) axes

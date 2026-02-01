@@ -1,0 +1,303 @@
+"""Tests for dashboard components."""
+
+import json
+import tempfile
+from pathlib import Path
+
+import numpy as np
+import plotly.graph_objects as go
+import pytest
+
+from dashboard.components.loss_curves import render_loss_curves_with_indicator
+from dashboard.state import DashboardState
+from dashboard.utils import (
+    discover_trained_models,
+    get_model_choices,
+    parse_checkpoint_epochs,
+    validate_training_params,
+)
+
+
+class TestLossCurvesRenderer:
+    """Tests for REQ_009: Loss curves with epoch indicator."""
+
+    def test_render_with_data(self):
+        """Renders loss curves with valid data."""
+        train_losses = [1.0, 0.5, 0.3, 0.2, 0.1]
+        test_losses = [1.2, 0.6, 0.35, 0.25, 0.15]
+
+        fig = render_loss_curves_with_indicator(
+            train_losses, test_losses, current_epoch=2
+        )
+
+        assert isinstance(fig, go.Figure)
+        assert len(fig.data) == 2  # train and test traces
+
+    def test_render_with_checkpoints(self):
+        """Renders with checkpoint markers."""
+        train_losses = [1.0, 0.5, 0.3, 0.2, 0.1]
+        test_losses = [1.2, 0.6, 0.35, 0.25, 0.15]
+
+        fig = render_loss_curves_with_indicator(
+            train_losses, test_losses, current_epoch=2, checkpoint_epochs=[0, 2, 4]
+        )
+
+        assert isinstance(fig, go.Figure)
+        assert len(fig.data) == 3  # train, test, checkpoints
+
+    def test_render_empty_state(self):
+        """Renders placeholder with no data."""
+        fig = render_loss_curves_with_indicator(None, None, current_epoch=0)
+
+        assert isinstance(fig, go.Figure)
+        # Check for annotation
+        assert len(fig.layout.annotations) > 0
+
+    def test_log_scale(self):
+        """Respects log scale parameter."""
+        train_losses = [1.0, 0.5, 0.3]
+        test_losses = [1.2, 0.6, 0.35]
+
+        fig = render_loss_curves_with_indicator(
+            train_losses, test_losses, current_epoch=1, log_scale=True
+        )
+        assert fig.layout.yaxis.type == "log"
+
+        fig = render_loss_curves_with_indicator(
+            train_losses, test_losses, current_epoch=1, log_scale=False
+        )
+        assert fig.layout.yaxis.type == "linear"
+
+
+class TestDashboardState:
+    """Tests for dashboard state management."""
+
+    def test_initial_state(self):
+        """Initial state has correct defaults."""
+        state = DashboardState()
+
+        assert state.selected_model_path is None
+        assert state.available_epochs == []
+        assert state.current_epoch_idx == 0
+        assert state.dominant_freq_artifact is None
+
+    def test_get_current_epoch_empty(self):
+        """Returns 0 when no epochs available."""
+        state = DashboardState()
+        assert state.get_current_epoch() == 0
+
+    def test_get_current_epoch_with_data(self):
+        """Returns correct epoch for index."""
+        state = DashboardState()
+        state.available_epochs = [0, 100, 500, 1000]
+        state.current_epoch_idx = 2
+
+        assert state.get_current_epoch() == 500
+
+    def test_clear_artifacts(self):
+        """clear_artifacts resets all cached data."""
+        state = DashboardState()
+        state.selected_model_path = "/some/path"
+        state.available_epochs = [0, 100]
+        state.train_losses = [1.0, 0.5]
+
+        state.clear_artifacts()
+
+        assert state.available_epochs == []
+        assert state.train_losses is None
+        assert state.dominant_freq_artifact is None
+
+
+class TestModelDiscovery:
+    """Tests for model discovery utilities."""
+
+    @pytest.fixture
+    def mock_results_dir(self):
+        """Create a mock results directory structure."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create model directory structure
+            model_dir = Path(tmpdir) / "modulo_addition" / "modulo_addition_p17_seed42"
+            model_dir.mkdir(parents=True)
+
+            # Create config.json
+            config = {"prime": 17, "model_seed": 42, "n_ctx": 3}
+            with open(model_dir / "config.json", "w") as f:
+                json.dump(config, f)
+
+            # Create metadata.json
+            metadata = {"train_losses": [1.0, 0.5], "test_losses": [1.2, 0.6]}
+            with open(model_dir / "metadata.json", "w") as f:
+                json.dump(metadata, f)
+
+            yield tmpdir
+
+    def test_discover_models(self, mock_results_dir):
+        """Discovers models in directory."""
+        models = discover_trained_models(mock_results_dir)
+
+        assert len(models) == 1
+        assert models[0]["config"]["prime"] == 17
+        assert "p=17" in models[0]["display_name"]
+
+    def test_discover_empty_directory(self):
+        """Returns empty list for non-existent directory."""
+        models = discover_trained_models("/nonexistent/path")
+        assert models == []
+
+    def test_get_model_choices(self, mock_results_dir):
+        """Converts models to dropdown choices."""
+        models = discover_trained_models(mock_results_dir)
+        choices = get_model_choices(models)
+
+        assert len(choices) == 1
+        assert isinstance(choices[0], tuple)
+        assert len(choices[0]) == 2  # (display_name, path)
+
+
+class TestParseCheckpointEpochs:
+    """Tests for checkpoint epoch parsing."""
+
+    def test_parse_valid(self):
+        """Parses comma-separated integers."""
+        result = parse_checkpoint_epochs("0, 100, 500, 1000")
+        assert result == [0, 100, 500, 1000]
+
+    def test_parse_with_duplicates(self):
+        """Removes duplicates and sorts."""
+        result = parse_checkpoint_epochs("100, 0, 100, 500")
+        assert result == [0, 100, 500]
+
+    def test_parse_empty(self):
+        """Returns empty list for empty string."""
+        result = parse_checkpoint_epochs("")
+        assert result == []
+
+    def test_parse_invalid(self):
+        """Raises ValueError for invalid input."""
+        with pytest.raises(ValueError):
+            parse_checkpoint_epochs("0, abc, 100")
+
+
+class TestValidateTrainingParams:
+    """Tests for training parameter validation."""
+
+    def test_valid_params(self):
+        """Accepts valid parameters."""
+        is_valid, msg = validate_training_params(
+            modulus=17,
+            model_seed=42,
+            data_seed=598,
+            train_fraction=0.3,
+            num_epochs=100,
+            checkpoint_str="0, 50, 99",
+            save_path="results/",
+        )
+
+        assert is_valid
+        assert msg == ""
+
+    def test_invalid_modulus(self):
+        """Rejects modulus < 2."""
+        is_valid, msg = validate_training_params(
+            modulus=1,
+            model_seed=42,
+            data_seed=598,
+            train_fraction=0.3,
+            num_epochs=100,
+            checkpoint_str="0, 50",
+            save_path="results/",
+        )
+
+        assert not is_valid
+        assert "Modulus" in msg
+
+    def test_invalid_train_fraction(self):
+        """Rejects train_fraction outside (0, 1)."""
+        is_valid, msg = validate_training_params(
+            modulus=17,
+            model_seed=42,
+            data_seed=598,
+            train_fraction=1.5,
+            num_epochs=100,
+            checkpoint_str="0, 50",
+            save_path="results/",
+        )
+
+        assert not is_valid
+        assert "fraction" in msg.lower()
+
+    def test_checkpoint_exceeds_epochs(self):
+        """Rejects checkpoint >= num_epochs."""
+        is_valid, msg = validate_training_params(
+            modulus=17,
+            model_seed=42,
+            data_seed=598,
+            train_fraction=0.3,
+            num_epochs=100,
+            checkpoint_str="0, 50, 100",  # 100 >= 100
+            save_path="results/",
+        )
+
+        assert not is_valid
+        assert "100" in msg
+
+
+class TestDashboardImport:
+    """Tests for dashboard module imports."""
+
+    def test_import_create_app(self):
+        """Can import create_app from dashboard."""
+        from dashboard import create_app
+
+        assert callable(create_app)
+
+    def test_create_app_returns_blocks(self):
+        """create_app returns a Gradio Blocks instance."""
+        from dashboard import create_app
+
+        app = create_app()
+        assert app is not None
+        # Check it's a Gradio Blocks (duck typing)
+        assert hasattr(app, "launch")
+
+
+class TestVersioning:
+    """Tests for REQ_010: Application Versioning."""
+
+    def test_version_importable_from_dashboard(self):
+        """Can import __version__ from dashboard package."""
+        from dashboard import __version__
+
+        assert __version__ is not None
+        assert isinstance(__version__, str)
+
+    def test_version_importable_from_version_module(self):
+        """Can import __version__ from dashboard.version."""
+        from dashboard.version import __version__
+
+        assert __version__ is not None
+        assert isinstance(__version__, str)
+
+    def test_version_format_semantic(self):
+        """Version follows MAJOR.MINOR.BUILD format."""
+        from dashboard import __version__
+
+        parts = __version__.split(".")
+        assert len(parts) == 3, f"Version should have 3 parts: {__version__}"
+
+        # All parts should be numeric
+        for part in parts:
+            assert part.isdigit(), f"Version parts should be numeric: {__version__}"
+
+    def test_version_is_mvp(self):
+        """Version starts with 0.x.x for MVP phase."""
+        from dashboard import __version__
+
+        assert __version__.startswith("0."), f"MVP version should start with 0.x: {__version__}"
+
+    def test_version_consistency(self):
+        """Version from dashboard matches version from version module."""
+        from dashboard import __version__ as pkg_version
+        from dashboard.version import __version__ as mod_version
+
+        assert pkg_version == mod_version

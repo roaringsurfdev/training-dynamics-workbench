@@ -6,17 +6,17 @@ To understand how the model learns to represent modular arithmetic during traini
 The visualization should show how the norm of Fourier basis coefficients evolves across training checkpoints, helping identify when specific frequencies emerge as important features.
 
 ## Conditions of Satisfaction
-- [ ] Analysis computation generates artifact: Fourier coefficient norms per checkpoint
-- [ ] Artifact saved to disk (e.g., `fourier_coefficients.npz`)
-- [ ] Visualization loads from artifact (no recomputation)
-- [ ] Line graph showing `(fourier_bases @ W_E).norm(dim=-1)` for each checkpoint
-- [ ] X-axis: Fourier basis components (frequency indices or labels)
-- [ ] Y-axis: Normed coefficients
-- [ ] Interactive slider to scrub through checkpoints (epoch selector)
+- [x] Analysis computation generates artifact: Fourier coefficient norms per checkpoint
+- [x] Artifact saved to disk (e.g., `fourier_coefficients.npz`)
+- [x] Visualization loads from artifact (no recomputation)
+- [x] Line graph showing `(fourier_bases @ W_E).norm(dim=-1)` for each checkpoint
+- [x] X-axis: Fourier basis components (frequency indices or labels)
+- [x] Y-axis: Normed coefficients
+- [x] Interactive slider to scrub through checkpoints (epoch selector)
 - [ ] Animation capability (auto-play through checkpoints) as additional feature
-- [ ] Uses FourierEvaluation utilities for computation
-- [ ] Visualization clearly shows dominant frequencies (threshold-based highlighting)
-- [ ] Threshold for dominance configurable in visualization (doesn't trigger recomputation)
+- [x] Uses FourierEvaluation utilities for computation
+- [x] Visualization clearly shows dominant frequencies (threshold-based highlighting)
+- [x] Threshold for dominance configurable in visualization (doesn't trigger recomputation)
 
 ## Constraints
 **Must have:**
@@ -80,4 +80,28 @@ The visualization should show how the norm of Fourier basis coefficients evolves
 - Ability to mark/annotate specific epochs of interest
 - Comparative view across multiple training runs
 
-[Claude adds implementation notes, alternatives considered, things to revisit]
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+**Key code location:**
+- `visualization/renderers/dominant_frequencies.py`
+
+**Functions implemented:**
+- `render_dominant_frequencies(artifact, epoch_idx, threshold, highlight_dominant, title)` → go.Figure
+  - Bar chart with Fourier component labels
+  - Threshold line with annotation
+  - Highlighting for dominant components
+- `render_dominant_frequencies_over_time(artifact, component_indices, top_k, title)` → go.Figure
+  - Line chart showing top components across epochs
+- `get_dominant_indices(coefficients, threshold)` → list of indices above threshold
+- `get_fourier_basis_names(n_components)` → list of component labels
+
+**Design decisions:**
+- Bar chart instead of line for cleaner discrete component display
+- Threshold line with annotation for clear visual reference
+- Opacity-based highlighting (full vs. faded) for dominant vs. non-dominant
+- Hover templates showing component name and exact value
+- Uses Plotly `go.Figure` for Gradio compatibility
+
+**Animation note:** Animation capability deferred to Gradio dashboard integration (REQ_008)

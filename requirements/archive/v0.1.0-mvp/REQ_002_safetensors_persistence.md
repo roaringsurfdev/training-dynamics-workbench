@@ -8,13 +8,13 @@ Additionally, the current implementation accumulates all checkpoints in memory d
 We need to migrate checkpoint persistence to use safetensors for model weights, save each checkpoint as a separate file immediately upon creation, and maintain separate storage for training metadata (losses, indices, config).
 
 ## Conditions of Satisfaction
-- [ ] Each checkpoint saved as separate safetensors file immediately upon creation
-- [ ] Checkpoints written to disk during training (not accumulated in memory)
-- [ ] Directory structure organizes checkpoints and metadata clearly
-- [ ] Training metadata (train_losses, test_losses, train_indices, test_indices) saved separately (JSON or similar)
-- [ ] Model configuration saved in readable format
-- [ ] Can load individual checkpoint by epoch number
-- [ ] Backward compatible: can still load old pickle-based checkpoints for analysis
+- [x] Each checkpoint saved as separate safetensors file immediately upon creation
+- [x] Checkpoints written to disk during training (not accumulated in memory)
+- [x] Directory structure organizes checkpoints and metadata clearly
+- [x] Training metadata (train_losses, test_losses, train_indices, test_indices) saved separately (JSON or similar)
+- [x] Model configuration saved in readable format
+- [x] Can load individual checkpoint by epoch number
+- [x] Backward compatible: can still load old pickle-based checkpoints for analysis
 
 ## Constraints
 **Must have:**
@@ -66,4 +66,43 @@ We need to migrate checkpoint persistence to use safetensors for model weights, 
 
 ---
 ## Notes
-[Claude adds implementation notes, alternatives considered, things to revisit]
+
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+**Directory structure implemented:**
+```
+results/
+  modulo_addition/
+    modulo_addition_p{prime}_seed{seed}/
+      modulo_addition_p{prime}_seed{seed}.safetensors  # Final model
+      checkpoints/
+        checkpoint_epoch_00000.safetensors
+        checkpoint_epoch_00100.safetensors
+        ...
+      artifacts/                    # Empty, for REQ_003
+      metadata.json                 # train_losses, test_losses, indices, checkpoint_epochs
+      config.json                   # Model architecture and training params
+```
+
+**Key code locations:**
+- `ModuloAdditionSpecification.py:40-56` - Directory structure setup in `__init__`
+- `ModuloAdditionSpecification.py:281-314` - Helper methods `_save_checkpoint`, `_save_config`, `_save_metadata`
+- `ModuloAdditionSpecification.py:86-132` - Updated `load_from_file` with format detection
+- `ModuloAdditionSpecification.py:134-188` - New methods `load_checkpoint`, `get_available_checkpoints`
+
+**Tests:** `tests/test_checkpoint_and_persistence.py`
+- `TestREQ002_SafetensorsPersistence` class contains 12 tests covering all CoS items
+- Backward compatibility tested by creating legacy pickle files and verifying load works
+
+**Design decisions:**
+- `load_from_file()` auto-detects format: tries safetensors first, falls back to legacy pickle
+- `load_checkpoint(epoch)` also supports legacy format for gradual migration
+- Removed `copy` module import since checkpoints are no longer accumulated in memory
+- Run name includes prime and seed for easy identification of different training runs
+
+**Backward compatibility approach:**
+- Legacy path (`results/modulo_addition/modulo_addition.pth`) preserved as fallback
+- When both formats exist, new format takes precedence
+- `load_checkpoint()` can retrieve from legacy format's in-memory checkpoint list

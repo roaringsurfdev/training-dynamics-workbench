@@ -6,17 +6,17 @@ The workbench needs a user interface to configure and launch training runs. Curr
 We need a Gradio dashboard that allows configuring model parameters, checkpoint settings, and initiating training runs through a web interface.
 
 ## Conditions of Satisfaction
-- [ ] Gradio interface with controls for key parameters:
+- [x] Gradio interface with controls for key parameters:
   - Modulus (p) - integer input
   - Random seed - integer input
   - Data seed - integer input
   - Training fraction - slider (0.0 to 1.0)
   - Checkpoint epochs - text input for integer list
   - Save path - text input
-- [ ] Button to start training
-- [ ] Status indicator showing training progress (simple text or progress bar acceptable)
-- [ ] Feedback when training completes
-- [ ] Training runs without blocking the interface (or clear indication it's running)
+- [x] Button to start training
+- [x] Status indicator showing training progress (simple text or progress bar acceptable)
+- [x] Feedback when training completes
+- [x] Training runs without blocking the interface (or clear indication it's running)
 
 ## Constraints
 **Must have:**
@@ -54,4 +54,27 @@ We need a Gradio dashboard that allows configuring model parameters, checkpoint 
 
 ---
 ## Notes
-[Claude adds implementation notes, alternatives considered, things to revisit]
+
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+**Key code location:**
+- `dashboard/app.py` - Main Gradio application (Training tab)
+
+**Training Tab UI:**
+- Modulus (p): Number input with info tooltip
+- Model Seed / Data Seed: Number inputs
+- Training Fraction: Slider 0.1-0.9
+- Total Epochs: Number input (default 25000)
+- Checkpoint Epochs: Comma-separated text input
+- Save Path: Text input (default "results/")
+- Start Training button with progress indicator
+
+**Implementation details:**
+- Training runs synchronously with `gr.Progress()` status updates
+- Input validation via `validate_training_params()` before execution
+- Status text shows final losses and model save path on completion
+- Integrates with `ModuloAdditionSpecification.train()`
+
+**Tests:** 21 tests in `tests/test_dashboard.py`

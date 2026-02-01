@@ -1,15 +1,25 @@
 import os
-from pathlib import Path
-
-import copy
+import json
+from typing import Optional
 
 import numpy as np
 
 import torch
+from safetensors.torch import save_file, load_file
 from transformer_lens import HookedTransformerConfig, HookedTransformer
 import einops
 
 import tqdm.auto as tqdm
+
+
+# Default checkpoint schedule optimized for grokking analysis
+# Dense checkpoints during grokking phase (5000-6000), sparse elsewhere
+DEFAULT_CHECKPOINT_EPOCHS = sorted(list(set([
+    *range(0, 1500, 100),      # Early training - sparse (~15 checkpoints)
+    *range(1500, 9000, 500),   # Mid training - moderate (~15 checkpoints)
+    *range(9000, 13000, 100),    # Grokking region - dense (~100 checkpoints)
+    *range(13000, 25000, 500),  # Post-grokking - moderate (~24 checkpoints)
+])))
 
 
 class ModuloAdditionSpecification:
@@ -19,9 +29,6 @@ class ModuloAdditionSpecification:
         self.model = None
         self.name = "modulo_addition"
         self.model_dir = model_dir
-        self.full_dir = os.path.join(model_dir, self.name)
-        self.full_path = os.path.join(self.model_dir, self.name, f"{self.name}.pth")
-        os.makedirs(Path(self.full_path).parent, exist_ok=True)
         self.prime = prime
         self.device = device
         self.seed = seed
@@ -29,6 +36,24 @@ class ModuloAdditionSpecification:
         self.training_fraction = training_fraction
         self.train_losses = []
         self.test_losses = []
+
+        # Directory structure for REQ_002
+        # results/{model_name}/{model_name}_p{prime}_seed{seed}/
+        self.run_name = f"{self.name}_p{prime}_seed{seed}"
+        self.full_dir = os.path.join(model_dir, self.name, self.run_name)
+        self.checkpoints_dir = os.path.join(self.full_dir, "checkpoints")
+        self.artifacts_dir = os.path.join(self.full_dir, "artifacts")
+
+        # File paths
+        self.model_path = os.path.join(self.full_dir, f"{self.run_name}.safetensors")
+        self.metadata_path = os.path.join(self.full_dir, "metadata.json")
+        self.config_path = os.path.join(self.full_dir, "config.json")
+
+        # Legacy path for backward compatibility
+        self.legacy_path = os.path.join(model_dir, self.name, f"{self.name}.pth")
+
+        os.makedirs(self.checkpoints_dir, exist_ok=True)
+        os.makedirs(self.artifacts_dir, exist_ok=True)
 
     def create_model(self):
         # %% model definition
@@ -59,20 +84,108 @@ class ModuloAdditionSpecification:
         return self.model
     
     def load_from_file(self) -> HookedTransformer:
-        # load the model
+        """
+        Load a trained model from file.
+
+        Automatically detects format:
+        - New format: safetensors + JSON metadata
+        - Legacy format: pickle-based .pth file
+
+        Returns:
+            HookedTransformer: The loaded model
+        """
         model = self.create_model()
-        cached_data = torch.load(self.full_path, weights_only=False)
-        model.load_state_dict(cached_data['model'])
-        self.model_checkpoints = cached_data["checkpoints"]
-        self.checkpoint_epochs = cached_data["checkpoint_epochs"]
-        self.test_losses = cached_data['test_losses']
-        self.train_losses = cached_data['train_losses']
-        self.train_indices = cached_data["train_indices"]
-        self.test_indices = cached_data["test_indices"]
+
+        # Try new safetensors format first
+        if os.path.exists(self.model_path):
+            state_dict = load_file(self.model_path)
+            model.load_state_dict(state_dict)
+
+            # Load metadata
+            with open(self.metadata_path, 'r') as f:
+                metadata = json.load(f)
+
+            self.checkpoint_epochs = metadata["checkpoint_epochs"]
+            self.test_losses = metadata["test_losses"]
+            self.train_losses = metadata["train_losses"]
+            self.train_indices = torch.tensor(metadata["train_indices"])
+            self.test_indices = torch.tensor(metadata["test_indices"])
+
+        # Fall back to legacy pickle format for backward compatibility
+        elif os.path.exists(self.legacy_path):
+            cached_data = torch.load(self.legacy_path, weights_only=False)
+            model.load_state_dict(cached_data['model'])
+            self.model_checkpoints = cached_data["checkpoints"]
+            self.checkpoint_epochs = cached_data["checkpoint_epochs"]
+            self.test_losses = cached_data['test_losses']
+            self.train_losses = cached_data['train_losses']
+            self.train_indices = cached_data["train_indices"]
+            self.test_indices = cached_data["test_indices"]
+        else:
+            raise FileNotFoundError(
+                f"No model found. Checked:\n"
+                f"  - {self.model_path}\n"
+                f"  - {self.legacy_path}"
+            )
 
         self.model = model
-
         return self.model
+
+    def load_checkpoint(self, epoch: int) -> dict:
+        """
+        Load a specific checkpoint by epoch number.
+
+        Args:
+            epoch: The epoch number of the checkpoint to load
+
+        Returns:
+            dict: The model state_dict at that epoch
+
+        Raises:
+            FileNotFoundError: If checkpoint doesn't exist
+        """
+        checkpoint_path = os.path.join(
+            self.checkpoints_dir,
+            f"checkpoint_epoch_{epoch:05d}.safetensors"
+        )
+
+        if os.path.exists(checkpoint_path):
+            return load_file(checkpoint_path)
+
+        # Try legacy format
+        if os.path.exists(self.legacy_path):
+            cached_data = torch.load(self.legacy_path, weights_only=False)
+            if hasattr(self, 'model_checkpoints') or "checkpoints" in cached_data:
+                checkpoints = cached_data.get("checkpoints", self.model_checkpoints)
+                epochs = cached_data.get("checkpoint_epochs", self.checkpoint_epochs)
+                if epoch in epochs:
+                    idx = epochs.index(epoch)
+                    return checkpoints[idx]
+
+        raise FileNotFoundError(f"No checkpoint found for epoch {epoch}")
+
+    def get_available_checkpoints(self) -> list[int]:
+        """
+        Get list of available checkpoint epochs.
+
+        Returns:
+            list[int]: Sorted list of epoch numbers with available checkpoints
+        """
+        epochs = []
+
+        # Check new format checkpoints
+        if os.path.exists(self.checkpoints_dir):
+            for filename in os.listdir(self.checkpoints_dir):
+                if filename.startswith("checkpoint_epoch_") and filename.endswith(".safetensors"):
+                    epoch_str = filename.replace("checkpoint_epoch_", "").replace(".safetensors", "")
+                    epochs.append(int(epoch_str))
+
+        # Check legacy format
+        if not epochs and os.path.exists(self.legacy_path):
+            cached_data = torch.load(self.legacy_path, weights_only=False)
+            epochs = cached_data.get("checkpoint_epochs", [])
+
+        return sorted(epochs)
     
     def loss_function(self, logits, labels):
         if len(logits.shape)==3:
@@ -92,16 +205,29 @@ class ModuloAdditionSpecification:
         return optimizer
 
     
-    def train(self) -> HookedTransformer:
+    def train(self, num_epochs: int = 25000, checkpoint_epochs: Optional[list[int]] = None) -> HookedTransformer:
+        """
+        Train the model with configurable checkpoint epochs.
 
+        Args:
+            num_epochs: Total number of training epochs (default: 25000)
+            checkpoint_epochs: List of epoch numbers at which to save checkpoints.
+                             If None, uses DEFAULT_CHECKPOINT_EPOCHS.
+                             Epochs >= num_epochs are automatically filtered out.
+        """
         train_data, train_labels, test_data, test_labels, train_indices, test_indices = self.generate_training_data()
-        
-        num_epochs = 25000
-        checkpoint_every = 100
+
+        # Use default checkpoint schedule if none provided (REQ_001)
+        if checkpoint_epochs is None:
+            checkpoint_epochs = DEFAULT_CHECKPOINT_EPOCHS
+
+        # Filter and sort checkpoint epochs, convert to set for O(1) lookup
+        checkpoint_epochs = sorted([e for e in checkpoint_epochs if e < num_epochs])
+        checkpoint_epochs_set = set(checkpoint_epochs)
+
         train_losses = []
         test_losses = []
-        model_checkpoints = []
-        checkpoint_epochs = []
+        saved_checkpoint_epochs = []
 
         model = self.create_model()
         optimizer = self.get_optimizer(model)
@@ -119,34 +245,73 @@ class ModuloAdditionSpecification:
                 test_logits = model(test_data)
                 test_loss = self.loss_function(test_logits, test_labels)
                 test_losses.append(test_loss.item())
-            
-            if ((epoch+1)%checkpoint_every)==0:
-                checkpoint_epochs.append(epoch)
-                model_checkpoints.append(copy.deepcopy(model.state_dict()))
-                print(f"Epoch {epoch} Train Loss {train_loss.item()} Test Loss {test_loss.item()}")
 
-        # save the model outputs
-        torch.save(
-            {
-                "model":model.state_dict(),
-                "config": model.cfg,
-                "checkpoints": model_checkpoints,
-                "checkpoint_epochs": checkpoint_epochs,
-                "test_losses": test_losses,
-                "train_losses": train_losses,
-                "train_indices": train_indices,
-                "test_indices": test_indices,
-            },
-            self.full_path)
-        
+            # Save checkpoint immediately to disk if this epoch is in the checkpoint list (REQ_001 + REQ_002)
+            if epoch in checkpoint_epochs_set:
+                self._save_checkpoint(model.state_dict(), epoch)
+                saved_checkpoint_epochs.append(epoch)
+                print(f"Epoch {epoch} Train Loss {train_loss.item():.6f} Test Loss {test_loss.item():.6f}")
+
+        # Save final model as safetensors (REQ_002)
+        save_file(model.state_dict(), self.model_path)
+
+        # Save model config as JSON (REQ_002)
+        self._save_config(model.cfg)
+
+        # Save training metadata as JSON (REQ_002)
+        self._save_metadata(
+            train_losses=train_losses,
+            test_losses=test_losses,
+            train_indices=train_indices.tolist(),
+            test_indices=test_indices.tolist(),
+            checkpoint_epochs=saved_checkpoint_epochs,
+            num_epochs=num_epochs,
+        )
+
         self.test_losses = test_losses
         self.train_losses = train_losses
         self.train_indices = train_indices
         self.test_indices = test_indices
+        self.checkpoint_epochs = saved_checkpoint_epochs
 
         self.model = model
 
         return self.model
+
+    def _save_checkpoint(self, state_dict: dict, epoch: int) -> None:
+        """Save a single checkpoint to disk as safetensors."""
+        checkpoint_path = os.path.join(
+            self.checkpoints_dir,
+            f"checkpoint_epoch_{epoch:05d}.safetensors"
+        )
+        save_file(state_dict, checkpoint_path)
+
+    def _save_config(self, cfg: HookedTransformerConfig) -> None:
+        """Save model configuration as JSON."""
+        config_dict = {
+            "n_layers": cfg.n_layers,
+            "n_heads": cfg.n_heads,
+            "d_model": cfg.d_model,
+            "d_head": cfg.d_head,
+            "d_mlp": cfg.d_mlp,
+            "act_fn": cfg.act_fn,
+            "normalization_type": cfg.normalization_type,
+            "d_vocab": cfg.d_vocab,
+            "d_vocab_out": cfg.d_vocab_out,
+            "n_ctx": cfg.n_ctx,
+            "seed": cfg.seed,
+            "prime": self.prime,
+            "model_seed": self.seed,
+            "data_seed": self.data_seed,
+            "training_fraction": self.training_fraction,
+        }
+        with open(self.config_path, 'w') as f:
+            json.dump(config_dict, f, indent=2)
+
+    def _save_metadata(self, **kwargs) -> None:
+        """Save training metadata as JSON."""
+        with open(self.metadata_path, 'w') as f:
+            json.dump(kwargs, f)
     
     def generate_training_data(self):
         a_vector = einops.repeat(torch.arange(self.prime), "i -> (i j)", j=self.prime)

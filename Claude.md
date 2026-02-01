@@ -121,10 +121,18 @@ Requirements are documented in `/requirements/` using a structured format that e
 - Explicit constraints and decision authority
 - Testable outcomes
 
-See `/requirements/TEMPLATE.md` for the standard requirement format.
+**Directory structure:**
+```
+/requirements/
+├── README.md           # Current status and workflow guide
+├── active/             # Requirements currently being worked on
+└── archive/            # Completed requirements by milestone
+    └── vX.Y.Z-name/    # Each milestone preserves its requirements
+```
 
 **Working with requirements:**
-- Claude works on requirements via explicit direction (e.g., "Work on REQ_003")
+- Claude works on requirements via explicit direction (e.g., "Work on REQ_011")
+- New requirements go in `requirements/active/`
 - Requirements are stated in terms of problems to solve, not solutions expected
 - Every requirement includes conditions of satisfaction to define "done"
 - Claude has two outlets for observations and suggestions:
@@ -137,18 +145,41 @@ See `/requirements/TEMPLATE.md` for the standard requirement format.
 
 This approach maintains flow while preserving collaborative intelligence for asynchronous review.
 
+### Milestone Releases
+
+When a set of requirements is complete, follow this process:
+
+1. **Bump version** in `dashboard/version.py`
+2. **Update CHANGELOG.md** with release notes (features, architecture notes, references)
+3. **Archive requirements:**
+   - Create `requirements/archive/vX.Y.Z-name/`
+   - Move completed requirements from `active/` to archive
+   - Create `MILESTONE_SUMMARY.md` with key decisions and file locations
+4. **Commit** with message: "Release vX.Y.Z milestone-name"
+
+**Why archive?**
+- Detailed requirements served as implementation contracts
+- Post-implementation, code and tests are the source of truth
+- CHANGELOG.md provides quick context (< 100 lines per milestone)
+- Archived requirements preserve decision rationale for archaeology
+
 ## Project Structure
 
 ```
-/policies/           # Development policies and procedures
-  debugging/         # Structured debugging policy
-    README.md        # Complete debugging workflow
-    templates/       # Templates for each debugging phase
-/requirements/       # Project requirements
-  TEMPLATE.md        # Standard requirement format
-  REQ_NNN_name.md    # Individual requirements
-/notes/              # Claude's observations and suggestions
-  thoughts.md        # Unstructured parking lot for ideas
+CHANGELOG.md           # Version history and release notes
+/policies/             # Development policies and procedures
+  debugging/           # Structured debugging policy
+    README.md          # Complete debugging workflow
+    templates/         # Templates for each debugging phase
+/requirements/         # Project requirements
+  README.md            # Current status and workflow
+  active/              # Requirements being worked on
+  archive/             # Completed requirements by milestone
+    vX.Y.Z-name/       # Milestone archive
+      MILESTONE_SUMMARY.md
+      REQ_NNN_*.md
+/notes/                # Claude's observations and suggestions
+  thoughts.md          # Unstructured parking lot for ideas
 ```
 
 ---
@@ -270,6 +301,6 @@ The goal is not rigid rules but shared understanding that empowers both of us to
 
 ---
 
-**Version:** 0.4
-**Last Updated:** 2026-01-31
-**Status:** Added testing philosophy
+**Version:** 0.5
+**Last Updated:** 2026-02-01
+**Status:** Added milestone release process and updated requirements structure
