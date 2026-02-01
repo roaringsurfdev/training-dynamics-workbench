@@ -6,11 +6,11 @@ The training runner currently checkpoints at fixed intervals (every 100 epochs).
 We need to be able to specify an integer list of epoch numbers where checkpoints should be saved, rather than using a fixed interval.
 
 ## Conditions of Satisfaction
-- [ ] Training accepts a list of epoch numbers for checkpointing (e.g., [100, 200, 500, 1000, 1500, 2000, ...])
-- [ ] Checkpoints are saved only at the specified epochs
-- [ ] If checkpoint list is not provided, falls back to reasonable default behavior
-- [ ] Checkpoint list can be configured per training run
-- [ ] Training loop efficiently handles arbitrary checkpoint spacing
+- [x] Training accepts a list of epoch numbers for checkpointing (e.g., [100, 200, 500, 1000, 1500, 2000, ...])
+- [x] Checkpoints are saved only at the specified epochs
+- [x] If checkpoint list is not provided, falls back to reasonable default behavior
+- [x] Checkpoint list can be configured per training run
+- [x] Training loop efficiently handles arbitrary checkpoint spacing
 
 ## Constraints
 **Must have:**
@@ -76,4 +76,26 @@ This strategy provides:
 - Fixed interval with manual additions: Less clean, harder to reason about coverage
 - Adaptive checkpointing based on loss changes: More complex, requires online monitoring
 
-[Claude adds additional implementation notes]
+---
+
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+**Approach taken:**
+- Added `checkpoint_epochs` parameter to `train()` method (chosen over constructor to allow per-run configuration)
+- Created `DEFAULT_CHECKPOINT_EPOCHS` constant at module level (46 checkpoints, matches proposed strategy)
+- Checkpoint epochs are converted to a set for O(1) lookup during training loop
+- Epochs >= num_epochs are automatically filtered out
+
+**Key code locations:**
+- `ModuloAdditionSpecification.py:17-22` - DEFAULT_CHECKPOINT_EPOCHS constant
+- `ModuloAdditionSpecification.py:208-279` - Updated train() method with checkpoint_epochs parameter
+
+**Tests:** `tests/test_checkpoint_and_persistence.py`
+- `TestREQ001_ConfigurableCheckpointEpochs` class contains 7 tests covering all CoS items
+
+**Design decisions:**
+- Chose method parameter over constructor argument for flexibility (same spec can train with different schedules)
+- Used set for checkpoint lookup to ensure no performance degradation even with large checkpoint lists
+- Kept epoch numbering 0-indexed to match Python conventions and existing code
