@@ -8,6 +8,7 @@ This directory contains requirements for the Training Dynamics Workbench.
 requirements/
 ├── README.md           # This file
 ├── active/             # Requirements currently being worked on
+├── future/             # Deferred/future requirements (not yet scheduled)
 └── archive/            # Completed requirements organized by milestone
     └── v0.1.0-mvp/     # MVP milestone (released 2026-02-01)
 ```
@@ -23,6 +24,18 @@ requirements/
 | [REQ_011](active/REQ_011_ruff_pyright_enforcement.md) | Make ruff/pyright CI checks blocking |
 | [REQ_012](active/REQ_012_remove_neel_plotly.md) | Remove neel-plotly dependency |
 | [REQ_013](active/REQ_013_python_311_compatibility.md) | Support Python 3.11+ |
+| [REQ_016](active/REQ_016_cuda_compute.md) | CUDA support for analysis |
+| [REQ_018](active/REQ_018_cuda_training.md) | CUDA support for training |
+
+### Future Requirements
+
+Requirements that have been documented but are not yet scheduled for implementation.
+
+| Requirement | Description | Priority | Effort |
+|-------------|-------------|----------|--------|
+| [REQ_014](future/REQ_014_checkpoint_click_navigation.md) | Click-to-navigate checkpoint markers | Low | Medium |
+| [REQ_015](future/REQ_015_checkpoint_editor.md) | Checkpoint editor using Train/Test loss curve | Medium | High |
+| [REQ_017](future/REQ_017_multi_model_support.md) | Support for multiple toy models | High | High |
 
 ### Completed Milestones
 
@@ -34,18 +47,22 @@ requirements/
 
 ### Adding New Requirements
 
-1. Create a new requirement file in `active/` using the naming convention:
+1. Create a new requirement file using the naming convention:
    ```
    REQ_XXX_short_description.md
    ```
 
-2. Use the template structure:
+2. Place in the appropriate directory:
+   - `active/` - Requirements scheduled for near-term implementation
+   - `future/` - Documented requirements not yet scheduled (deferred, exploratory)
+
+3. Use the template structure:
    - Problem Statement
    - Conditions of Satisfaction
    - Constraints
    - Context & Assumptions
 
-3. Reference by number: "Work on REQ_011"
+4. Reference by number: "Work on REQ_011"
 
 ### Completing a Milestone
 
