@@ -15,10 +15,10 @@ import tqdm.auto as tqdm
 # Default checkpoint schedule optimized for grokking analysis
 # Dense checkpoints during grokking phase (5000-6000), sparse elsewhere
 DEFAULT_CHECKPOINT_EPOCHS = sorted(list(set([
-    *range(0, 1000, 100),      # Early training - sparse (~10 checkpoints)
-    *range(1000, 5000, 500),   # Mid training - moderate (~8 checkpoints)
-    *range(5000, 6000, 50),    # Grokking region - dense (~20 checkpoints)
-    *range(6000, 10000, 500),  # Post-grokking - moderate (~8 checkpoints)
+    *range(0, 1500, 100),      # Early training - sparse (~15 checkpoints)
+    *range(1500, 9000, 500),   # Mid training - moderate (~15 checkpoints)
+    *range(9000, 13000, 100),    # Grokking region - dense (~100 checkpoints)
+    *range(13000, 25000, 500),  # Post-grokking - moderate (~24 checkpoints)
 ])))
 
 
