@@ -102,6 +102,17 @@ A logical unit is a meaningful chunk of work that can be described as a complete
 
 *Note: This workflow is designed to evolve. As patterns emerge, responsibilities may shift (e.g., Claude taking on pushing to remote) and branch strategy may adapt (e.g., tying branches to issues).*
 
+**Continuous Integration:**
+- PRs to `develop` and `main` trigger CI workflow
+- Tests must pass before merge (blocking)
+- Lint/typecheck run as advisory (non-blocking for now)
+
+**Merging to Main (Milestone Releases):**
+1. Create PR from `develop` → `main` on GitHub
+2. Wait for CI to pass
+3. Merge PR (creates permanent record of release)
+4. Optionally create GitHub Release with version tag
+
 ### Testing
 
 **Philosophy:** Conditions of Satisfaction define minimum test coverage, not maximum. Tests should exist for every CoS item. Additional tests are created as needed during development when assumptions or edge cases are discovered.
@@ -301,6 +312,6 @@ The goal is not rigid rules but shared understanding that empowers both of us to
 
 ---
 
-**Version:** 0.5
+**Version:** 0.6
 **Last Updated:** 2026-02-01
-**Status:** Added milestone release process and updated requirements structure
+**Status:** Added CI workflow and PR merge process
