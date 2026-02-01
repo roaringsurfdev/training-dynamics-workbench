@@ -15,15 +15,15 @@ The analysis engine should separate concerns:
 This separation enables fast iteration on visualizations without re-running expensive computations.
 
 ## Conditions of Satisfaction
-- [ ] AnalysisPipeline class or module that orchestrates analysis
-- [ ] Can load checkpoints from a training run by epoch number
-- [ ] Executes analysis computations across specified checkpoints
-- [ ] Saves analysis artifacts to disk (persistent, reusable)
-- [ ] Artifacts stored in organized directory structure alongside checkpoints
-- [ ] Visualization components can load artifacts independently without recomputation
-- [ ] Analysis functions are modular and can be composed
-- [ ] Progress indication during analysis (simple logging acceptable for MVP)
-- [ ] Can resume/skip analysis if artifacts already exist (avoid redundant computation)
+- [x] AnalysisPipeline class or module that orchestrates analysis
+- [x] Can load checkpoints from a training run by epoch number
+- [x] Executes analysis computations across specified checkpoints
+- [x] Saves analysis artifacts to disk (persistent, reusable)
+- [x] Artifacts stored in organized directory structure alongside checkpoints
+- [x] Visualization components can load artifacts independently without recomputation
+- [x] Analysis functions are modular and can be composed
+- [x] Progress indication during analysis (simple logging acceptable for MVP)
+- [x] Can resume/skip analysis if artifacts already exist (avoid redundant computation)
 
 ## Constraints
 **Must have:**
@@ -84,4 +84,55 @@ This separation enables fast iteration on visualizations without re-running expe
 
 ---
 ## Notes
-[Claude adds implementation notes, alternatives considered, things to revisit]
+
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-01-31
+
+### Sub-Requirements Completed
+
+| Sub-Requirement | Description | Status |
+|-----------------|-------------|--------|
+| REQ_003_001 | Core Infrastructure | Complete |
+| REQ_003_002 | Dominant Frequencies Analyzer | Complete |
+| REQ_003_003 | Remaining Analyzers | Complete |
+| REQ_003_004 | Artifact Loader | Complete |
+| REQ_003_005 | Polish & Integration Tests | Complete |
+
+### Package Structure Created
+
+```
+analysis/
+  __init__.py              # Exports Analyzer, AnalysisPipeline, ArtifactLoader
+  protocols.py             # Analyzer Protocol definition
+  pipeline.py              # AnalysisPipeline class
+  artifact_loader.py       # Standalone ArtifactLoader
+  analyzers/
+    __init__.py
+    dominant_frequencies.py
+    neuron_activations.py
+    neuron_freq_clusters.py
+```
+
+### Key Design Decisions
+
+1. **Protocol-based Analyzer interface**: Uses `@runtime_checkable` Protocol for composition-friendly, testable design
+2. **NumPy .npz artifacts**: Simple format, no external dependencies, easily inspectable
+3. **Manifest.json tracking**: Enables resumability at epoch-level granularity
+4. **Atomic writes**: Uses temp file + rename pattern for data integrity
+5. **Standalone ArtifactLoader**: Visualization layer can load without pipeline dependency
+
+### Test Coverage
+
+- 100 total tests
+- 80 tests for REQ_003 specifically
+- 9 integration tests mapping to parent CoS items
+- All tests passing
+
+### Artifacts Produced
+
+For each analysis run:
+- `dominant_frequencies.npz` - Fourier coefficient norms (n_epochs, n_components)
+- `neuron_activations.npz` - MLP activations (n_epochs, d_mlp, p, p)
+- `neuron_freq_norm.npz` - Frequency specialization (n_epochs, p//2, d_mlp)
+- `manifest.json` - Metadata and completion tracking
