@@ -114,15 +114,16 @@ class TestREQ001_ConfigurableCheckpointEpochs:
 
     def test_default_checkpoint_schedule_structure(self):
         """Verify default checkpoint schedule has expected structure."""
-        # Should have dense checkpoints in grokking region (5000-6000)
-        grokking_checkpoints = [e for e in DEFAULT_CHECKPOINT_EPOCHS if 5000 <= e < 6000]
-        early_checkpoints = [e for e in DEFAULT_CHECKPOINT_EPOCHS if e < 1000]
+        # Should have dense checkpoints in grokking region (9000-13000)
+        # Note: Grokking region was moved from 5000-6000 to 9000-13000 based on p=113 observations
+        grokking_checkpoints = [e for e in DEFAULT_CHECKPOINT_EPOCHS if 9000 <= e < 10000]
+        mid_checkpoints = [e for e in DEFAULT_CHECKPOINT_EPOCHS if 2000 <= e < 3000]
 
-        # Grokking region should have more checkpoints per 1000 epochs
+        # Grokking region should have more checkpoints per 1000 epochs than mid region
         grokking_density = len(grokking_checkpoints) / 1000
-        early_density = len(early_checkpoints) / 1000
+        mid_density = len(mid_checkpoints) / 1000
 
-        assert grokking_density > early_density, "Grokking region should have denser checkpoints"
+        assert grokking_density > mid_density, "Grokking region should have denser checkpoints"
 
 
 # =============================================================================
