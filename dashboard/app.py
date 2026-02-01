@@ -11,6 +11,7 @@ from pathlib import Path
 
 import gradio as gr
 import numpy as np
+import torch
 
 from analysis import AnalysisPipeline, ArtifactLoader
 from analysis.analyzers import (
@@ -93,7 +94,7 @@ def run_training(
         spec = ModuloAdditionSpecification(
             model_dir=save_path,
             prime=int(modulus),
-            device="cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu",
+            device="cuda" if torch.cuda.is_available() else "cpu",
             seed=int(model_seed),
             data_seed=int(data_seed),
             training_fraction=train_fraction,
@@ -224,7 +225,7 @@ def run_analysis(model_path: str | None, state: DashboardState, progress=gr.Prog
         spec = ModuloAdditionSpecification(
             model_dir=str(Path(model_path).parent.parent),
             prime=config.get("prime", config.get("n_ctx")),
-            device="cpu",
+            device="cuda" if torch.cuda.is_available() else "cpu",
             seed=config.get("model_seed", config.get("seed", 999)),
         )
 
