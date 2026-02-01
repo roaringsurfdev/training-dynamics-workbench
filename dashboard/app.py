@@ -141,7 +141,7 @@ def load_model_data(model_path: str | None, state: DashboardState):
             create_empty_plot("Select a model"),
             create_empty_plot("Select a model"),
             "No model selected",
-            512,
+            gr.Slider(minimum=0, maximum=511, value=0, step=1),
         )
 
     state.selected_model_path = model_path
@@ -203,7 +203,7 @@ def load_model_data(model_path: str | None, state: DashboardState):
         plots[2],  # activation
         plots[3],  # clusters
         status,
-        state.n_neurons - 1,  # neuron slider max
+        gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
     )
 
 
