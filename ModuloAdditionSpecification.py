@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import copy
 
 import numpy as np
@@ -12,9 +15,13 @@ import tqdm.auto as tqdm
 class ModuloAdditionSpecification:
     """Baseline modulo addition model"""
 
-    def __init__(self, path, prime, device, seed=999, data_seed=598, training_fraction=0.3):
+    def __init__(self, model_dir, prime, device, seed=999, data_seed=598, training_fraction=0.3):
         self.model = None
-        self.path = path
+        self.name = "modulo_addition"
+        self.model_dir = model_dir
+        self.full_dir = os.path.join(model_dir, self.name)
+        self.full_path = os.path.join(self.model_dir, self.name, f"{self.name}.pth")
+        os.makedirs(Path(self.full_path).parent, exist_ok=True)
         self.prime = prime
         self.device = device
         self.seed = seed
@@ -54,8 +61,7 @@ class ModuloAdditionSpecification:
     def load_from_file(self) -> HookedTransformer:
         # load the model
         model = self.create_model()
-
-        cached_data = torch.load(self.path, weights_only=False)
+        cached_data = torch.load(self.full_path, weights_only=False)
         model.load_state_dict(cached_data['model'])
         self.model_checkpoints = cached_data["checkpoints"]
         self.checkpoint_epochs = cached_data["checkpoint_epochs"]
@@ -131,7 +137,7 @@ class ModuloAdditionSpecification:
                 "train_indices": train_indices,
                 "test_indices": test_indices,
             },
-            self.path)
+            self.full_path)
         
         self.test_losses = test_losses
         self.train_losses = train_losses

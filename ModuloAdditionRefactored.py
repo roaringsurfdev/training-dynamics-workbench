@@ -23,10 +23,7 @@ from ModuloAdditionSpecification import ModuloAdditionSpecification
 p = 113
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # Define the location to save the model, using a relative path
-MODEL_PATH = os.path.join(os.getcwd(), "results", "grokking_demo_refactored.pth")
-
-# Create the directory if it does not exist
-os.makedirs(Path(MODEL_PATH).parent, exist_ok=True)
+MODEL_PATH = os.path.join(os.getcwd(), "results")
 
 model_spec = ModuloAdditionSpecification(MODEL_PATH, p, device)
 
