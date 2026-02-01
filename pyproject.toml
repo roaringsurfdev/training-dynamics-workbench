@@ -1,7 +1,7 @@
 [project]
 name = "training-dynamics-workbench"
 version = "0.1.0"
-description = "Add your description here"
+description = "Mechanistic interpretability workbench for analyzing training dynamics"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -14,5 +14,28 @@ dependencies = [
     "transformer-lens>=2.17.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.9.0",
+    "pyright>=1.1.350",
+]
+
 [tool.uv.sources]
 neel-plotly = { git = "https://github.com/neelnanda-io/neel-plotly.git" }
+
+[tool.pytest.ini_options]
+markers = [
+    "gpu: marks tests as requiring GPU (deselect with '-m \"not gpu\"')",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]  # Line length handled separately
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
