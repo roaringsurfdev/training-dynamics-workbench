@@ -12,8 +12,7 @@ import transformer_lens.utils as utils
 
 import plotly.io as pio
 import plotly.express as px
-from neel_plotly.plot import line
-from neel_plotly.plot import line as line2
+from visualization import line
 
 import FourierEvaluation
 from ModuloAdditionSpecification import ModuloAdditionSpecification
@@ -52,6 +51,7 @@ else:
     model = model_spec.load_from_file()
 
 # %% Show model training
+
 pio.renderers.default = "vscode"
 pio.templates['plotly'].layout.xaxis.title.font.size = 20
 pio.templates['plotly'].layout.yaxis.title.font.size = 20
@@ -63,9 +63,6 @@ line([model_spec.train_losses[::100], model_spec.test_losses[::100]], x=np.arang
 # %% Analyis - helper functions
 def imshow(tensor, renderer=None, xaxis="", yaxis="", **kwargs):
     px.imshow(utils.to_numpy(tensor), color_continuous_midpoint=0.0, color_continuous_scale="RdBu", labels={"x":xaxis, "y":yaxis}, **kwargs).show(renderer)
-
-def line(tensor, renderer=None, xaxis="", yaxis="", **kwargs):
-    px.line(utils.to_numpy(tensor), labels={"x":xaxis, "y":yaxis}, **kwargs).show(renderer)
 
 def scatter(x, y, xaxis="", yaxis="", caxis="", renderer=None, **kwargs):
     x = utils.to_numpy(x)
@@ -129,12 +126,12 @@ print(f"Dominant Bases (indices): {dominant_indices}")
 
 imshow(fourier_basis, xaxis="Input", yaxis="Component", y=fourier_basis_names)
 
-line2(fourier_basis[:8], xaxis="Input", line_labels=fourier_basis_names[:8], title="First 8 Fourier Components")
-line2(fourier_basis[25:29], xaxis="Input", line_labels=fourier_basis_names[25:29], title="Middle Fourier Components")
+line(fourier_basis[:8], xaxis="Input", line_labels=fourier_basis_names[:8], title="First 8 Fourier Components")
+line(fourier_basis[25:29], xaxis="Input", line_labels=fourier_basis_names[25:29], title="Middle Fourier Components")
 imshow(fourier_basis @ fourier_basis.T, title="All Fourier Vectors are Orthogonal")
 
 # %% Explaining the Algorithm - Norms of Embedding in Fourier Basis
-line2((fourier_basis @ W_E).norm(dim=-1), xaxis="Fourier Component", x=fourier_basis_names, title="Norms of Embedding in Fourier Basis")
+line((fourier_basis @ W_E).norm(dim=-1), xaxis="Fourier Component", x=fourier_basis_names, title="Norms of Embedding in Fourier Basis")
 
 # %% Explaining the Algorithm - Key frequencies
 key_freq_indices = dominant_indices
@@ -149,10 +146,10 @@ imshow(key_fourier_embed @ key_fourier_embed.T, title="Dot Product of embedding 
 # %% Explaining the Algorithm - Key frequencies - Cos
 key_freq_indices_cos = dominant_indices[1::2]
 print(f"Refactored cos frequency indices: {key_freq_indices_cos}")
-line2(fourier_basis[key_freq_indices_cos], title="Cos of key freqs", line_labels=key_freq_indices_cos)
+line(fourier_basis[key_freq_indices_cos], title="Cos of key freqs", line_labels=key_freq_indices_cos)
 
 # %% Explaining the Algorithm - Constructive Interference
-line2(fourier_basis[key_freq_indices_cos].mean(0), title="Constructive Interference")
+line(fourier_basis[key_freq_indices_cos].mean(0), title="Constructive Interference")
 
 # %% Analyse Neuron Activations
 # Visualization: First 5 neuron activations
@@ -198,23 +195,23 @@ neuron_freq_norm = neuron_freq_norm / fourier_neuron_acts.pow(2).sum(dim=[-1, -2
 imshow(neuron_freq_norm, xaxis="Neuron", yaxis="Freq", y=torch.arange(1, p//2+1), title="Neuron Frac Explained by Freq")
 
 # Visualization: Max Neuron Frac Explained over Freqs
-line2(neuron_freq_norm.max(dim=0).values.sort().values, xaxis="Neuron", title="Max Neuron Frac Explained over Freqs")
+line(neuron_freq_norm.max(dim=0).values.sort().values, xaxis="Neuron", title="Max Neuron Frac Explained over Freqs")
 # %% Analysis - Read Off the Neuron-Logit Weights to Interpret
 W_logit = model.blocks[0].mlp.W_out @ model.unembed.W_U
 print("W_logit", W_logit.shape)
-line2((W_logit @ fourier_basis.T).norm(dim=0), x=fourier_basis_names, title="W_logit in the Fourier Basis")
+line((W_logit @ fourier_basis.T).norm(dim=0), x=fourier_basis_names, title="W_logit in the Fourier Basis")
 # %%
 for i in range(len(key_freqs)):
     frequency = key_freqs[i]//2
     neurons = neuron_freq_norm[frequency-1]>0.85
-    line2((W_logit[neurons] @ fourier_basis.T).norm(dim=0), x=fourier_basis_names, title=f"W_logit for freq {frequency} neurons in the Fourier Basis")
+    line((W_logit[neurons] @ fourier_basis.T).norm(dim=0), x=fourier_basis_names, title=f"W_logit for freq {frequency} neurons in the Fourier Basis")
 # %%
 for i in range(len(key_freqs)):
     frequency = key_freqs[i]
     sin_frequency = frequency - 1
     W_logit_fourier = W_logit @ fourier_basis
     neurons_sin_i = W_logit_fourier[:, sin_frequency]
-    line2(neurons_sin_i, title=f"W_logit @ fourier_basis for Frequency {frequency//2}")
+    line(neurons_sin_i, title=f"W_logit @ fourier_basis for Frequency {frequency//2}")
 # %% Analysis - Fourier heatmap over inputs for sin9c
 freq = 55
 neurons_sin_9 = W_logit_fourier[:, 2*freq-1]
