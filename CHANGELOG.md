@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Training previously required `CUDA_VISIBLE_DEVICES` env var to detect GPU
   - Analysis was hardcoded to CPU only
 
+### References
+
+- Archived requirements: `requirements/archive/v0.1.1-cuda/`
+- Milestone summary: `requirements/archive/v0.1.1-cuda/MILESTONE_SUMMARY.md`
+
 ## [0.1.0] - 2026-02-01
 
 **MVP Release** - First functional version of the Training Dynamics Workbench.
