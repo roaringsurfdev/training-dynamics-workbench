@@ -6,11 +6,10 @@ REQ_009: Loss curves with epoch indicator
 """
 
 import json
-import os
 from pathlib import Path
 
 import gradio as gr
-import numpy as np
+import plotly.graph_objects as go
 import torch
 
 from analysis import AnalysisPipeline, ArtifactLoader
@@ -21,13 +20,13 @@ from analysis.analyzers import (
 )
 from dashboard.components.loss_curves import render_loss_curves_with_indicator
 from dashboard.state import DashboardState
-from dashboard.version import __version__
 from dashboard.utils import (
     discover_trained_models,
     get_model_choices,
     parse_checkpoint_epochs,
     validate_training_params,
 )
+from dashboard.version import __version__
 from ModuloAdditionSpecification import ModuloAdditionSpecification
 from visualization import (
     render_dominant_frequencies,
@@ -36,10 +35,8 @@ from visualization import (
 )
 
 
-def create_empty_plot(message: str = "No data") -> dict:
+def create_empty_plot(message: str = "No data") -> go.Figure:
     """Create an empty Plotly figure with a message."""
-    import plotly.graph_objects as go
-
     fig = go.Figure()
     fig.add_annotation(
         text=message,
@@ -191,7 +188,7 @@ def load_model_data(model_path: str | None, state: DashboardState):
     # Configure slider
     max_idx = max(0, len(state.available_epochs) - 1)
 
-    status = f"Loaded: p={state.model_config.get('prime', '?')}"
+    status = f"Loaded: p={(state.model_config or {}).get('prime', '?')}"
     if state.available_epochs:
         status += f", {len(state.available_epochs)} checkpoints"
     else:
@@ -352,9 +349,7 @@ def create_app() -> gr.Blocks:
                             precision=0,
                             info="Prime number for modular arithmetic",
                         )
-                        model_seed = gr.Number(
-                            label="Model Seed", value=999, precision=0
-                        )
+                        model_seed = gr.Number(label="Model Seed", value=999, precision=0)
                         data_seed = gr.Number(label="Data Seed", value=598, precision=0)
                         train_fraction = gr.Slider(
                             minimum=0.1,
@@ -363,9 +358,7 @@ def create_app() -> gr.Blocks:
                             step=0.05,
                             label="Training Fraction",
                         )
-                        num_epochs = gr.Number(
-                            label="Total Epochs", value=25000, precision=0
-                        )
+                        num_epochs = gr.Number(label="Total Epochs", value=25000, precision=0)
                         checkpoint_str = gr.Textbox(
                             label="Checkpoint Epochs (comma-separated)",
                             value="0, 100, 500, 1000, 2000, 5000, 5500, 6000, 10000, 15000, 20000, 24999",

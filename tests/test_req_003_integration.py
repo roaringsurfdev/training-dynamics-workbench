@@ -76,9 +76,7 @@ class TestREQ003_ConditionsOfSatisfaction:
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact_path = os.path.join(
-            model_spec.artifacts_dir, "dominant_frequencies.npz"
-        )
+        artifact_path = os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz")
         assert os.path.exists(artifact_path)
 
     def test_cos_artifacts_organized_directory(self, model_spec):
@@ -122,15 +120,9 @@ class TestREQ003_ConditionsOfSatisfaction:
         pipeline.run()
 
         # All produced separate artifacts
-        assert os.path.exists(
-            os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz")
-        )
-        assert os.path.exists(
-            os.path.join(model_spec.artifacts_dir, "neuron_activations.npz")
-        )
-        assert os.path.exists(
-            os.path.join(model_spec.artifacts_dir, "neuron_freq_norm.npz")
-        )
+        assert os.path.exists(os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz"))
+        assert os.path.exists(os.path.join(model_spec.artifacts_dir, "neuron_activations.npz"))
+        assert os.path.exists(os.path.join(model_spec.artifacts_dir, "neuron_freq_norm.npz"))
 
     def test_cos_progress_indication(self, model_spec, capsys):
         """CoS: Progress indication during analysis (simple logging acceptable for MVP)."""
@@ -138,8 +130,8 @@ class TestREQ003_ConditionsOfSatisfaction:
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        # tqdm writes to stderr
-        captured = capsys.readouterr()
+        # tqdm writes to stderr - clear buffer to avoid test pollution
+        _ = capsys.readouterr()
         # Just verify no exceptions - tqdm output may not be captured in all contexts
         assert True
 
@@ -151,9 +143,7 @@ class TestREQ003_ConditionsOfSatisfaction:
         pipeline1.run()
 
         # Count results before second run
-        artifact1 = np.load(
-            os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz")
-        )
+        artifact1 = np.load(os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz"))
         epochs_after_first = len(artifact1["epochs"])
 
         # Second run: should skip existing
@@ -161,9 +151,7 @@ class TestREQ003_ConditionsOfSatisfaction:
         pipeline2.register(DominantFrequenciesAnalyzer())
         pipeline2.run()
 
-        artifact2 = np.load(
-            os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz")
-        )
+        artifact2 = np.load(os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz"))
         epochs_after_second = len(artifact2["epochs"])
 
         # Should have same number of epochs (skipped existing)

@@ -48,8 +48,7 @@ class ArtifactLoader:
 
         if not os.path.exists(artifact_path):
             raise FileNotFoundError(
-                f"No artifact found for '{analyzer_name}'. "
-                f"Expected file: {artifact_path}"
+                f"No artifact found for '{analyzer_name}'. Expected file: {artifact_path}"
             )
 
         return dict(np.load(artifact_path))
@@ -94,8 +93,7 @@ class ArtifactLoader:
         if analyzer_name not in analyzers:
             available = list(analyzers.keys())
             raise KeyError(
-                f"Analyzer '{analyzer_name}' not found in manifest. "
-                f"Available: {available}"
+                f"Analyzer '{analyzer_name}' not found in manifest. Available: {available}"
             )
 
         return analyzers[analyzer_name]
@@ -116,5 +114,5 @@ class ArtifactLoader:
         if not os.path.exists(manifest_path):
             return {}
 
-        with open(manifest_path, "r") as f:
+        with open(manifest_path) as f:
             return json.load(f)

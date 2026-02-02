@@ -4,7 +4,7 @@ import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -101,7 +101,10 @@ class AnalysisPipeline:
         for epoch in tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints"):
             if progress_callback:
                 progress = epochs_processed / total_epochs
-                progress_callback(progress, f"Analyzing checkpoint {epoch} ({epochs_processed + 1}/{total_epochs})")
+                progress_callback(
+                    progress,
+                    f"Analyzing checkpoint {epoch} ({epochs_processed + 1}/{total_epochs})",
+                )
 
             self._run_single_epoch(epoch, work_queue, dataset, fourier_basis)
             epochs_processed += 1
@@ -206,9 +209,7 @@ class AnalysisPipeline:
                 result = analyzer.analyze(model, dataset, cache, fourier_basis)
                 self._store_result(analyzer.name, epoch, result)
 
-    def _store_result(
-        self, analyzer_name: str, epoch: int, result: dict[str, np.ndarray]
-    ) -> None:
+    def _store_result(self, analyzer_name: str, epoch: int, result: dict[str, np.ndarray]) -> None:
         """Store analysis result in memory buffer."""
         self._results[analyzer_name][epoch] = result
 
@@ -241,7 +242,7 @@ class AnalysisPipeline:
         artifact_path = os.path.join(self.artifacts_dir, f"{analyzer_name}.npz")
         # np.savez_compressed adds .npz extension, so use base name for temp file
         temp_base = os.path.join(self.artifacts_dir, f".{analyzer_name}_tmp")
-        np.savez_compressed(temp_base, **save_dict)
+        np.savez_compressed(temp_base, **save_dict)  # type: ignore[arg-type]
         temp_path = temp_base + ".npz"
         os.replace(temp_path, artifact_path)
 
@@ -262,7 +263,7 @@ class AnalysisPipeline:
             "epochs_completed": epochs,
             "shapes": shapes,
             "dtypes": dtypes,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(UTC).isoformat(),
         }
 
     def _save_manifest(self) -> None:
@@ -285,7 +286,7 @@ class AnalysisPipeline:
         manifest_path = os.path.join(self.artifacts_dir, "manifest.json")
 
         if os.path.exists(manifest_path):
-            with open(manifest_path, "r") as f:
+            with open(manifest_path) as f:
                 return json.load(f)
 
         return {}

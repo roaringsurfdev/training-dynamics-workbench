@@ -6,7 +6,6 @@ import tempfile
 
 import numpy as np
 import pytest
-import torch
 
 from analysis import AnalysisPipeline, Analyzer
 from ModuloAdditionSpecification import ModuloAdditionSpecification
@@ -86,11 +85,7 @@ class TestAnalysisPipelineInstantiation:
     def test_pipeline_register_chaining(self, model_spec):
         """Can chain multiple register calls."""
         pipeline = AnalysisPipeline(model_spec)
-        result = (
-            pipeline
-            .register(MockAnalyzer("a"))
-            .register(MockAnalyzer("b"))
-        )
+        result = pipeline.register(MockAnalyzer("a")).register(MockAnalyzer("b"))
         assert result is pipeline
         assert len(pipeline._analyzers) == 2
 

@@ -3,8 +3,6 @@
 Renders Fourier coefficient norms as a bar plot with threshold highlighting.
 """
 
-from typing import Any
-
 import numpy as np
 import plotly.graph_objects as go
 
@@ -31,9 +29,7 @@ def get_fourier_basis_names(n_components: int) -> list[str]:
     return names[:n_components]
 
 
-def get_dominant_indices(
-    coefficients: np.ndarray, threshold: float = 1.0
-) -> list[int]:
+def get_dominant_indices(coefficients: np.ndarray, threshold: float = 1.0) -> list[int]:
     """Get indices of dominant Fourier components above threshold.
 
     Args:

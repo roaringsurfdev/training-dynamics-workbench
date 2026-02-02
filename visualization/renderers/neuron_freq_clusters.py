@@ -4,8 +4,6 @@ Renders neuron-frequency specialization matrix as a heatmap showing
 what fraction of each neuron's activation is explained by each frequency.
 """
 
-from typing import Any
-
 import numpy as np
 import plotly.graph_objects as go
 

@@ -4,7 +4,7 @@ This module provides a line plot function with features similar to neel_plotly.p
 including multi-line support, axis labels, logarithmic scaling, and interactive toggles.
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import plotly.graph_objects as go
@@ -25,7 +25,7 @@ def line(
     xaxis: str = "",
     yaxis: str = "",
     title: str = "",
-    line_labels: Sequence[str] | None = None,
+    line_labels: Sequence[str | int] | None = None,
     log_x: bool = False,
     log_y: bool = False,
     toggle_x: bool = False,
@@ -136,31 +136,35 @@ def line(
     # Add toggle buttons if requested
     buttons = []
     if toggle_y:
-        buttons.extend([
-            {
-                "args": [{"yaxis.type": "linear"}],
-                "label": "Linear Y",
-                "method": "relayout",
-            },
-            {
-                "args": [{"yaxis.type": "log"}],
-                "label": "Log Y",
-                "method": "relayout",
-            },
-        ])
+        buttons.extend(
+            [
+                {
+                    "args": [{"yaxis.type": "linear"}],
+                    "label": "Linear Y",
+                    "method": "relayout",
+                },
+                {
+                    "args": [{"yaxis.type": "log"}],
+                    "label": "Log Y",
+                    "method": "relayout",
+                },
+            ]
+        )
     if toggle_x:
-        buttons.extend([
-            {
-                "args": [{"xaxis.type": "linear"}],
-                "label": "Linear X",
-                "method": "relayout",
-            },
-            {
-                "args": [{"xaxis.type": "log"}],
-                "label": "Log X",
-                "method": "relayout",
-            },
-        ])
+        buttons.extend(
+            [
+                {
+                    "args": [{"xaxis.type": "linear"}],
+                    "label": "Linear X",
+                    "method": "relayout",
+                },
+                {
+                    "args": [{"xaxis.type": "log"}],
+                    "label": "Log X",
+                    "method": "relayout",
+                },
+            ]
+        )
 
     if buttons:
         fig.update_layout(

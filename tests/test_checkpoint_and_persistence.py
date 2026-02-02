@@ -3,6 +3,7 @@ Tests for REQ_001 (Configurable Checkpoint Epochs) and REQ_002 (Safetensors Mode
 
 Tests are organized by Conditions of Satisfaction from each requirement.
 """
+
 import json
 import os
 import shutil
@@ -12,8 +13,8 @@ import pytest
 import torch
 
 from ModuloAdditionSpecification import (
-    ModuloAdditionSpecification,
     DEFAULT_CHECKPOINT_EPOCHS,
+    ModuloAdditionSpecification,
 )
 
 
@@ -31,7 +32,7 @@ def model_spec(temp_results_dir):
     return ModuloAdditionSpecification(
         model_dir=temp_results_dir,
         prime=17,  # Small prime for fast tests
-        device='cpu',
+        device="cpu",
         seed=42,
     )
 
@@ -39,6 +40,7 @@ def model_spec(temp_results_dir):
 # =============================================================================
 # REQ_001: Configurable Checkpoint Epochs
 # =============================================================================
+
 
 class TestREQ001_ConfigurableCheckpointEpochs:
     """Tests for REQ_001 Conditions of Satisfaction."""
@@ -79,7 +81,7 @@ class TestREQ001_ConfigurableCheckpointEpochs:
         spec1 = ModuloAdditionSpecification(
             model_dir=temp_results_dir,
             prime=17,
-            device='cpu',
+            device="cpu",
             seed=1,
         )
         spec1.train(num_epochs=50, checkpoint_epochs=[10, 20, 30])
@@ -89,7 +91,7 @@ class TestREQ001_ConfigurableCheckpointEpochs:
         spec2 = ModuloAdditionSpecification(
             model_dir=temp_results_dir,
             prime=17,
-            device='cpu',
+            device="cpu",
             seed=2,
         )
         spec2.train(num_epochs=50, checkpoint_epochs=[5, 15, 25, 35, 45])
@@ -130,6 +132,7 @@ class TestREQ001_ConfigurableCheckpointEpochs:
 # REQ_002: Safetensors Model Persistence
 # =============================================================================
 
+
 class TestREQ002_SafetensorsPersistence:
     """Tests for REQ_002 Conditions of Satisfaction."""
 
@@ -140,11 +143,10 @@ class TestREQ002_SafetensorsPersistence:
         # Check that each checkpoint is a separate .safetensors file
         for epoch in [10, 20, 30]:
             checkpoint_path = os.path.join(
-                model_spec.checkpoints_dir,
-                f"checkpoint_epoch_{epoch:05d}.safetensors"
+                model_spec.checkpoints_dir, f"checkpoint_epoch_{epoch:05d}.safetensors"
             )
             assert os.path.exists(checkpoint_path), f"Checkpoint at epoch {epoch} not found"
-            assert checkpoint_path.endswith('.safetensors')
+            assert checkpoint_path.endswith(".safetensors")
 
     def test_checkpoints_written_to_disk_during_training(self, model_spec):
         """CoS: Checkpoints written to disk during training (not accumulated in memory)."""
@@ -157,7 +159,7 @@ class TestREQ002_SafetensorsPersistence:
 
         # The spec should not have accumulated checkpoints in memory
         # (model_checkpoints is only set when loading legacy format)
-        assert not hasattr(model_spec, 'model_checkpoints') or model_spec.model_checkpoints is None
+        assert not hasattr(model_spec, "model_checkpoints") or model_spec.model_checkpoints is None
 
     def test_directory_structure_organizes_checkpoints_and_metadata(self, model_spec):
         """CoS: Directory structure organizes checkpoints and metadata clearly."""
@@ -176,7 +178,7 @@ class TestREQ002_SafetensorsPersistence:
         # Verify checkpoints are in checkpoints subdirectory
         checkpoint_files = os.listdir(model_spec.checkpoints_dir)
         assert len(checkpoint_files) == 2
-        assert all(f.endswith('.safetensors') for f in checkpoint_files)
+        assert all(f.endswith(".safetensors") for f in checkpoint_files)
 
     def test_training_metadata_saved_separately_as_json(self, model_spec):
         """CoS: Training metadata (train_losses, test_losses, train_indices, test_indices) saved separately."""
@@ -185,20 +187,20 @@ class TestREQ002_SafetensorsPersistence:
         # Verify metadata file exists and is valid JSON
         assert os.path.exists(model_spec.metadata_path)
 
-        with open(model_spec.metadata_path, 'r') as f:
+        with open(model_spec.metadata_path) as f:
             metadata = json.load(f)
 
         # Verify required fields are present
-        assert 'train_losses' in metadata
-        assert 'test_losses' in metadata
-        assert 'train_indices' in metadata
-        assert 'test_indices' in metadata
-        assert 'checkpoint_epochs' in metadata
+        assert "train_losses" in metadata
+        assert "test_losses" in metadata
+        assert "train_indices" in metadata
+        assert "test_indices" in metadata
+        assert "checkpoint_epochs" in metadata
 
         # Verify data integrity
-        assert len(metadata['train_losses']) == 50
-        assert len(metadata['test_losses']) == 50
-        assert metadata['checkpoint_epochs'] == [10]
+        assert len(metadata["train_losses"]) == 50
+        assert len(metadata["test_losses"]) == 50
+        assert metadata["checkpoint_epochs"] == [10]
 
     def test_model_configuration_saved_in_readable_format(self, model_spec):
         """CoS: Model configuration saved in readable format."""
@@ -207,15 +209,15 @@ class TestREQ002_SafetensorsPersistence:
         # Verify config file exists and is valid JSON
         assert os.path.exists(model_spec.config_path)
 
-        with open(model_spec.config_path, 'r') as f:
+        with open(model_spec.config_path) as f:
             config = json.load(f)
 
         # Verify key configuration fields are present
-        assert 'n_layers' in config
-        assert 'n_heads' in config
-        assert 'd_model' in config
-        assert 'prime' in config
-        assert config['prime'] == 17
+        assert "n_layers" in config
+        assert "n_heads" in config
+        assert "d_model" in config
+        assert "prime" in config
+        assert config["prime"] == 17
 
     def test_can_load_individual_checkpoint_by_epoch_number(self, model_spec):
         """CoS: Can load individual checkpoint by epoch number."""
@@ -226,7 +228,7 @@ class TestREQ002_SafetensorsPersistence:
 
         # Verify it's a valid state dict
         assert isinstance(checkpoint, dict)
-        assert any('W_' in key or 'b_' in key for key in checkpoint.keys())
+        assert any("W_" in key or "b_" in key for key in checkpoint.keys())
 
     def test_load_checkpoint_raises_for_nonexistent_epoch(self, model_spec):
         """load_checkpoint should raise FileNotFoundError for missing checkpoints."""
@@ -241,7 +243,7 @@ class TestREQ002_SafetensorsPersistence:
         spec = ModuloAdditionSpecification(
             model_dir=temp_results_dir,
             prime=17,
-            device='cpu',
+            device="cpu",
             seed=42,
         )
         model = spec.create_model()
@@ -263,7 +265,7 @@ class TestREQ002_SafetensorsPersistence:
         spec2 = ModuloAdditionSpecification(
             model_dir=temp_results_dir,
             prime=17,
-            device='cpu',
+            device="cpu",
             seed=42,
         )
         loaded_model = spec2.load_from_file()
@@ -295,7 +297,7 @@ class TestREQ002_SafetensorsPersistence:
         spec2 = ModuloAdditionSpecification(
             model_dir=model_spec.model_dir,
             prime=17,
-            device='cpu',
+            device="cpu",
             seed=42,
         )
         spec2.load_from_file()
@@ -307,7 +309,7 @@ class TestREQ002_SafetensorsPersistence:
         model_spec.train(num_epochs=50, checkpoint_epochs=[10])
 
         assert os.path.exists(model_spec.model_path)
-        assert model_spec.model_path.endswith('.safetensors')
+        assert model_spec.model_path.endswith(".safetensors")
 
     def test_get_available_checkpoints_returns_sorted_list(self, model_spec):
         """get_available_checkpoints should return sorted list of epoch numbers."""
@@ -323,17 +325,18 @@ class TestREQ002_SafetensorsPersistence:
         spec = ModuloAdditionSpecification(
             model_dir=temp_results_dir,
             prime=113,
-            device='cpu',
+            device="cpu",
             seed=999,
         )
 
-        assert 'modulo_addition_p113_seed999' in spec.full_dir
-        assert 'modulo_addition_p113_seed999' in spec.model_path
+        assert "modulo_addition_p113_seed999" in spec.full_dir
+        assert "modulo_addition_p113_seed999" in spec.model_path
 
 
 # =============================================================================
 # Integration Tests
 # =============================================================================
+
 
 class TestIntegration:
     """Integration tests covering both requirements together."""
@@ -349,7 +352,7 @@ class TestIntegration:
         spec2 = ModuloAdditionSpecification(
             model_dir=model_spec.model_dir,
             prime=17,
-            device='cpu',
+            device="cpu",
             seed=42,
         )
         reloaded_model = spec2.load_from_file()
@@ -367,13 +370,14 @@ class TestIntegration:
         model_spec.train(num_epochs=100, checkpoint_epochs=[10, 50, 90])
 
         checkpoint_10 = model_spec.load_checkpoint(10)
-        checkpoint_50 = model_spec.load_checkpoint(50)
+        _checkpoint_50 = model_spec.load_checkpoint(50)  # Verify middle checkpoint loads
         checkpoint_90 = model_spec.load_checkpoint(90)
 
         # Find a weight tensor that should change during training (not IGNORE which is always -inf)
-        weight_keys = [k for k in checkpoint_10.keys() if 'W_' in k]
+        weight_keys = [k for k in checkpoint_10.keys() if "W_" in k]
         key = weight_keys[0]
 
         # At least some checkpoints should differ (training should update weights)
-        assert not torch.allclose(checkpoint_10[key], checkpoint_90[key]), \
+        assert not torch.allclose(checkpoint_10[key], checkpoint_90[key]), (
             f"Weights for {key} should change between epoch 10 and 90"
+        )

@@ -1,25 +1,27 @@
-import os
 import json
-from typing import Optional
+import os
 
-import numpy as np
-
-import torch
-from safetensors.torch import save_file, load_file
-from transformer_lens import HookedTransformerConfig, HookedTransformer
 import einops
-
+import numpy as np
+import torch
 import tqdm.auto as tqdm
-
+from safetensors.torch import load_file, save_file
+from transformer_lens import HookedTransformer, HookedTransformerConfig
 
 # Default checkpoint schedule optimized for grokking analysis
 # Dense checkpoints during grokking phase (5000-6000), sparse elsewhere
-DEFAULT_CHECKPOINT_EPOCHS = sorted(list(set([
-    *range(0, 1500, 100),      # Early training - sparse (~15 checkpoints)
-    *range(1500, 9000, 500),   # Mid training - moderate (~15 checkpoints)
-    *range(9000, 13000, 100),    # Grokking region - dense (~100 checkpoints)
-    *range(13000, 25000, 500),  # Post-grokking - moderate (~24 checkpoints)
-])))
+DEFAULT_CHECKPOINT_EPOCHS = sorted(
+    list(
+        set(
+            [
+                *range(0, 1500, 100),  # Early training - sparse (~15 checkpoints)
+                *range(1500, 9000, 500),  # Mid training - moderate (~15 checkpoints)
+                *range(9000, 13000, 100),  # Grokking region - dense (~100 checkpoints)
+                *range(13000, 25000, 500),  # Post-grokking - moderate (~24 checkpoints)
+            ]
+        )
+    )
+)
 
 
 class ModuloAdditionSpecification:
@@ -58,19 +60,19 @@ class ModuloAdditionSpecification:
     def create_model(self):
         # %% model definition
         cfg = HookedTransformerConfig(
-            n_layers = 1,
-            n_heads = 4,
-            d_model = 128,
-            d_head = 32,
-            d_mlp = 512,
-            act_fn = "relu",
+            n_layers=1,
+            n_heads=4,
+            d_model=128,
+            d_head=32,
+            d_mlp=512,
+            act_fn="relu",
             normalization_type=None,
-            d_vocab=self.prime+1,
+            d_vocab=self.prime + 1,
             d_vocab_out=self.prime,
             n_ctx=3,
             init_weights=True,
             device=self.device,
-            seed = self.seed,
+            seed=self.seed,
         )
         model = HookedTransformer(cfg)
 
@@ -78,11 +80,11 @@ class ModuloAdditionSpecification:
         for name, param in model.named_parameters():
             if "b_" in name:
                 param.requires_grad = False
-        
+
         self.model = model
 
         return self.model
-    
+
     def load_from_file(self) -> HookedTransformer:
         """
         Load a trained model from file.
@@ -102,7 +104,7 @@ class ModuloAdditionSpecification:
             model.load_state_dict(state_dict)
 
             # Load metadata
-            with open(self.metadata_path, 'r') as f:
+            with open(self.metadata_path) as f:
                 metadata = json.load(f)
 
             self.checkpoint_epochs = metadata["checkpoint_epochs"]
@@ -114,18 +116,16 @@ class ModuloAdditionSpecification:
         # Fall back to legacy pickle format for backward compatibility
         elif os.path.exists(self.legacy_path):
             cached_data = torch.load(self.legacy_path, weights_only=False)
-            model.load_state_dict(cached_data['model'])
+            model.load_state_dict(cached_data["model"])
             self.model_checkpoints = cached_data["checkpoints"]
             self.checkpoint_epochs = cached_data["checkpoint_epochs"]
-            self.test_losses = cached_data['test_losses']
-            self.train_losses = cached_data['train_losses']
+            self.test_losses = cached_data["test_losses"]
+            self.train_losses = cached_data["train_losses"]
             self.train_indices = cached_data["train_indices"]
             self.test_indices = cached_data["test_indices"]
         else:
             raise FileNotFoundError(
-                f"No model found. Checked:\n"
-                f"  - {self.model_path}\n"
-                f"  - {self.legacy_path}"
+                f"No model found. Checked:\n  - {self.model_path}\n  - {self.legacy_path}"
             )
 
         self.model = model
@@ -145,8 +145,7 @@ class ModuloAdditionSpecification:
             FileNotFoundError: If checkpoint doesn't exist
         """
         checkpoint_path = os.path.join(
-            self.checkpoints_dir,
-            f"checkpoint_epoch_{epoch:05d}.safetensors"
+            self.checkpoints_dir, f"checkpoint_epoch_{epoch:05d}.safetensors"
         )
 
         if os.path.exists(checkpoint_path):
@@ -155,7 +154,7 @@ class ModuloAdditionSpecification:
         # Try legacy format
         if os.path.exists(self.legacy_path):
             cached_data = torch.load(self.legacy_path, weights_only=False)
-            if hasattr(self, 'model_checkpoints') or "checkpoints" in cached_data:
+            if hasattr(self, "model_checkpoints") or "checkpoints" in cached_data:
                 checkpoints = cached_data.get("checkpoints", self.model_checkpoints)
                 epochs = cached_data.get("checkpoint_epochs", self.checkpoint_epochs)
                 if epoch in epochs:
@@ -177,7 +176,9 @@ class ModuloAdditionSpecification:
         if os.path.exists(self.checkpoints_dir):
             for filename in os.listdir(self.checkpoints_dir):
                 if filename.startswith("checkpoint_epoch_") and filename.endswith(".safetensors"):
-                    epoch_str = filename.replace("checkpoint_epoch_", "").replace(".safetensors", "")
+                    epoch_str = filename.replace("checkpoint_epoch_", "").replace(
+                        ".safetensors", ""
+                    )
                     epochs.append(int(epoch_str))
 
         # Check legacy format
@@ -186,26 +187,27 @@ class ModuloAdditionSpecification:
             epochs = cached_data.get("checkpoint_epochs", [])
 
         return sorted(epochs)
-    
+
     def loss_function(self, logits, labels):
-        if len(logits.shape)==3:
+        if len(logits.shape) == 3:
             logits = logits[:, -1]
         logits = logits.to(torch.float64)
         log_probs = logits.log_softmax(dim=-1)
         correct_log_probs = log_probs.gather(dim=-1, index=labels[:, None])[:, 0]
         return -correct_log_probs.mean()
-    
+
     def get_optimizer(self, model):
         # optimizer config
         lr = 1e-3
-        wd = 1.
+        wd = 1.0
         betas = (0.9, 0.98)
 
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wd, betas=betas)
         return optimizer
 
-    
-    def train(self, num_epochs: int = 25000, checkpoint_epochs: Optional[list[int]] = None) -> HookedTransformer:
+    def train(
+        self, num_epochs: int = 25000, checkpoint_epochs: list[int] | None = None
+    ) -> HookedTransformer:
         """
         Train the model with configurable checkpoint epochs.
 
@@ -215,7 +217,9 @@ class ModuloAdditionSpecification:
                              If None, uses DEFAULT_CHECKPOINT_EPOCHS.
                              Epochs >= num_epochs are automatically filtered out.
         """
-        train_data, train_labels, test_data, test_labels, train_indices, test_indices = self.generate_training_data()
+        train_data, train_labels, test_data, test_labels, train_indices, test_indices = (
+            self.generate_training_data()
+        )
 
         # Use default checkpoint schedule if none provided (REQ_001)
         if checkpoint_epochs is None:
@@ -250,7 +254,9 @@ class ModuloAdditionSpecification:
             if epoch in checkpoint_epochs_set:
                 self._save_checkpoint(model.state_dict(), epoch)
                 saved_checkpoint_epochs.append(epoch)
-                print(f"Epoch {epoch} Train Loss {train_loss.item():.6f} Test Loss {test_loss.item():.6f}")
+                print(
+                    f"Epoch {epoch} Train Loss {train_loss.item():.6f} Test Loss {test_loss.item():.6f}"
+                )
 
         # Save final model as safetensors (REQ_002)
         save_file(model.state_dict(), self.model_path)
@@ -281,8 +287,7 @@ class ModuloAdditionSpecification:
     def _save_checkpoint(self, state_dict: dict, epoch: int) -> None:
         """Save a single checkpoint to disk as safetensors."""
         checkpoint_path = os.path.join(
-            self.checkpoints_dir,
-            f"checkpoint_epoch_{epoch:05d}.safetensors"
+            self.checkpoints_dir, f"checkpoint_epoch_{epoch:05d}.safetensors"
         )
         save_file(state_dict, checkpoint_path)
 
@@ -305,26 +310,28 @@ class ModuloAdditionSpecification:
             "data_seed": self.data_seed,
             "training_fraction": self.training_fraction,
         }
-        with open(self.config_path, 'w') as f:
+        with open(self.config_path, "w") as f:
             json.dump(config_dict, f, indent=2)
 
     def _save_metadata(self, **kwargs) -> None:
         """Save training metadata as JSON."""
-        with open(self.metadata_path, 'w') as f:
+        with open(self.metadata_path, "w") as f:
             json.dump(kwargs, f)
-    
+
     def generate_training_data(self):
         a_vector = einops.repeat(torch.arange(self.prime), "i -> (i j)", j=self.prime)
         b_vector = einops.repeat(torch.arange(self.prime), "j -> (i j)", i=self.prime)
-        equals_vector = einops.repeat(torch.tensor(self.prime), " -> (i j)", i=self.prime, j=self.prime)
+        equals_vector = einops.repeat(
+            torch.tensor(self.prime), " -> (i j)", i=self.prime, j=self.prime
+        )
 
         dataset = torch.stack([a_vector, b_vector, equals_vector], dim=1).to(self.device)
         self.dataset = dataset
         labels = (dataset[:, 0] + dataset[:, 1]) % self.prime
 
         torch.manual_seed(self.data_seed)
-        indices = torch.randperm(self.prime*self.prime)
-        cutoff = int(self.prime*self.prime*self.training_fraction)
+        indices = torch.randperm(self.prime * self.prime)
+        cutoff = int(self.prime * self.prime * self.training_fraction)
         train_indices = indices[:cutoff]
         test_indices = indices[cutoff:]
 
@@ -336,6 +343,7 @@ class ModuloAdditionSpecification:
         return train_data, train_labels, test_data, test_labels, train_indices, test_indices
 
     def compute_probe_activations(self, probe):
+        assert self.model is not None, "Model must be trained or loaded first"
         probe_logits, probe_cache = self.model.run_with_cache(probe)
         return probe_logits, probe_cache
 
