@@ -14,6 +14,7 @@ Usage:
     fig.show()  # or pass to Gradio
 """
 
+from visualization.line_plot import line
 from visualization.renderers.dominant_frequencies import (
     get_dominant_indices,
     get_fourier_basis_names,
@@ -34,6 +35,8 @@ from visualization.renderers.neuron_freq_clusters import (
 )
 
 __all__ = [
+    # REQ_012: Line plot utility (replaces neel-plotly)
+    "line",
     # REQ_004: Dominant frequencies
     "render_dominant_frequencies",
     "render_dominant_frequencies_over_time",

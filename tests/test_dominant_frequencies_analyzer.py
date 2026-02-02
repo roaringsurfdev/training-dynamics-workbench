@@ -136,9 +136,7 @@ class TestDominantFrequenciesAnalyzerIntegration:
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact_path = os.path.join(
-            model_spec.artifacts_dir, "dominant_frequencies.npz"
-        )
+        artifact_path = os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz")
         assert os.path.exists(artifact_path)
 
     def test_artifact_contains_epochs(self, model_spec):

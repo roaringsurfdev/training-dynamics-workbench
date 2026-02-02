@@ -5,8 +5,6 @@ Renders neuron activations as heatmaps with two viewing modes:
 2. Grid view - multiple neurons displayed together
 """
 
-from typing import Any
-
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -135,7 +133,6 @@ def render_neuron_grid(
         col = i % cols + 1
 
         data = activations[epoch_idx, neuron_idx]
-        p = data.shape[0]
 
         fig.add_trace(
             go.Heatmap(

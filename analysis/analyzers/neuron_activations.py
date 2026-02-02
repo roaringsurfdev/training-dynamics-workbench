@@ -48,8 +48,6 @@ class NeuronActivationsAnalyzer:
         neuron_acts = cache["post", 0, "mlp"][:, -1, :]
 
         # Reshape to (d_mlp, p, p)
-        activations = einops.rearrange(
-            neuron_acts, "(a b) neuron -> neuron a b", a=p, b=p
-        )
+        activations = einops.rearrange(neuron_acts, "(a b) neuron -> neuron a b", a=p, b=p)
 
         return {"activations": activations.detach().cpu().numpy()}

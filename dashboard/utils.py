@@ -1,7 +1,6 @@
 """Utility functions for the dashboard."""
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -44,9 +43,7 @@ def discover_trained_models(base_path: str = "results/") -> list[dict[str, Any]]
 
                     # Check for artifacts
                     artifacts_dir = run_dir / "artifacts"
-                    has_artifacts = artifacts_dir.exists() and any(
-                        artifacts_dir.glob("*.npz")
-                    )
+                    has_artifacts = artifacts_dir.exists() and any(artifacts_dir.glob("*.npz"))
 
                     # Generate display name
                     prime = config.get("prime", config.get("n_ctx", "?"))

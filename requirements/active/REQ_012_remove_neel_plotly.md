@@ -19,7 +19,7 @@ Removing this dependency simplifies installation and reduces external risk.
 
 ## Constraints
 **Must have:**
-- All existing visualization functionality preserved
+- All existing visualization functionality preserved, especially within ModuloAdditionRefactored.py. This notebook serves as a guide for future visualizations at this time.
 - No regression in visual output quality
 
 **Must avoid:**

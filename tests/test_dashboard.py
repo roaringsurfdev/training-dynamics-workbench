@@ -1,10 +1,10 @@
 """Tests for dashboard components."""
+# pyright: reportArgumentType=false
 
 import json
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import plotly.graph_objects as go
 import pytest
 
@@ -26,9 +26,7 @@ class TestLossCurvesRenderer:
         train_losses = [1.0, 0.5, 0.3, 0.2, 0.1]
         test_losses = [1.2, 0.6, 0.35, 0.25, 0.15]
 
-        fig = render_loss_curves_with_indicator(
-            train_losses, test_losses, current_epoch=2
-        )
+        fig = render_loss_curves_with_indicator(train_losses, test_losses, current_epoch=2)
 
         assert isinstance(fig, go.Figure)
         assert len(fig.data) == 2  # train and test traces

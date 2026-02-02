@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.13"]
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +34,6 @@ jobs:
   lint:
     name: Lint (ruff)
     runs-on: ubuntu-latest
-    continue-on-error: true  # Advisory only until codebase is cleaned up
 
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +58,6 @@ jobs:
   typecheck:
     name: Type Check (pyright)
     runs-on: ubuntu-latest
-    continue-on-error: true  # Advisory only until codebase is cleaned up
 
     steps:
       - uses: actions/checkout@v4
