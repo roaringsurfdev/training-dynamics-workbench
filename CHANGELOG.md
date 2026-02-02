@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-02-01
+
+### Changed
+
+- **Python 3.11+ Compatibility** (REQ_013)
+  - Broadened support from Python 3.13-only to 3.11, 3.12, and 3.13
+  - Relaxed numpy constraint (>=1.26) for TransformerLens compatibility
+  - CI now tests against all three Python versions
+
+- **Removed neel-plotly Dependency** (REQ_012)
+  - Replaced git dependency with native Plotly visualization utilities
+  - New `visualization.line()` function provides equivalent functionality
+  - Zero external git dependencies improves installation reliability
+
+- **Code Quality Enforcement** (REQ_011)
+  - Ruff linting and formatting checks now blocking in CI
+  - Pyright type checking now blocking in CI
+  - Fixed all linting violations and type errors across codebase
+
+### References
+
+- Archived requirements: `requirements/archive/v0.1.2-quality/`
+- Milestone summary: `requirements/archive/v0.1.2-quality/MILESTONE_SUMMARY.md`
+
 ## [0.1.1] - 2026-02-01
 
 ### Fixed
