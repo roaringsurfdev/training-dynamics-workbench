@@ -7,7 +7,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from analysis import ArtifactLoader, AnalysisPipeline
+from analysis import AnalysisPipeline, ArtifactLoader
 from analysis.analyzers import DominantFrequenciesAnalyzer
 from ModuloAdditionSpecification import ModuloAdditionSpecification
 

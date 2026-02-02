@@ -5,7 +5,6 @@ import tempfile
 
 import numpy as np
 import pytest
-import torch
 
 from analysis import AnalysisPipeline, Analyzer
 from analysis.analyzers import NeuronActivationsAnalyzer, NeuronFreqClustersAnalyzer
@@ -188,9 +187,7 @@ class TestRemainingAnalyzersIntegration:
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.run()
 
-        artifact_path = os.path.join(
-            model_spec.artifacts_dir, "neuron_activations.npz"
-        )
+        artifact_path = os.path.join(model_spec.artifacts_dir, "neuron_activations.npz")
         assert os.path.exists(artifact_path)
 
     def test_neuron_freq_norm_creates_artifact(self, model_spec):
@@ -199,9 +196,7 @@ class TestRemainingAnalyzersIntegration:
         pipeline.register(NeuronFreqClustersAnalyzer())
         pipeline.run()
 
-        artifact_path = os.path.join(
-            model_spec.artifacts_dir, "neuron_freq_norm.npz"
-        )
+        artifact_path = os.path.join(model_spec.artifacts_dir, "neuron_freq_norm.npz")
         assert os.path.exists(artifact_path)
 
     def test_multiple_analyzers_run_together(self, model_spec):
@@ -211,12 +206,8 @@ class TestRemainingAnalyzersIntegration:
         pipeline.register(NeuronFreqClustersAnalyzer())
         pipeline.run()
 
-        assert os.path.exists(
-            os.path.join(model_spec.artifacts_dir, "neuron_activations.npz")
-        )
-        assert os.path.exists(
-            os.path.join(model_spec.artifacts_dir, "neuron_freq_norm.npz")
-        )
+        assert os.path.exists(os.path.join(model_spec.artifacts_dir, "neuron_activations.npz"))
+        assert os.path.exists(os.path.join(model_spec.artifacts_dir, "neuron_freq_norm.npz"))
 
     def test_artifact_shapes_are_correct(self, model_spec):
         """Artifact shapes match expectations."""

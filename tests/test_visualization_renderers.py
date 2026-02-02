@@ -1,4 +1,6 @@
 """Tests for REQ_004, REQ_005, REQ_006: Visualization Renderers."""
+# pyright: reportArgumentType=false
+# pyright: reportAttributeAccessIssue=false
 
 import numpy as np
 import plotly.graph_objects as go
@@ -47,9 +49,7 @@ class TestDominantFrequenciesRenderer:
         """Can disable dominance highlighting."""
         from visualization import render_dominant_frequencies
 
-        fig = render_dominant_frequencies(
-            sample_artifact, epoch_idx=0, highlight_dominant=False
-        )
+        fig = render_dominant_frequencies(sample_artifact, epoch_idx=0, highlight_dominant=False)
 
         assert isinstance(fig, go.Figure)
 
@@ -57,9 +57,7 @@ class TestDominantFrequenciesRenderer:
         """Can set custom title."""
         from visualization import render_dominant_frequencies
 
-        fig = render_dominant_frequencies(
-            sample_artifact, epoch_idx=0, title="Custom Title"
-        )
+        fig = render_dominant_frequencies(sample_artifact, epoch_idx=0, title="Custom Title")
 
         assert fig.layout.title.text == "Custom Title"
 
@@ -160,9 +158,7 @@ class TestNeuronActivationsRenderer:
         """Grid of neurons renders correctly."""
         from visualization import render_neuron_grid
 
-        fig = render_neuron_grid(
-            sample_artifact, epoch_idx=0, neuron_indices=[0, 1, 2, 3, 4]
-        )
+        fig = render_neuron_grid(sample_artifact, epoch_idx=0, neuron_indices=[0, 1, 2, 3, 4])
 
         assert isinstance(fig, go.Figure)
         assert len(fig.data) == 5  # 5 neurons
@@ -171,9 +167,7 @@ class TestNeuronActivationsRenderer:
         """Grid respects column count."""
         from visualization import render_neuron_grid
 
-        fig = render_neuron_grid(
-            sample_artifact, epoch_idx=0, neuron_indices=[0, 1, 2], cols=2
-        )
+        fig = render_neuron_grid(sample_artifact, epoch_idx=0, neuron_indices=[0, 1, 2], cols=2)
 
         assert isinstance(fig, go.Figure)
 
@@ -271,9 +265,7 @@ class TestFreqClustersRenderer:
         """Comparison view renders multiple epochs."""
         from visualization import render_freq_clusters_comparison
 
-        fig = render_freq_clusters_comparison(
-            sample_artifact, epoch_indices=[0, 1, 2]
-        )
+        fig = render_freq_clusters_comparison(sample_artifact, epoch_indices=[0, 1, 2])
 
         assert isinstance(fig, go.Figure)
         assert len(fig.data) == 3  # 3 epochs
@@ -285,9 +277,7 @@ class TestFreqClustersRenderer:
         # Set one neuron to be clearly specialized for frequency 1
         sample_artifact["norm_matrix"][0, 0, 5] = 0.95
 
-        neurons = get_specialized_neurons(
-            sample_artifact, epoch_idx=0, frequency=1, threshold=0.85
-        )
+        neurons = get_specialized_neurons(sample_artifact, epoch_idx=0, frequency=1, threshold=0.85)
 
         assert 5 in neurons
 
@@ -299,9 +289,7 @@ class TestFreqClustersRenderer:
         sample_artifact["norm_matrix"][0, :, 3] = 0.1
         sample_artifact["norm_matrix"][0, 4, 3] = 0.9
 
-        freq, frac = get_neuron_specialization(
-            sample_artifact, epoch_idx=0, neuron_idx=3
-        )
+        freq, frac = get_neuron_specialization(sample_artifact, epoch_idx=0, neuron_idx=3)
 
         assert freq == 5  # 1-indexed (index 4 = freq 5)
         assert frac == pytest.approx(0.9)
@@ -313,7 +301,6 @@ class TestVisualizationIntegration:
     @pytest.fixture
     def realistic_artifacts(self, tmp_path):
         """Create realistic artifacts similar to pipeline output."""
-        import os
 
         artifacts_dir = tmp_path / "artifacts"
         artifacts_dir.mkdir()
