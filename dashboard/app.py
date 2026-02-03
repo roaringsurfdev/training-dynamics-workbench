@@ -306,8 +306,15 @@ def format_epoch_display(epoch: int, index: int) -> str:
     return f"Epoch {epoch} (Index {index})"
 
 
-def update_visualizations(epoch_idx: int, neuron_idx: int, state: DashboardState):
+def update_visualizations(
+    epoch_idx: int | None, neuron_idx: int | None, state: DashboardState
+):
     """Update all visualizations when slider or neuron changes."""
+    # Guard against None values (BUG_003: slider fires event when input is cleared)
+    if epoch_idx is None or neuron_idx is None:
+        epoch_idx = epoch_idx if epoch_idx is not None else state.current_epoch_idx
+        neuron_idx = neuron_idx if neuron_idx is not None else state.selected_neuron
+
     state.current_epoch_idx = int(epoch_idx)
     state.selected_neuron = int(neuron_idx)
 
@@ -318,8 +325,16 @@ def update_visualizations(epoch_idx: int, neuron_idx: int, state: DashboardState
     return plots[0], plots[1], plots[2], plots[3], epoch_display, state
 
 
-def update_activation_only(epoch_idx: int, neuron_idx: int, state: DashboardState):
+def update_activation_only(
+    epoch_idx: int | None, neuron_idx: int | None, state: DashboardState
+):
     """Update only the activation heatmap when neuron changes."""
+    # Guard against None values (BUG_003: slider fires event when input is cleared)
+    if neuron_idx is None:
+        neuron_idx = state.selected_neuron
+    if epoch_idx is None:
+        epoch_idx = state.current_epoch_idx
+
     state.selected_neuron = int(neuron_idx)
 
     if state.neuron_activations_artifact is not None:
