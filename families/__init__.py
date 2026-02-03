@@ -30,6 +30,9 @@ Example usage:
         family,
         {"prime": 113, "seed": 42}
     )
+
+    # Create a model (requires family with implementation)
+    model = family.create_model({"prime": 113, "seed": 42})
 """
 
 from families.json_family import JsonModelFamily
@@ -43,12 +46,16 @@ from families.types import (
 )
 from families.variant import Variant
 
+# Import implementations to trigger registration
+from families.implementations import ModuloAddition1LayerFamily  # noqa: F401
+
 __all__ = [
     # Protocols
     "ModelFamily",
     # Classes
     "FamilyRegistry",
     "JsonModelFamily",
+    "ModuloAddition1LayerFamily",
     "Variant",
     # Types
     "AnalysisDatasetSpec",

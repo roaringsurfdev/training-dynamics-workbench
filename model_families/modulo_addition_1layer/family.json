@@ -1,0 +1,49 @@
+{
+  "name": "modulo_addition_1layer",
+  "display_name": "Modulo Addition (1 Layer)",
+  "description": "Single-layer transformer trained on modular arithmetic. Based on Neel Nanda's grokking experiment.",
+
+  "architecture": {
+    "n_layers": 1,
+    "n_heads": 4,
+    "d_model": 128,
+    "d_head": 32,
+    "d_mlp": 512,
+    "act_fn": "relu",
+    "normalization_type": null,
+    "n_ctx": 3
+  },
+
+  "domain_parameters": {
+    "prime": {
+      "type": "int",
+      "description": "Modulus for the addition task",
+      "default": 113
+    },
+    "seed": {
+      "type": "int",
+      "description": "Random seed for model initialization",
+      "default": 999
+    }
+  },
+
+  "analyzers": [
+    "dominant_frequencies",
+    "neuron_activations",
+    "neuron_freq_norm"
+  ],
+
+  "visualizations": [
+    "dominant_frequencies_bar",
+    "neuron_activation_heatmap",
+    "neuron_activation_grid",
+    "frequency_clusters_heatmap"
+  ],
+
+  "analysis_dataset": {
+    "type": "modulo_addition_grid",
+    "description": "Full (a, b) input grid for modular arithmetic"
+  },
+
+  "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}"
+}
