@@ -8,6 +8,8 @@ import torch
 from transformer_lens import HookedTransformer
 from transformer_lens.ActivationCache import ActivationCache
 
+from analysis.library import get_embedding_weights, project_onto_fourier_basis
+
 
 class DominantFrequenciesAnalyzer:
     """Computes Fourier coefficient norms for embedding weights.
@@ -16,9 +18,8 @@ class DominantFrequenciesAnalyzer:
     identifying which frequencies dominate the learned embedding representation.
     """
 
-    @property
-    def name(self) -> str:
-        return "dominant_frequencies"
+    name = "dominant_frequencies"
+    description = "Identifies dominant frequencies in learned embeddings"
 
     def analyze(
         self,
@@ -40,11 +41,9 @@ class DominantFrequenciesAnalyzer:
             Dict with 'coefficients' array of shape (n_fourier_components,)
         """
         # Get embedding weights, excluding the equals token
-        W_E = model.embed.W_E[:-1]
+        W_E = get_embedding_weights(model, exclude_special_tokens=1)
 
         # Compute norms of embedding projected onto Fourier basis
-        # fourier_basis @ W_E gives (n_components, d_model)
-        # .norm(dim=-1) gives (n_components,)
-        coefficients = (fourier_basis @ W_E).norm(dim=-1)
+        coefficients = project_onto_fourier_basis(W_E, fourier_basis)
 
         return {"coefficients": coefficients.detach().cpu().numpy()}

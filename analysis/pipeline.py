@@ -11,8 +11,8 @@ import numpy as np
 import torch
 import tqdm.auto as tqdm
 
+from analysis.library import get_fourier_basis
 from analysis.protocols import Analyzer
-from FourierEvaluation import get_fourier_bases
 
 
 @dataclass
@@ -94,7 +94,7 @@ class AnalysisPipeline:
         self.model_spec.generate_training_data()
         dataset = self.model_spec.dataset
 
-        fourier_basis, _ = get_fourier_bases(self.model_spec.prime, self.model_spec.device)
+        fourier_basis, _ = get_fourier_basis(self.model_spec.prime, self.model_spec.device)
 
         total_epochs = len(all_epochs_needed)
         epochs_processed = 0
