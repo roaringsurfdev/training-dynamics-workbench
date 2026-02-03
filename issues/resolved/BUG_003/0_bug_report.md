@@ -55,19 +55,19 @@ Clearing the index text box generates and error.
 
 ```
 Traceback (most recent call last):
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/queueing.py", line 766, in process_events
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/queueing.py", line 766, in process_events
     response = await route_utils.call_process_api(
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<5 lines>...
     )
     ^
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/route_utils.py", line 355, in call_process_api
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/route_utils.py", line 355, in call_process_api
     output = await app.get_blocks().process_api(
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<11 lines>...
     )
     ^
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/blocks.py", line 2148, in process_api
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/blocks.py", line 2148, in process_api
     inputs = await self.preprocess_data(
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
         block_fn, inputs, state, explicit_call
