@@ -81,20 +81,24 @@ class Variant:
         checkpoint_epochs: list[int] | None = None,
         training_fraction: float = 0.3,
         data_seed: int = 598,
+        device: str | None = None,  # Auto-detect if None
         progress_callback: Callable[[float, str], None] | None = None,
     ) -> TrainingResult:
         """Train this variant's model."""
-        model = self.family.create_model(self.params)
-        dataset = self.family.generate_training_dataset(self.params)
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = self.family.create_model(self.params, device=device)
+        dataset = self.family.generate_training_dataset(self.params, device=device)
         # ... training loop
 
 # Option B: Family-aware Trainer
 class FamilyTrainer:
-    def __init__(self, variant: Variant):
+    def __init__(self, variant: Variant, device: str | None = None):
         self.variant = variant
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
     def train(self, num_epochs: int, ...) -> TrainingResult:
-        model = self.variant.family.create_model(self.variant.params)
+        model = self.variant.family.create_model(self.variant.params, device=self.device)
         # ... training loop
 ```
 
@@ -106,6 +110,24 @@ Domain parameters come from family, training hyperparameters are separate:
 |--------|------------|
 | Family (domain) | `prime`, `seed` (from `domain_parameters`) |
 | Training (common) | `num_epochs`, `checkpoint_epochs`, `training_fraction`, `data_seed`, `learning_rate`, `weight_decay` |
+| Runtime | `device` (auto-detect CUDA if available, fallback to CPU) |
+
+### Device Handling
+
+Training must preserve the existing GPU acceleration behavior:
+
+```python
+# Auto-detect device (current behavior to preserve)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Pass to model creation
+model = family.create_model(params, device=device)
+
+# Ensure dataset is on same device
+dataset = family.generate_training_dataset(params, device=device)
+```
+
+The `create_model()` method already accepts a `device` parameter (implemented in REQ_021c). Training integration must use this consistently.
 
 ### Dashboard UI Updates
 
@@ -176,6 +198,7 @@ class ModelFamily(Protocol):
 - [ ] Metadata saved to `variant.metadata_path`
 - [ ] Config saved to `variant.config_path`
 - [ ] Trained variant appears in Analysis tab on refresh
+- [ ] GPU training preserved (auto-detect CUDA, fallback to CPU)
 - [ ] Existing training functionality preserved (no regression)
 - [ ] All tests pass
 
