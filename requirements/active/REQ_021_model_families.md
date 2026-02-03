@@ -1,6 +1,6 @@
-# REQ_021: Model Family Abstraction (DRAFT)
+# REQ_021: Model Family Abstraction
 
-**Status:** Draft - needs final review before moving to active
+**Status:** Active
 **Priority:** High (foundational for REQ_022, REQ_023, REQ_024)
 **Estimated Effort:** Medium-High
 **Last Updated:** 2026-02-03
@@ -72,13 +72,13 @@ model_families/
       default.json
 
 results/                     # Trained variants (existing location, programmatic structure)
-  modulo_addition/
-    modulo_addition_p113_seed42/
+  modulo_addition_1layer/
+    modulo_addition_1layer_p113_seed42/
       checkpoints/
       artifacts/
       metadata.json
       config.json
-    modulo_addition_p97_seed42/
+    modulo_addition_1layer_p97_seed42/
       ...
 
 analysis/
@@ -139,7 +139,7 @@ analysis/
     "description": "Full (a, b) input grid for modular arithmetic"
   },
 
-  "variant_pattern": "modulo_addition_p{prime}_seed{seed}"
+  "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}"
 }
 ```
 
@@ -185,15 +185,37 @@ Two layers:
    - Can be reused across families that share analysis needs
    - n-layer Modulo Addition could reuse same analyzers as 1-layer
 
+## Sub-Requirements
+
+This requirement is broken into four sub-requirements for cleanly subdivided work:
+
+| Sub-Req | Title | Dependencies | Focus |
+|---------|-------|--------------|-------|
+| [REQ_021a](REQ_021a_core_abstractions.md) | Core Abstractions | None | ModelFamily protocol, Variant class, directory conventions |
+| [REQ_021b](REQ_021b_analysis_library.md) | Analysis Library Architecture | None | Separate library/ from analyzers/ |
+| [REQ_021c](REQ_021c_modulo_addition_family.md) | Modulo Addition 1-Layer Implementation | 021a, 021b | Concrete family implementation |
+| [REQ_021d](REQ_021d_dashboard_integration.md) | Dashboard Integration | 021a, 021c | Family-aware UI |
+
+**Dependency graph:**
+```
+REQ_021a ──────┬──→ REQ_021c ──→ REQ_021d
+               │         ↑
+REQ_021b ──────┴─────────┘
+```
+
+REQ_021a and REQ_021b can be worked in parallel. REQ_021c integrates both. REQ_021d adds UI support.
+
 ## Conditions of Satisfaction
 
-- [ ] ModelFamily protocol formally defined
-- [ ] At least one family (`modulo_addition_1layer`) implemented with `family.json`
-- [ ] Variant concept implemented with state tracking
-- [ ] Analysis library separated from family-specific analyzers
-- [ ] Dashboard lists families, selecting one filters to its variants
-- [ ] Existing functionality preserved (no regression)
-- [ ] New family can be created by: adding `family.json` + implementing protocol
+All conditions are tracked in sub-requirements. Summary:
+
+- [ ] ModelFamily protocol formally defined (021a)
+- [ ] Variant concept implemented with state tracking (021a)
+- [ ] Analysis library separated from family-specific analyzers (021b)
+- [ ] At least one family (`modulo_addition_1layer`) implemented with `family.json` (021c)
+- [ ] Dashboard lists families, selecting one filters to its variants (021d)
+- [ ] Existing functionality preserved (no regression) (021d)
+- [ ] New family can be created by: adding `family.json` + implementing protocol (021c)
 
 ## Constraints
 
@@ -202,6 +224,7 @@ Two layers:
 - Clear separation: Family (what) → Variant (which) → Analysis (how)
 - JSON-based configuration for flexibility
 - Analyzers/visualizations are family-level, parameter-agnostic
+- `ModelFamily.name` used consistently as directory key under both `model_families/` and `results/`
 
 **Must avoid:**
 - Auto-detection that locks in premature structure
@@ -209,7 +232,7 @@ Two layers:
 - Breaking existing trained models
 
 **Flexible:**
-- Exact directory structure details
+- Exact directory structure details beyond the naming convention
 - How much existing code is reused vs rewritten
 
 ## Decision Log
@@ -221,6 +244,7 @@ Two layers:
 | Analyzer binding | Generic library + family-bound | Reuse across families (Fourier for all modular arithmetic) |
 | Dashboard flow | Family → Variant | User thinks in terms of model type first |
 | Terminology | "Variant" not "Run" | Avoids optimization connotation; captures "same model, different parameters" |
+| Directory naming | Use ModelFamily.name consistently | Simplifies lookups; family name is the key under model_families/ and results/ |
 
 ## Context & Assumptions
 
@@ -244,11 +268,12 @@ Two layers:
 - Analysis dataset = "probe" for larger models where exhaustive input isn't feasible
 - Mech interp goal: understand HOW models solve problems, not WHICH model is best
 - Modular Fourier basis is domain-specific (not standard FFT) and belongs in analysis library
+- `ModelFamily.name` should be used consistently as directory key for both `model_families/` and `results/` directories
+- `variant_pattern` updated to include full family name for consistency
 
 **Implementation phases:**
-1. Define `ModelFamily` protocol and `Variant` class
-2. Create `model_families/modulo_addition_1layer/family.json`
-3. Implement family for Modulo Addition 1-Layer
-4. Refactor analysis into library/ + analyzers/ structure
-5. Update dashboard to be family-aware
-6. Validate: can add second family with minimal code
+1. Define `ModelFamily` protocol and `Variant` class (021a)
+2. Refactor analysis into library/ + analyzers/ structure (021b)
+3. Create `model_families/modulo_addition_1layer/family.json` and implement (021c)
+4. Update dashboard to be family-aware (021d)
+5. Validate: can add second family with minimal code (021c)
