@@ -4,6 +4,7 @@ REQ_007: Training controls
 REQ_008: Analysis and synchronized visualizations
 REQ_009: Loss curves with epoch indicator
 REQ_020: Checkpoint epoch-index display
+REQ_021d: Dashboard integration with Model Families
 """
 
 import json
@@ -19,7 +20,11 @@ from analysis.analyzers import (
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
 )
-from dashboard.components.loss_curves import render_loss_curves_with_indicator
+from dashboard.components import (
+    get_family_choices,
+    get_variant_choices,
+    render_loss_curves_with_indicator,
+)
 from dashboard.state import DashboardState
 from dashboard.utils import (
     discover_trained_models,
@@ -28,6 +33,7 @@ from dashboard.utils import (
     validate_training_params,
 )
 from dashboard.version import __version__
+from families import FamilyRegistry
 from ModuloAdditionSpecification import ModuloAdditionSpecification
 from visualization import (
     render_dominant_frequencies,
@@ -119,6 +125,254 @@ def run_training(
 
 # ============================================================================
 # Analysis Tab Handlers (REQ_008)
+# ============================================================================
+
+
+# Global registry instance (initialized once per app)
+_registry: FamilyRegistry | None = None
+
+
+def get_registry() -> FamilyRegistry:
+    """Get or create the global FamilyRegistry instance."""
+    global _registry
+    if _registry is None:
+        _registry = FamilyRegistry(
+            model_families_dir=Path("model_families"),
+            results_dir=Path("results"),
+        )
+    return _registry
+
+
+def refresh_registry() -> None:
+    """Force registry to reload from filesystem."""
+    global _registry
+    _registry = FamilyRegistry(
+        model_families_dir=Path("model_families"),
+        results_dir=Path("results"),
+    )
+
+
+# ============================================================================
+# Family/Variant Handlers (REQ_021d)
+# ============================================================================
+
+
+def on_family_change(family_name: str | None, state: DashboardState):
+    """Handle family dropdown selection change.
+
+    Updates variant dropdown with variants from the selected family.
+    """
+    state.clear_selection()
+
+    if not family_name:
+        return (
+            state,
+            gr.Dropdown(choices=[], value=None),
+            "Select a family",
+        )
+
+    state.selected_family_name = family_name
+    registry = get_registry()
+    variant_choices = get_variant_choices(registry, family_name)
+
+    family = registry.get_family(family_name)
+    status = f"Family: {family.display_name}"
+    if variant_choices:
+        status += f" ({len(variant_choices)} variants)"
+    else:
+        status += " (no variants found)"
+
+    return (
+        state,
+        gr.Dropdown(choices=variant_choices, value=None),
+        status,
+    )
+
+
+def on_variant_change(variant_name: str | None, state: DashboardState):
+    """Handle variant dropdown selection change.
+
+    Loads variant data and artifacts for visualization.
+    """
+    if not variant_name or not state.selected_family_name:
+        state.clear_artifacts()
+        return (
+            state,
+            gr.Slider(minimum=0, maximum=1, value=0),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            "No variant selected",
+            "Epoch 0 (Index 0)",
+            gr.Slider(minimum=0, maximum=511, value=0, step=1),
+        )
+
+    state.selected_variant_name = variant_name
+    registry = get_registry()
+    family = registry.get_family(state.selected_family_name)
+    variants = registry.get_variants(family)
+
+    # Find the selected variant
+    variant = None
+    for v in variants:
+        if v.name == variant_name:
+            variant = v
+            break
+
+    if variant is None:
+        state.clear_artifacts()
+        return (
+            state,
+            gr.Slider(minimum=0, maximum=1, value=0),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
+            "Variant not found",
+            "Epoch 0 (Index 0)",
+            gr.Slider(minimum=0, maximum=511, value=0, step=1),
+        )
+
+    # Use variant's directory as model_path for compatibility
+    model_path = str(variant.variant_dir)
+    state.selected_model_path = model_path
+    state.clear_artifacts()
+
+    # Load metadata for loss curves
+    if variant.metadata_path.exists():
+        with open(variant.metadata_path) as f:
+            metadata = json.load(f)
+        state.train_losses = metadata.get("train_losses", [])
+        state.test_losses = metadata.get("test_losses", [])
+
+    # Load config
+    if variant.config_path.exists():
+        with open(variant.config_path) as f:
+            state.model_config = json.load(f)
+
+    # Check for artifacts
+    artifacts_dir = variant.artifacts_dir
+    if artifacts_dir.exists():
+        try:
+            loader = ArtifactLoader(str(artifacts_dir))
+            available = loader.get_available_analyzers()
+
+            if "dominant_frequencies" in available:
+                state.dominant_freq_artifact = loader.load("dominant_frequencies")
+                state.available_epochs = list(state.dominant_freq_artifact["epochs"])
+
+            if "neuron_activations" in available:
+                state.neuron_activations_artifact = loader.load("neuron_activations")
+                state.n_neurons = state.neuron_activations_artifact["activations"].shape[1]
+
+            if "neuron_freq_norm" in available:
+                state.freq_clusters_artifact = loader.load("neuron_freq_norm")
+
+        except Exception:
+            pass  # Artifacts not available yet
+
+    # Generate initial plots
+    state.current_epoch_idx = 0
+    plots = generate_all_plots(state)
+
+    # Configure slider
+    max_idx = max(0, len(state.available_epochs) - 1)
+
+    # Build status message
+    status_parts = [f"Variant: {variant.name}"]
+    status_parts.append(f"State: {variant.state.value}")
+    if state.available_epochs:
+        status_parts.append(f"{len(state.available_epochs)} checkpoints")
+    status = " | ".join(status_parts)
+
+    # REQ_020: format initial epoch display with index
+    initial_epoch = state.get_current_epoch()
+    epoch_display_text = format_epoch_display(initial_epoch, 0)
+
+    return (
+        state,
+        gr.Slider(minimum=0, maximum=max_idx, value=0, step=1),
+        plots[0],  # loss
+        plots[1],  # freq
+        plots[2],  # activation
+        plots[3],  # clusters
+        status,
+        epoch_display_text,
+        gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
+    )
+
+
+def run_analysis_for_variant(
+    variant_name: str | None,
+    state: DashboardState,
+    progress=gr.Progress(),
+):
+    """Run analysis pipeline on the selected variant."""
+    if not variant_name or not state.selected_family_name:
+        return "No variant selected", state
+
+    try:
+        progress(0, desc="Initializing analysis...")
+
+        registry = get_registry()
+        family = registry.get_family(state.selected_family_name)
+        variants = registry.get_variants(family)
+
+        # Find the selected variant
+        variant = None
+        for v in variants:
+            if v.name == variant_name:
+                variant = v
+                break
+
+        if variant is None:
+            return "Variant not found", state
+
+        # Load config from variant
+        with open(variant.config_path) as f:
+            config = json.load(f)
+
+        spec = ModuloAdditionSpecification(
+            model_dir=str(variant.variant_dir.parent.parent),
+            prime=config.get("prime", config.get("n_ctx")),
+            device="cuda" if torch.cuda.is_available() else "cpu",
+            seed=config.get("model_seed", config.get("seed", 999)),
+        )
+
+        progress(0.1, desc="Starting analysis pipeline...")
+
+        def pipeline_progress(pct: float, desc: str):
+            ui_progress = 0.1 + (pct * 0.9)
+            progress(ui_progress, desc=desc)
+
+        pipeline = AnalysisPipeline(spec)
+        pipeline.register(DominantFrequenciesAnalyzer())
+        pipeline.register(NeuronActivationsAnalyzer())
+        pipeline.register(NeuronFreqClustersAnalyzer())
+        pipeline.run(progress_callback=pipeline_progress)
+
+        progress(1.0, desc="Analysis complete!")
+
+        return f"Analysis complete! Artifacts saved to {spec.artifacts_dir}", state
+
+    except Exception as e:
+        return f"Analysis failed: {e}", state
+
+
+def refresh_variants(family_name: str | None) -> gr.Dropdown:
+    """Refresh variant dropdown for the current family."""
+    if not family_name:
+        return gr.Dropdown(choices=[], value=None)
+
+    refresh_registry()  # Reload from filesystem
+    registry = get_registry()
+    variant_choices = get_variant_choices(registry, family_name)
+    return gr.Dropdown(choices=variant_choices, value=None)
+
+
+# ============================================================================
+# Legacy Model Discovery (kept for backward compatibility)
 # ============================================================================
 
 
@@ -421,26 +675,46 @@ def create_app() -> gr.Blocks:
                 )
 
             # ================================================================
-            # ANALYSIS TAB (REQ_008 + REQ_009)
+            # ANALYSIS TAB (REQ_008 + REQ_009 + REQ_021d)
             # ================================================================
             with gr.TabItem("Analysis"):
+                # Family/Variant Selection (REQ_021d)
+                gr.Markdown("### Model Selection")
                 with gr.Row():
+                    with gr.Column(scale=2):
+                        # Initialize family choices from registry
+                        registry = get_registry()
+                        family_choices = get_family_choices(registry)
+                        family_dropdown = gr.Dropdown(
+                            label="Model Family",
+                            choices=family_choices,
+                            value=family_choices[0][1] if family_choices else None,
+                            interactive=True,
+                        )
                     with gr.Column(scale=3):
-                        model_dropdown = gr.Dropdown(
-                            label="Select Trained Model",
+                        variant_dropdown = gr.Dropdown(
+                            label="Select Variant",
                             choices=[],
                             interactive=True,
                         )
                     with gr.Column(scale=1):
-                        results_path = gr.Textbox(
-                            label="Results Path", value="results/", visible=False
-                        )
-                        refresh_btn = gr.Button("Refresh Models")
+                        refresh_btn = gr.Button("Refresh")
                     with gr.Column(scale=1):
                         analyze_btn = gr.Button("Run Analysis", variant="primary")
 
                 analysis_status = gr.Textbox(
-                    label="Status", value="Select a model", interactive=False
+                    label="Status", value="Select a family and variant", interactive=False
+                )
+
+                # Hidden components for backward compatibility
+                results_path = gr.Textbox(
+                    label="Results Path", value="results/", visible=False
+                )
+                model_dropdown = gr.Dropdown(
+                    label="Select Trained Model (Legacy)",
+                    choices=[],
+                    interactive=True,
+                    visible=False,
                 )
 
                 gr.Markdown("### Global Epoch Control")
@@ -477,20 +751,20 @@ def create_app() -> gr.Blocks:
                 clusters_plot = gr.Plot(label="Neuron Frequency Clusters")
 
                 # ============================================================
-                # Event Handlers
+                # Event Handlers (REQ_021d)
                 # ============================================================
 
-                # Refresh models list
-                refresh_btn.click(
-                    fn=refresh_models,
-                    inputs=[results_path],
-                    outputs=[model_dropdown],
+                # Family selection changes variant list
+                family_dropdown.change(
+                    fn=on_family_change,
+                    inputs=[family_dropdown, state],
+                    outputs=[state, variant_dropdown, analysis_status],
                 )
 
-                # Load model when selected
-                model_dropdown.change(
-                    fn=load_model_data,
-                    inputs=[model_dropdown, state],
+                # Variant selection loads data
+                variant_dropdown.change(
+                    fn=on_variant_change,
+                    inputs=[variant_dropdown, state],
                     outputs=[
                         state,
                         epoch_slider,
@@ -499,19 +773,26 @@ def create_app() -> gr.Blocks:
                         activation_plot,
                         clusters_plot,
                         analysis_status,
-                        epoch_display,  # REQ_020
+                        epoch_display,
                         neuron_slider,
                     ],
                 )
 
-                # Run analysis
+                # Refresh button reloads variants for current family
+                refresh_btn.click(
+                    fn=refresh_variants,
+                    inputs=[family_dropdown],
+                    outputs=[variant_dropdown],
+                )
+
+                # Run analysis on selected variant
                 analyze_btn.click(
-                    fn=run_analysis,
-                    inputs=[model_dropdown, state],
+                    fn=run_analysis_for_variant,
+                    inputs=[variant_dropdown, state],
                     outputs=[analysis_status, state],
                 ).then(
-                    fn=load_model_data,
-                    inputs=[model_dropdown, state],
+                    fn=on_variant_change,
+                    inputs=[variant_dropdown, state],
                     outputs=[
                         state,
                         epoch_slider,
@@ -520,7 +801,7 @@ def create_app() -> gr.Blocks:
                         activation_plot,
                         clusters_plot,
                         analysis_status,
-                        epoch_display,  # REQ_020
+                        epoch_display,
                         neuron_slider,
                     ],
                 )
@@ -546,11 +827,18 @@ def create_app() -> gr.Blocks:
                     outputs=[activation_plot, state],
                 )
 
-        # Initial model list refresh
+        # Initialize variants for default family (REQ_021d)
+        def init_variants():
+            registry = get_registry()
+            family_choices = get_family_choices(registry)
+            if family_choices:
+                default_family = family_choices[0][1]
+                return get_variant_choices(registry, default_family)
+            return []
+
         app.load(
-            fn=refresh_models,
-            inputs=[results_path],
-            outputs=[model_dropdown],
+            fn=init_variants,
+            outputs=[variant_dropdown],
         )
 
     return app

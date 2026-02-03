@@ -299,3 +299,207 @@ class TestVersioning:
         from dashboard.version import __version__ as mod_version
 
         assert pkg_version == mod_version
+
+
+class TestFamilySelectorComponent:
+    """Tests for REQ_021d: Family selector component functions."""
+
+    @pytest.fixture
+    def mock_family_dir(self):
+        """Create a mock model_families directory with a family.json."""
+        import torch
+        from safetensors.torch import save_file
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create model_families directory
+            families_dir = Path(tmpdir) / "model_families"
+            family_dir = families_dir / "test_family"
+            family_dir.mkdir(parents=True)
+
+            # Create family.json
+            family_json = {
+                "name": "test_family",
+                "display_name": "Test Family",
+                "description": "A test family",
+                "architecture": {"n_layers": 1, "n_heads": 4},
+                "domain_parameters": {
+                    "prime": {"type": "int", "default": 17},
+                    "seed": {"type": "int", "default": 42},
+                },
+                "analyzers": [],
+                "visualizations": [],
+                "analysis_dataset": {"type": "test"},
+                "variant_pattern": "test_family_p{prime}_seed{seed}",
+            }
+            with open(family_dir / "family.json", "w") as f:
+                json.dump(family_json, f)
+
+            # Create results directory with a variant
+            results_dir = Path(tmpdir) / "results" / "test_family"
+            variant_dir = results_dir / "test_family_p17_seed42"
+            checkpoints_dir = variant_dir / "checkpoints"
+            checkpoints_dir.mkdir(parents=True)
+
+            # Create a checkpoint file (marks variant as TRAINED)
+            dummy_state = {"dummy": torch.zeros(1)}
+            save_file(dummy_state, checkpoints_dir / "checkpoint_epoch_00000.safetensors")
+
+            # Create metadata.json
+            with open(variant_dir / "metadata.json", "w") as f:
+                json.dump({"train_losses": [1.0]}, f)
+
+            # Create config.json
+            with open(variant_dir / "config.json", "w") as f:
+                json.dump({"prime": 17, "seed": 42}, f)
+
+            yield tmpdir
+
+    def test_get_family_choices(self, mock_family_dir):
+        """get_family_choices returns list of (display_name, name) tuples."""
+        from dashboard.components import get_family_choices
+        from families import FamilyRegistry
+
+        registry = FamilyRegistry(
+            model_families_dir=Path(mock_family_dir) / "model_families",
+            results_dir=Path(mock_family_dir) / "results",
+        )
+
+        choices = get_family_choices(registry)
+
+        assert len(choices) == 1
+        assert choices[0] == ("Test Family", "test_family")
+
+    def test_get_variant_choices(self, mock_family_dir):
+        """get_variant_choices returns list of variant choices."""
+        from dashboard.components import get_variant_choices
+        from families import FamilyRegistry
+
+        registry = FamilyRegistry(
+            model_families_dir=Path(mock_family_dir) / "model_families",
+            results_dir=Path(mock_family_dir) / "results",
+        )
+
+        choices = get_variant_choices(registry, "test_family")
+
+        assert len(choices) == 1
+        # Check display name contains state indicator and params
+        display_name, name = choices[0]
+        assert "prime=17" in display_name
+        assert "seed=42" in display_name
+        assert name == "test_family_p17_seed42"
+
+    def test_get_variant_choices_empty_family(self, mock_family_dir):
+        """get_variant_choices returns empty list for unknown family."""
+        from dashboard.components import get_variant_choices
+        from families import FamilyRegistry
+
+        registry = FamilyRegistry(
+            model_families_dir=Path(mock_family_dir) / "model_families",
+            results_dir=Path(mock_family_dir) / "results",
+        )
+
+        choices = get_variant_choices(registry, "nonexistent_family")
+
+        assert choices == []
+
+    def test_get_state_indicator(self, mock_family_dir):
+        """get_state_indicator returns correct symbols for states."""
+        from dashboard.components import get_state_indicator
+        from families import FamilyRegistry, VariantState
+
+        registry = FamilyRegistry(
+            model_families_dir=Path(mock_family_dir) / "model_families",
+            results_dir=Path(mock_family_dir) / "results",
+        )
+
+        variants = registry.get_variants("test_family")
+        assert len(variants) == 1
+        variant = variants[0]
+
+        indicator = get_state_indicator(variant)
+        assert indicator == "●"  # Trained state
+
+    def test_format_variant_params(self, mock_family_dir):
+        """format_variant_params creates readable parameter string."""
+        from dashboard.components import format_variant_params
+        from families import FamilyRegistry
+
+        registry = FamilyRegistry(
+            model_families_dir=Path(mock_family_dir) / "model_families",
+            results_dir=Path(mock_family_dir) / "results",
+        )
+
+        variants = registry.get_variants("test_family")
+        variant = variants[0]
+
+        params_str = format_variant_params(variant)
+        assert "prime=17" in params_str
+        assert "seed=42" in params_str
+
+    def test_get_available_actions(self, mock_family_dir):
+        """get_available_actions returns actions for variant state."""
+        from dashboard.components import get_available_actions
+        from families import FamilyRegistry
+
+        registry = FamilyRegistry(
+            model_families_dir=Path(mock_family_dir) / "model_families",
+            results_dir=Path(mock_family_dir) / "results",
+        )
+
+        variants = registry.get_variants("test_family")
+        variant = variants[0]
+
+        actions = get_available_actions(variant)
+        assert "Analyze" in actions
+
+
+class TestDashboardStateWithFamilies:
+    """Tests for REQ_021d: Dashboard state with family/variant tracking."""
+
+    def test_initial_state_has_family_fields(self):
+        """DashboardState has family/variant fields."""
+        state = DashboardState()
+
+        assert state.selected_family_name is None
+        assert state.selected_variant_name is None
+
+    def test_clear_selection(self):
+        """clear_selection resets family/variant and artifacts."""
+        state = DashboardState()
+        state.selected_family_name = "test_family"
+        state.selected_variant_name = "test_variant"
+        state.selected_model_path = "/some/path"
+        state.train_losses = [1.0, 0.5]
+
+        state.clear_selection()
+
+        assert state.selected_family_name is None
+        assert state.selected_variant_name is None
+        assert state.selected_model_path is None
+        assert state.train_losses is None
+
+
+class TestFamilyDashboardIntegration:
+    """Integration tests for REQ_021d: Dashboard with FamilyRegistry."""
+
+    def test_create_app_with_families(self):
+        """create_app initializes with FamilyRegistry."""
+        from dashboard import create_app
+
+        app = create_app()
+        assert app is not None
+        assert hasattr(app, "launch")
+
+    def test_app_imports_work(self):
+        """Dashboard app imports family components successfully."""
+        from dashboard.app import (
+            get_registry,
+            on_family_change,
+            on_variant_change,
+            refresh_variants,
+        )
+
+        assert callable(get_registry)
+        assert callable(on_family_change)
+        assert callable(on_variant_change)
+        assert callable(refresh_variants)
