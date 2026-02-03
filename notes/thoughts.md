@@ -151,3 +151,37 @@ Suggestions for future enhancements to the Training Dynamics Workbench.
 ---
 
 *These are observations for future consideration, not immediate action items.*
+
+---
+
+## 2026-02-03: Analysis Report Expansion Ideas
+
+Brainstormed directions for expanding analysis report functionality:
+
+### 1. Report Generation
+Structured output summarizing analysis findings in shareable formats (markdown, HTML, PDF). Could include:
+- Summary statistics per checkpoint
+- Key observations (e.g., "grokking detected at epoch X")
+- Embedded visualizations or links to interactive versions
+
+### 2. Comparison Reports
+Diff analysis between variants with different parameters. Examples:
+- Compare p=113 vs p=97 modulus variants
+- Compare different random seeds to identify consistent vs seed-dependent behaviors
+- Side-by-side visualization grids
+
+### 3. Aggregate Metrics
+Summary statistics or derived insights across checkpoints:
+- When does grokking occur? (test loss inflection point)
+- Which frequencies dominate at convergence?
+- Neuron specialization timeline
+
+### 4. Export Formats
+Packaging analysis artifacts in shareable formats:
+- Bundled artifact archives for reproducibility
+- Standalone HTML reports with embedded data
+- Integration with external tools (notebooks, papers)
+
+---
+
+*These ideas emerged from discussion about analysis report requirements.*
