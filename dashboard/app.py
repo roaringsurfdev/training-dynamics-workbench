@@ -3,6 +3,7 @@
 REQ_007: Training controls
 REQ_008: Analysis and synchronized visualizations
 REQ_009: Loss curves with epoch indicator
+REQ_020: Checkpoint epoch-index display
 """
 
 import json
@@ -140,6 +141,7 @@ def load_model_data(model_path: str | None, state: DashboardState):
             create_empty_plot("Select a model"),
             create_empty_plot("Select a model"),
             "No model selected",
+            "Epoch 0 (Index 0)",  # REQ_020: initial epoch display
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
         )
 
@@ -194,6 +196,10 @@ def load_model_data(model_path: str | None, state: DashboardState):
     else:
         status += " (no analysis yet)"
 
+    # REQ_020: format initial epoch display with index
+    initial_epoch = state.get_current_epoch()
+    epoch_display_text = format_epoch_display(initial_epoch, 0)
+
     return (
         state,
         gr.Slider(minimum=0, maximum=max_idx, value=0, step=1),
@@ -202,6 +208,7 @@ def load_model_data(model_path: str | None, state: DashboardState):
         plots[2],  # activation
         plots[3],  # clusters
         status,
+        epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
     )
 
@@ -294,6 +301,11 @@ def generate_all_plots(state: DashboardState):
     return loss_fig, freq_fig, activation_fig, clusters_fig
 
 
+def format_epoch_display(epoch: int, index: int) -> str:
+    """Format epoch display string with index (REQ_020)."""
+    return f"Epoch {epoch} (Index {index})"
+
+
 def update_visualizations(epoch_idx: int, neuron_idx: int, state: DashboardState):
     """Update all visualizations when slider or neuron changes."""
     state.current_epoch_idx = int(epoch_idx)
@@ -302,7 +314,8 @@ def update_visualizations(epoch_idx: int, neuron_idx: int, state: DashboardState
     plots = generate_all_plots(state)
     epoch = state.get_current_epoch()
 
-    return plots[0], plots[1], plots[2], plots[3], f"Epoch {epoch}", state
+    epoch_display = format_epoch_display(epoch, int(epoch_idx))
+    return plots[0], plots[1], plots[2], plots[3], epoch_display, state
 
 
 def update_activation_only(epoch_idx: int, neuron_idx: int, state: DashboardState):
@@ -471,6 +484,7 @@ def create_app() -> gr.Blocks:
                         activation_plot,
                         clusters_plot,
                         analysis_status,
+                        epoch_display,  # REQ_020
                         neuron_slider,
                     ],
                 )
@@ -491,6 +505,7 @@ def create_app() -> gr.Blocks:
                         activation_plot,
                         clusters_plot,
                         analysis_status,
+                        epoch_display,  # REQ_020
                         neuron_slider,
                     ],
                 )
