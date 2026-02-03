@@ -1,4 +1,7 @@
-"""REQ_009: Loss curves with epoch indicator."""
+"""REQ_009: Loss curves with epoch indicator.
+
+REQ_020: Checkpoint tooltips include epoch-to-index mapping.
+"""
 
 import plotly.graph_objects as go
 
@@ -84,11 +87,13 @@ def render_loss_curves_with_indicator(
             annotation_font_color="red",
         )
 
-    # Mark checkpoint epochs if provided
+    # Mark checkpoint epochs if provided (REQ_020: include index in tooltip)
     if checkpoint_epochs:
         valid_checkpoints = [e for e in checkpoint_epochs if e < len(train_losses)]
         if valid_checkpoints:
             checkpoint_train = [train_losses[e] for e in valid_checkpoints]
+            # Build index mapping for tooltips
+            checkpoint_indices = list(range(len(valid_checkpoints)))
             fig.add_trace(
                 go.Scatter(
                     x=valid_checkpoints,
@@ -96,7 +101,12 @@ def render_loss_curves_with_indicator(
                     mode="markers",
                     name="Checkpoints",
                     marker=dict(size=8, color="green", symbol="diamond"),
-                    hovertemplate="Checkpoint<br>Epoch: %{x}<br>Loss: %{y:.6f}<extra></extra>",
+                    customdata=checkpoint_indices,
+                    hovertemplate=(
+                        "Checkpoint<br>"
+                        "Epoch: %{x} (Index: %{customdata})<br>"
+                        "Loss: %{y:.6f}<extra></extra>"
+                    ),
                 )
             )
 

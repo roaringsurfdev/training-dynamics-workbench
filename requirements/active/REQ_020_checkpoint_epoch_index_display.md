@@ -13,9 +13,9 @@ This creates friction when exploring training dynamics, especially when correlat
 
 ## Conditions of Satisfaction
 
-- [ ] User can determine the epoch number for any checkpoint index
-- [ ] User can determine the checkpoint index for any visible epoch marker
-- [ ] Solution requires no additional clicks or mode changes (information is readily visible)
+- [x] User can determine the epoch number for any checkpoint index
+- [x] User can determine the checkpoint index for any visible epoch marker
+- [x] Solution requires no additional clicks or mode changes (information is readily visible)
 
 ## Constraints
 
@@ -100,3 +100,30 @@ Implement both. Option A is near-zero effort and provides discovery. Option B pr
 **Post-implementation:**
 - Consider if this obviates the need for REQ_014 or just complements it
 - User feedback may reveal preference for one approach over the other
+
+---
+
+## Implementation Notes (Added by Claude)
+
+**Implementation completed:** 2026-02-03
+
+**Both options implemented:**
+
+### Option A: Enhanced Loss Curve Tooltip
+- **File:** `dashboard/components/loss_curves.py`
+- **Change:** Added `customdata` with checkpoint indices to the checkpoint marker trace
+- **Tooltip format:** `Epoch: X (Index: Y)`
+
+### Option B: Epoch Display Near Slider
+- **File:** `dashboard/app.py`
+- **Change:** Added `format_epoch_display()` helper function
+- **Display format:** `Epoch X (Index Y)`
+- **Updates:** On slider change and on model load
+
+**Key code locations:**
+- `dashboard/components/loss_curves.py:88-108` - Checkpoint marker with index in tooltip
+- `dashboard/app.py:297-300` - `format_epoch_display()` helper
+- `dashboard/app.py:305-313` - `update_visualizations()` uses formatted display
+- `dashboard/app.py:197-199` - `load_model_data()` returns initial epoch display
+
+**Tests:** All 156 existing tests pass. No new tests added (UI display change).
