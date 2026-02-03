@@ -1,0 +1,104 @@
+"""Protocol definitions for model families."""
+
+from typing import Any, Protocol, runtime_checkable
+
+import torch
+from transformer_lens import HookedTransformer
+
+from families.types import AnalysisDatasetSpec, ArchitectureSpec, ParameterSpec
+
+
+@runtime_checkable
+class ModelFamily(Protocol):
+    """Protocol defining the contract for a model family.
+
+    A ModelFamily groups structurally similar models that share:
+    - Architecture (layer count, head count, activation functions)
+    - Analyzers (which analysis functions are valid)
+    - Visualizations (which visualizations can be rendered)
+    - Analysis dataset schema (what kind of probe input is valid)
+
+    The `name` property serves as the directory key for both
+    `model_families/{name}/` and `results/{name}/`.
+    """
+
+    @property
+    def name(self) -> str:
+        """Unique identifier, used as directory key."""
+        ...
+
+    @property
+    def display_name(self) -> str:
+        """Human-readable name for UI display."""
+        ...
+
+    @property
+    def description(self) -> str:
+        """Brief description of the family."""
+        ...
+
+    @property
+    def architecture(self) -> ArchitectureSpec:
+        """Architectural properties (n_layers, n_heads, etc.)."""
+        ...
+
+    @property
+    def domain_parameters(self) -> dict[str, ParameterSpec]:
+        """Parameters that vary across variants."""
+        ...
+
+    @property
+    def analyzers(self) -> list[str]:
+        """Analyzer identifiers valid for this family."""
+        ...
+
+    @property
+    def visualizations(self) -> list[str]:
+        """Visualization identifiers valid for this family."""
+        ...
+
+    @property
+    def analysis_dataset(self) -> AnalysisDatasetSpec:
+        """Specification for the analysis dataset."""
+        ...
+
+    @property
+    def variant_pattern(self) -> str:
+        """Pattern for variant directory names.
+
+        Example: "modulo_addition_1layer_p{prime}_seed{seed}"
+        """
+        ...
+
+    def create_model(self, params: dict[str, Any]) -> HookedTransformer:
+        """Instantiate a model with the given domain parameters.
+
+        Args:
+            params: Domain parameter values (e.g., {"prime": 113, "seed": 42})
+
+        Returns:
+            A HookedTransformer configured for this family
+        """
+        ...
+
+    def generate_analysis_dataset(self, params: dict[str, Any]) -> torch.Tensor:
+        """Generate the analysis dataset (probe) for a variant.
+
+        Args:
+            params: Domain parameter values
+
+        Returns:
+            Tensor of inputs for analysis forward passes
+        """
+        ...
+
+    def get_variant_directory_name(self, params: dict[str, Any]) -> str:
+        """Generate variant directory name from parameters.
+
+        Args:
+            params: Domain parameter values
+
+        Returns:
+            Directory name (e.g., "modulo_addition_1layer_p113_seed42")
+        """
+        ...
