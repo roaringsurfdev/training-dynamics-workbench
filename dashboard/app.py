@@ -751,9 +751,13 @@ def update_activation_only(
 
 def create_app() -> gr.Blocks:
     """Create and configure the Gradio application."""
-    # Initialize family choices from registry (used by both Training and Analysis tabs)
+    # Initialize family and variant choices from registry (used by both Training and Analysis tabs)
     registry = get_registry()
     family_choices = get_family_choices(registry)
+
+    # Initialize variant choices for default family (fixes BUG_004)
+    default_family = family_choices[0][1] if family_choices else None
+    initial_variant_choices = get_variant_choices(registry, default_family) if default_family else []
 
     with gr.Blocks(title="Training Dynamics Workbench") as app:
         # Shared state
@@ -887,7 +891,7 @@ def create_app() -> gr.Blocks:
                     with gr.Column(scale=3):
                         variant_dropdown = gr.Dropdown(
                             label="Select Variant",
-                            choices=[],
+                            choices=initial_variant_choices,
                             interactive=True,
                         )
                     with gr.Column(scale=1):
@@ -1020,19 +1024,8 @@ def create_app() -> gr.Blocks:
                     outputs=[activation_plot, state],
                 )
 
-        # Initialize variants for default family (REQ_021d)
-        def init_variants():
-            registry = get_registry()
-            family_choices = get_family_choices(registry)
-            if family_choices:
-                default_family = family_choices[0][1]
-                return get_variant_choices(registry, default_family)
-            return []
-
-        app.load(
-            fn=init_variants,
-            outputs=[variant_dropdown],
-        )
+        # Note: Variants are now initialized at creation time (fixes BUG_004)
+        # The init_variants/app.load pattern caused issues on page reload
 
     return app
 
