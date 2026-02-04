@@ -102,3 +102,32 @@ class ModelFamily(Protocol):
             Directory name (e.g., "modulo_addition_1layer_p113_seed42")
         """
         ...
+
+    def generate_training_dataset(
+        self,
+        params: dict[str, Any],
+        training_fraction: float = 0.3,
+        data_seed: int = 598,
+        device: str | torch.device | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Generate train/test split for training.
+
+        Args:
+            params: Domain parameter values (e.g., {"prime": 113, "seed": 42})
+            training_fraction: Fraction of data to use for training
+            data_seed: Random seed for train/test split
+            device: Device to place tensors on
+
+        Returns:
+            Tuple of (train_data, train_labels, test_data, test_labels,
+                     train_indices, test_indices)
+        """
+        ...
+
+    def get_training_config(self) -> dict[str, Any]:
+        """Return default training hyperparameters.
+
+        Returns:
+            Dict with learning_rate, weight_decay, betas, etc.
+        """
+        ...

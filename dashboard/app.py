@@ -5,6 +5,7 @@ REQ_008: Analysis and synchronized visualizations
 REQ_009: Loss curves with epoch indicator
 REQ_020: Checkpoint epoch-index display
 REQ_021d: Dashboard integration with Model Families
+REQ_021e: Training integration with Model Families
 """
 
 import json
@@ -33,7 +34,7 @@ from dashboard.utils import (
     validate_training_params,
 )
 from dashboard.version import __version__
-from families import FamilyRegistry
+from families import FamilyRegistry, TrainingResult
 from ModuloAdditionSpecification import ModuloAdditionSpecification
 from visualization import (
     render_dominant_frequencies,
@@ -59,8 +60,144 @@ def create_empty_plot(message: str = "No data") -> go.Figure:
 
 
 # ============================================================================
-# Training Tab Handlers (REQ_007)
+# Training Tab Handlers (REQ_007 + REQ_021e)
 # ============================================================================
+
+
+def on_training_family_change(family_name: str | None):
+    """Handle family selection change in training tab.
+
+    Updates domain parameter inputs based on selected family.
+
+    Args:
+        family_name: Selected family name
+
+    Returns:
+        Tuple of (variant_preview, prime_value, seed_value)
+    """
+    if not family_name:
+        return "Select a family", 113, 999
+
+    registry = get_registry()
+    family = registry.get_family(family_name)
+    defaults = family.get_default_params()
+
+    prime = defaults.get("prime", 113)
+    seed = defaults.get("seed", 999)
+
+    # Generate variant preview
+    preview_params = {"prime": prime, "seed": seed}
+    variant_name = family.get_variant_directory_name(preview_params)
+
+    return f"Variant: {variant_name}", prime, seed
+
+
+def update_variant_preview(family_name: str | None, prime: int, seed: int) -> str:
+    """Update variant name preview when parameters change.
+
+    Args:
+        family_name: Selected family name
+        prime: Prime value
+        seed: Seed value
+
+    Returns:
+        Variant preview string
+    """
+    if not family_name:
+        return "Select a family"
+
+    try:
+        registry = get_registry()
+        family = registry.get_family(family_name)
+        params = {"prime": int(prime), "seed": int(seed)}
+        variant_name = family.get_variant_directory_name(params)
+        return f"Variant: {variant_name}"
+    except Exception:
+        return "Invalid parameters"
+
+
+def run_family_training(
+    family_name: str | None,
+    prime: int,
+    seed: int,
+    data_seed: int,
+    train_fraction: float,
+    num_epochs: int,
+    checkpoint_str: str,
+    progress=gr.Progress(),
+) -> str:
+    """Execute training using the family abstraction (REQ_021e).
+
+    Args:
+        family_name: Selected model family
+        prime: Prime/modulus parameter
+        seed: Model initialization seed
+        data_seed: Data split seed
+        train_fraction: Fraction for training
+        num_epochs: Total training epochs
+        checkpoint_str: Comma-separated checkpoint epochs
+        progress: Gradio progress tracker
+
+    Returns:
+        Status message with training results
+    """
+    if not family_name:
+        return "Error: Please select a model family"
+
+    try:
+        progress(0, desc="Initializing...")
+
+        registry = get_registry()
+        family = registry.get_family(family_name)
+
+        # Build domain parameters
+        params = {"prime": int(prime), "seed": int(seed)}
+
+        # Create variant through registry
+        variant = registry.create_variant(family, params)
+
+        # Parse checkpoint epochs
+        checkpoint_epochs = parse_checkpoint_epochs(checkpoint_str)
+        if not checkpoint_epochs:
+            checkpoint_epochs = None  # Use family defaults
+
+        progress(0.05, desc="Creating variant...")
+
+        # Create progress callback for training
+        def training_progress(pct: float, desc: str):
+            # Map training progress (0-1) to UI progress (0.1-1.0)
+            ui_progress = 0.1 + (pct * 0.9)
+            progress(ui_progress, desc=desc)
+
+        progress(0.1, desc="Starting training...")
+
+        # Train via variant (uses family.create_model() and family.generate_training_dataset())
+        result: TrainingResult = variant.train(
+            num_epochs=int(num_epochs),
+            checkpoint_epochs=checkpoint_epochs,
+            training_fraction=train_fraction,
+            data_seed=int(data_seed),
+            progress_callback=training_progress,
+        )
+
+        progress(1.0, desc="Training complete!")
+
+        # Refresh registry to pick up new variant
+        refresh_registry()
+
+        return (
+            f"Training complete!\n"
+            f"Variant: {variant.name}\n"
+            f"Saved to: {result.variant_dir}\n"
+            f"Checkpoints: {len(result.checkpoint_epochs)}\n"
+            f"Final train loss: {result.final_train_loss:.6f}\n"
+            f"Final test loss: {result.final_test_loss:.6f}\n\n"
+            f"Variant now available in Analysis tab (click Refresh)"
+        )
+
+    except Exception as e:
+        import traceback
+        return f"Training failed: {e}\n\n{traceback.format_exc()}"
 
 
 def run_training(
@@ -73,7 +210,11 @@ def run_training(
     save_path: str,
     progress=gr.Progress(),
 ) -> str:
-    """Execute training with the given parameters."""
+    """Execute training with the given parameters (legacy function).
+
+    Note: This is kept for backward compatibility. New training should use
+    run_family_training() which goes through the family abstraction.
+    """
     # Validate inputs
     is_valid, error_msg = validate_training_params(
         int(modulus),
@@ -610,6 +751,10 @@ def update_activation_only(
 
 def create_app() -> gr.Blocks:
     """Create and configure the Gradio application."""
+    # Initialize family choices from registry (used by both Training and Analysis tabs)
+    registry = get_registry()
+    family_choices = get_family_choices(registry)
+
     with gr.Blocks(title="Training Dynamics Workbench") as app:
         # Shared state
         state = gr.State(DashboardState())
@@ -619,35 +764,65 @@ def create_app() -> gr.Blocks:
 
         with gr.Tabs():
             # ================================================================
-            # TRAINING TAB (REQ_007)
+            # TRAINING TAB (REQ_007 + REQ_021e)
             # ================================================================
             with gr.TabItem("Training"):
+                # Family Selection (REQ_021e)
+                gr.Markdown("### Model Family")
+                with gr.Row():
+                    with gr.Column(scale=2):
+                        training_family_dropdown = gr.Dropdown(
+                            label="Model Family",
+                            choices=family_choices,
+                            value=family_choices[0][1] if family_choices else None,
+                            interactive=True,
+                        )
+                    with gr.Column(scale=3):
+                        variant_preview = gr.Textbox(
+                            label="Variant Preview",
+                            value="Select a family",
+                            interactive=False,
+                        )
+
                 with gr.Row():
                     with gr.Column(scale=1):
-                        gr.Markdown("### Training Parameters")
-                        modulus = gr.Number(
-                            label="Modulus (p)",
+                        gr.Markdown("### Domain Parameters")
+                        training_prime = gr.Number(
+                            label="Prime (p)",
                             value=113,
                             precision=0,
-                            info="Prime number for modular arithmetic",
+                            info="Modulus for the addition task",
                         )
-                        model_seed = gr.Number(label="Model Seed", value=999, precision=0)
-                        data_seed = gr.Number(label="Data Seed", value=598, precision=0)
-                        train_fraction = gr.Slider(
+                        training_seed = gr.Number(
+                            label="Seed",
+                            value=999,
+                            precision=0,
+                            info="Random seed for model initialization",
+                        )
+
+                        gr.Markdown("### Training Parameters")
+                        training_data_seed = gr.Number(
+                            label="Data Seed",
+                            value=598,
+                            precision=0,
+                            info="Random seed for train/test split",
+                        )
+                        training_fraction = gr.Slider(
                             minimum=0.1,
                             maximum=0.9,
                             value=0.3,
                             step=0.05,
                             label="Training Fraction",
                         )
-                        num_epochs = gr.Number(label="Total Epochs", value=25000, precision=0)
-                        checkpoint_str = gr.Textbox(
-                            label="Checkpoint Epochs (comma-separated)",
-                            value="0, 100, 500, 1000, 2000, 5000, 5500, 6000, 10000, 15000, 20000, 24999",
-                            info="Leave empty for default schedule",
+                        training_epochs = gr.Number(
+                            label="Total Epochs",
+                            value=25000,
+                            precision=0,
                         )
-                        save_path = gr.Textbox(
-                            label="Save Path", value="results/", info="Results directory"
+                        training_checkpoint_str = gr.Textbox(
+                            label="Checkpoint Epochs (comma-separated)",
+                            value="",
+                            info="Leave empty for default schedule",
                         )
 
                     with gr.Column(scale=1):
@@ -655,21 +830,41 @@ def create_app() -> gr.Blocks:
                         training_status = gr.Textbox(
                             label="Training Status",
                             value="Ready to train",
-                            lines=8,
+                            lines=10,
                             interactive=False,
                         )
                         train_btn = gr.Button("Start Training", variant="primary")
 
+                # Event handlers for Training Tab (REQ_021e)
+                training_family_dropdown.change(
+                    fn=on_training_family_change,
+                    inputs=[training_family_dropdown],
+                    outputs=[variant_preview, training_prime, training_seed],
+                )
+
+                # Update variant preview when parameters change
+                training_prime.change(
+                    fn=update_variant_preview,
+                    inputs=[training_family_dropdown, training_prime, training_seed],
+                    outputs=[variant_preview],
+                )
+                training_seed.change(
+                    fn=update_variant_preview,
+                    inputs=[training_family_dropdown, training_prime, training_seed],
+                    outputs=[variant_preview],
+                )
+
+                # Training button uses family-based training
                 train_btn.click(
-                    fn=run_training,
+                    fn=run_family_training,
                     inputs=[
-                        modulus,
-                        model_seed,
-                        data_seed,
-                        train_fraction,
-                        num_epochs,
-                        checkpoint_str,
-                        save_path,
+                        training_family_dropdown,
+                        training_prime,
+                        training_seed,
+                        training_data_seed,
+                        training_fraction,
+                        training_epochs,
+                        training_checkpoint_str,
                     ],
                     outputs=[training_status],
                 )
@@ -682,9 +877,7 @@ def create_app() -> gr.Blocks:
                 gr.Markdown("### Model Selection")
                 with gr.Row():
                     with gr.Column(scale=2):
-                        # Initialize family choices from registry
-                        registry = get_registry()
-                        family_choices = get_family_choices(registry)
+                        # Uses family_choices initialized at top of create_app()
                         family_dropdown = gr.Dropdown(
                             label="Model Family",
                             choices=family_choices,

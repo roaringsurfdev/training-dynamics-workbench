@@ -121,6 +121,75 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
         dataset = self.generate_analysis_dataset(params)
         return (dataset[:, 0] + dataset[:, 1]) % p
 
+    def generate_training_dataset(
+        self,
+        params: dict[str, Any],
+        training_fraction: float = 0.3,
+        data_seed: int = 598,
+        device: str | torch.device | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Generate train/test split for training.
+
+        Creates all p^2 input combinations and splits them into train/test sets.
+
+        Args:
+            params: Domain parameters containing 'prime'
+            training_fraction: Fraction of data to use for training (default: 0.3)
+            data_seed: Random seed for reproducible train/test split (default: 598)
+            device: Device to place tensors on
+
+        Returns:
+            Tuple of (train_data, train_labels, test_data, test_labels,
+                     train_indices, test_indices)
+        """
+        p = params["prime"]
+
+        # Generate full dataset (same as analysis dataset)
+        dataset = self.generate_analysis_dataset(params, device=device)
+        labels = (dataset[:, 0] + dataset[:, 1]) % p
+
+        # Create reproducible train/test split
+        torch.manual_seed(data_seed)
+        indices = torch.randperm(p * p)
+        cutoff = int(p * p * training_fraction)
+        train_indices = indices[:cutoff]
+        test_indices = indices[cutoff:]
+
+        train_data = dataset[train_indices]
+        train_labels = labels[train_indices]
+        test_data = dataset[test_indices]
+        test_labels = labels[test_indices]
+
+        return train_data, train_labels, test_data, test_labels, train_indices, test_indices
+
+    def get_training_config(self) -> dict[str, Any]:
+        """Return default training hyperparameters.
+
+        These match the original Neel Nanda grokking experiment settings.
+
+        Returns:
+            Dict with learning_rate, weight_decay, betas, num_epochs,
+            and checkpoint configuration
+        """
+        return {
+            "learning_rate": 1e-3,
+            "weight_decay": 1.0,
+            "betas": (0.9, 0.98),
+            "num_epochs": 25000,
+            "default_checkpoint_epochs": sorted(
+                list(
+                    set(
+                        [
+                            *range(0, 1500, 100),  # Early training - sparse
+                            *range(1500, 9000, 500),  # Mid training - moderate
+                            *range(9000, 13000, 100),  # Grokking region - dense
+                            *range(13000, 25000, 500),  # Post-grokking - moderate
+                        ]
+                    )
+                )
+            ),
+        }
+
 
 def load_modulo_addition_1layer_family(
     model_families_dir: Path | str = "model_families",

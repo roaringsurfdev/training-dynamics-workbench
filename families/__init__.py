@@ -44,7 +44,7 @@ from families.types import (
     ParameterSpec,
     VariantState,
 )
-from families.variant import Variant
+from families.variant import TrainingResult, Variant
 
 # Import implementations to trigger registration
 from families.implementations import ModuloAddition1LayerFamily  # noqa: F401
@@ -56,6 +56,7 @@ __all__ = [
     "FamilyRegistry",
     "JsonModelFamily",
     "ModuloAddition1LayerFamily",
+    "TrainingResult",
     "Variant",
     # Types
     "AnalysisDatasetSpec",

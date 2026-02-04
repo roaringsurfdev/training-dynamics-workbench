@@ -155,6 +155,53 @@ class JsonModelFamily:
             "Use a family-specific implementation."
         )
 
+    def generate_training_dataset(
+        self,
+        params: dict[str, Any],
+        training_fraction: float = 0.3,
+        data_seed: int = 598,
+        device: str | torch.device | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Generate train/test split for training.
+
+        Note: This base implementation raises NotImplementedError.
+        Family-specific subclasses should override this method.
+
+        Args:
+            params: Domain parameter values
+            training_fraction: Fraction of data to use for training
+            data_seed: Random seed for train/test split
+            device: Device to place tensors on
+
+        Returns:
+            Tuple of (train_data, train_labels, test_data, test_labels,
+                     train_indices, test_indices)
+
+        Raises:
+            NotImplementedError: Must be implemented by subclass
+        """
+        raise NotImplementedError(
+            f"generate_training_dataset() not implemented for {self.name}. "
+            "Use a family-specific implementation."
+        )
+
+    def get_training_config(self) -> dict[str, Any]:
+        """Return default training hyperparameters.
+
+        Note: This base implementation raises NotImplementedError.
+        Family-specific subclasses should override this method.
+
+        Returns:
+            Dict with learning_rate, weight_decay, betas, etc.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclass
+        """
+        raise NotImplementedError(
+            f"get_training_config() not implemented for {self.name}. "
+            "Use a family-specific implementation."
+        )
+
     def get_default_params(self) -> dict[str, Any]:
         """Get default parameter values from domain_parameters.
 

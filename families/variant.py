@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
-from safetensors.torch import load_file
+import torch
+import tqdm.auto as tqdm
+from safetensors.torch import load_file, save_file
 
 from families.types import VariantState
 
@@ -13,6 +17,18 @@ if TYPE_CHECKING:
     from transformer_lens import HookedTransformer
 
     from families.protocols import ModelFamily
+
+
+@dataclass
+class TrainingResult:
+    """Result of a training run."""
+
+    train_losses: list[float]
+    test_losses: list[float]
+    checkpoint_epochs: list[int]
+    final_train_loss: float
+    final_test_loss: float
+    variant_dir: Path
 
 
 class Variant:
@@ -166,6 +182,209 @@ class Variant:
         """Create variant directories if they don't exist."""
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    def train(
+        self,
+        num_epochs: int | None = None,
+        checkpoint_epochs: list[int] | None = None,
+        training_fraction: float = 0.3,
+        data_seed: int = 598,
+        device: str | torch.device | None = None,
+        progress_callback: Callable[[float, str], None] | None = None,
+    ) -> TrainingResult:
+        """Train this variant's model.
+
+        Creates the model via family.create_model(), generates training data,
+        runs the training loop, and saves checkpoints and metadata.
+
+        Args:
+            num_epochs: Total training epochs (default: from family config)
+            checkpoint_epochs: Epochs at which to save checkpoints
+                              (default: from family config)
+            training_fraction: Fraction of data for training (default: 0.3)
+            data_seed: Random seed for train/test split (default: 598)
+            device: Device for training (default: auto-detect CUDA)
+            progress_callback: Optional callback for progress updates
+                              (fraction: float, description: str)
+
+        Returns:
+            TrainingResult with losses and checkpoint info
+        """
+        # Auto-detect device
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        # Get training config from family
+        training_config = self._family.get_training_config()
+
+        if num_epochs is None:
+            num_epochs = training_config.get("num_epochs", 25000)
+
+        if checkpoint_epochs is None:
+            checkpoint_epochs = training_config.get("default_checkpoint_epochs", [])
+
+        # Filter and sort checkpoint epochs
+        checkpoint_epochs = sorted([e for e in checkpoint_epochs if e < num_epochs])
+        checkpoint_epochs_set = set(checkpoint_epochs)
+
+        # Ensure directories exist
+        self.ensure_directories()
+
+        # Create model via family
+        model = self._family.create_model(self._params, device=device)
+
+        # Generate training data via family
+        train_data, train_labels, test_data, test_labels, train_indices, test_indices = (
+            self._family.generate_training_dataset(
+                self._params,
+                training_fraction=training_fraction,
+                data_seed=data_seed,
+                device=device,
+            )
+        )
+
+        # Setup optimizer
+        lr = training_config.get("learning_rate", 1e-3)
+        wd = training_config.get("weight_decay", 1.0)
+        betas = training_config.get("betas", (0.9, 0.98))
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wd, betas=betas)
+
+        train_losses: list[float] = []
+        test_losses: list[float] = []
+        saved_checkpoint_epochs: list[int] = []
+
+        # Training loop
+        for epoch in tqdm.tqdm(range(num_epochs), desc="Training"):
+            # Forward pass
+            train_logits = model(train_data)
+            train_loss = self._loss_function(train_logits, train_labels)
+
+            # Backward pass
+            train_loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            train_losses.append(train_loss.item())
+
+            # Evaluate on test set
+            with torch.inference_mode():
+                test_logits = model(test_data)
+                test_loss = self._loss_function(test_logits, test_labels)
+                test_losses.append(test_loss.item())
+
+            # Save checkpoint if scheduled
+            if epoch in checkpoint_epochs_set:
+                self._save_checkpoint(model.state_dict(), epoch)
+                saved_checkpoint_epochs.append(epoch)
+
+            # Progress callback
+            if progress_callback and epoch % 100 == 0:
+                progress_callback(
+                    epoch / num_epochs,
+                    f"Epoch {epoch}/{num_epochs} - Train: {train_loss.item():.4f}, Test: {test_loss.item():.4f}",
+                )
+
+        # Save final model as latest checkpoint
+        final_epoch = num_epochs - 1
+        if final_epoch not in saved_checkpoint_epochs:
+            self._save_checkpoint(model.state_dict(), final_epoch)
+            saved_checkpoint_epochs.append(final_epoch)
+
+        # Save config
+        self._save_config(model.cfg, data_seed, training_fraction)
+
+        # Save metadata
+        self._save_metadata(
+            train_losses=train_losses,
+            test_losses=test_losses,
+            train_indices=train_indices.tolist(),
+            test_indices=test_indices.tolist(),
+            checkpoint_epochs=saved_checkpoint_epochs,
+            num_epochs=num_epochs,
+        )
+
+        if progress_callback:
+            progress_callback(1.0, "Training complete!")
+
+        return TrainingResult(
+            train_losses=train_losses,
+            test_losses=test_losses,
+            checkpoint_epochs=saved_checkpoint_epochs,
+            final_train_loss=train_losses[-1],
+            final_test_loss=test_losses[-1],
+            variant_dir=self.variant_dir,
+        )
+
+    def _loss_function(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """Compute cross-entropy loss for sequence prediction.
+
+        Args:
+            logits: Model output logits, shape (batch, seq_len, vocab) or (batch, vocab)
+            labels: Target labels, shape (batch,)
+
+        Returns:
+            Mean negative log probability of correct labels
+        """
+        if len(logits.shape) == 3:
+            logits = logits[:, -1]  # Take last position
+        logits = logits.to(torch.float64)
+        log_probs = logits.log_softmax(dim=-1)
+        correct_log_probs = log_probs.gather(dim=-1, index=labels[:, None])[:, 0]
+        return -correct_log_probs.mean()
+
+    def _save_checkpoint(self, state_dict: dict[str, Any], epoch: int) -> None:
+        """Save a checkpoint to disk as safetensors.
+
+        Args:
+            state_dict: Model state dict to save
+            epoch: Epoch number for filename
+        """
+        checkpoint_path = self.checkpoints_dir / f"checkpoint_epoch_{epoch:05d}.safetensors"
+        save_file(state_dict, str(checkpoint_path))
+
+    def _save_config(
+        self,
+        cfg: Any,
+        data_seed: int,
+        training_fraction: float,
+    ) -> None:
+        """Save model configuration as JSON.
+
+        Args:
+            cfg: HookedTransformerConfig object
+            data_seed: Data split random seed
+            training_fraction: Training data fraction
+        """
+        config_dict = {
+            "n_layers": cfg.n_layers,
+            "n_heads": cfg.n_heads,
+            "d_model": cfg.d_model,
+            "d_head": cfg.d_head,
+            "d_mlp": cfg.d_mlp,
+            "act_fn": cfg.act_fn,
+            "normalization_type": cfg.normalization_type,
+            "d_vocab": cfg.d_vocab,
+            "d_vocab_out": cfg.d_vocab_out,
+            "n_ctx": cfg.n_ctx,
+            "seed": cfg.seed,
+            # Domain parameters
+            **self._params,
+            # Training parameters
+            "model_seed": self._params.get("seed", cfg.seed),
+            "data_seed": data_seed,
+            "training_fraction": training_fraction,
+        }
+        with open(self.config_path, "w") as f:
+            json.dump(config_dict, f, indent=2)
+
+    def _save_metadata(self, **kwargs: Any) -> None:
+        """Save training metadata as JSON.
+
+        Args:
+            **kwargs: Metadata to save (losses, indices, etc.)
+        """
+        with open(self.metadata_path, "w") as f:
+            json.dump(kwargs, f)
 
     def __repr__(self) -> str:
         return f"Variant(family={self._family.name!r}, name={self.name!r}, state={self.state.value})"
