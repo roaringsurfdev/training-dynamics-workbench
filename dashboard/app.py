@@ -330,12 +330,20 @@ def on_family_change(family_name: str | None, state: DashboardState):
     )
 
 
-def on_variant_change(variant_name: str | None, state: DashboardState):
+def on_variant_change(variant_name: str | None, family_name: str | None, state: DashboardState):
     """Handle variant dropdown selection change.
 
     Loads variant data and artifacts for visualization.
+
+    Args:
+        variant_name: Selected variant name
+        family_name: Selected family name (from dropdown, not state)
+        state: Dashboard state
     """
-    if not variant_name or not state.selected_family_name:
+    # Use family_name from dropdown (fixes issue where state.selected_family_name is None on page load)
+    effective_family_name = family_name or state.selected_family_name
+
+    if not variant_name or not effective_family_name:
         state.clear_artifacts()
         return (
             state,
@@ -349,9 +357,11 @@ def on_variant_change(variant_name: str | None, state: DashboardState):
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
         )
 
+    # Update state with both family and variant
+    state.selected_family_name = effective_family_name
     state.selected_variant_name = variant_name
     registry = get_registry()
-    family = registry.get_family(state.selected_family_name)
+    family = registry.get_family(effective_family_name)
     variants = registry.get_variants(family)
 
     # Find the selected variant
@@ -446,18 +456,22 @@ def on_variant_change(variant_name: str | None, state: DashboardState):
 
 def run_analysis_for_variant(
     variant_name: str | None,
+    family_name: str | None,
     state: DashboardState,
     progress=gr.Progress(),
 ):
     """Run analysis pipeline on the selected variant."""
-    if not variant_name or not state.selected_family_name:
+    # Use family_name from dropdown (fixes issue where state.selected_family_name is None on page load)
+    effective_family_name = family_name or state.selected_family_name
+
+    if not variant_name or not effective_family_name:
         return "No variant selected", state
 
     try:
         progress(0, desc="Initializing analysis...")
 
         registry = get_registry()
-        family = registry.get_family(state.selected_family_name)
+        family = registry.get_family(effective_family_name)
         variants = registry.get_variants(family)
 
         # Find the selected variant
@@ -961,7 +975,7 @@ def create_app() -> gr.Blocks:
                 # Variant selection loads data
                 variant_dropdown.change(
                     fn=on_variant_change,
-                    inputs=[variant_dropdown, state],
+                    inputs=[variant_dropdown, family_dropdown, state],
                     outputs=[
                         state,
                         epoch_slider,
@@ -985,11 +999,11 @@ def create_app() -> gr.Blocks:
                 # Run analysis on selected variant
                 analyze_btn.click(
                     fn=run_analysis_for_variant,
-                    inputs=[variant_dropdown, state],
+                    inputs=[variant_dropdown, family_dropdown, state],
                     outputs=[analysis_status, state],
                 ).then(
                     fn=on_variant_change,
-                    inputs=[variant_dropdown, state],
+                    inputs=[variant_dropdown, family_dropdown, state],
                     outputs=[
                         state,
                         epoch_slider,
