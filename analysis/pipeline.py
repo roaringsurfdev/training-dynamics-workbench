@@ -1,18 +1,22 @@
 """Analysis pipeline orchestrating analysis across checkpoints."""
 
+from __future__ import annotations
+
 import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 import tqdm.auto as tqdm
 
-from analysis.library import get_fourier_basis
-from analysis.protocols import Analyzer
+from analysis.protocols import AnalysisRunConfig, Analyzer
+
+if TYPE_CHECKING:
+    from families import Variant
 
 
 @dataclass
@@ -25,25 +29,45 @@ class AnalysisResult:
 
 
 class AnalysisPipeline:
-    """Orchestrates analysis across checkpoints."""
+    """Orchestrates analysis across checkpoints.
 
-    def __init__(self, model_spec):
+    Enforces the scientific invariant: same Variant + same Probe across
+    all analyzed checkpoints. The only variable is the checkpoint (training moment).
+    """
+
+    def __init__(
+        self,
+        variant: Variant,
+        config: AnalysisRunConfig | None = None,
+    ):
         """
         Initialize the analysis pipeline.
 
+        The pipeline retrieves what it needs from the variant:
+        - variant.family → analyzers, model creation, probe generation, analysis context
+        - variant → checkpoints, checkpoint loading, artifacts_dir
+        - config → which (analyzers × checkpoints) to compute
+
         Args:
-            model_spec: ModuloAdditionSpecification instance with trained model
+            variant: The Variant to analyze
+            config: Analysis configuration. If None, uses defaults (all analyzers,
+                    all checkpoints).
         """
-        self.model_spec = model_spec
-        self.artifacts_dir = model_spec.artifacts_dir
+        self.variant = variant
+        self.config = config or AnalysisRunConfig()
+        self.artifacts_dir = str(variant.artifacts_dir)
+
         self._analyzers: list[Analyzer] = []
         self._manifest: dict[str, Any] = {}
         self._results: dict[str, dict[int, dict[str, np.ndarray]]] = {}
 
+        # Determine device
+        self._device = "cuda" if torch.cuda.is_available() else "cpu"
+
         os.makedirs(self.artifacts_dir, exist_ok=True)
         self._manifest = self._load_manifest()
 
-    def register(self, analyzer: Analyzer) -> "AnalysisPipeline":
+    def register(self, analyzer: Analyzer) -> AnalysisPipeline:
         """
         Register an analyzer with the pipeline.
 
@@ -58,7 +82,6 @@ class AnalysisPipeline:
 
     def run(
         self,
-        epochs: list[int] | None = None,
         force: bool = False,
         save_every: int = 10,
         progress_callback: Callable[[float, str], None] | None = None,
@@ -67,7 +90,6 @@ class AnalysisPipeline:
         Execute analysis pipeline across checkpoints.
 
         Args:
-            epochs: Specific epochs to analyze, or None for all available
             force: If True, recompute even if artifacts exist
             save_every: Save artifacts to disk every N epochs
             progress_callback: Optional callback(progress, description) for UI updates.
@@ -76,10 +98,13 @@ class AnalysisPipeline:
         if not self._analyzers:
             return
 
-        available_epochs = self.model_spec.get_available_checkpoints()
-        target_epochs = epochs if epochs is not None else available_epochs
+        # Determine target epochs from config or all available
+        available_epochs = self.variant.get_available_checkpoints()
+        if self.config.checkpoints is not None:
+            target_epochs = [e for e in self.config.checkpoints if e in available_epochs]
+        else:
+            target_epochs = available_epochs
 
-        target_epochs = [e for e in target_epochs if e in available_epochs]
         if not target_epochs:
             return
 
@@ -91,10 +116,15 @@ class AnalysisPipeline:
 
         all_epochs_needed = sorted(set(e for _, needed in work_queue for e in needed))
 
-        self.model_spec.generate_training_data()
-        dataset = self.model_spec.dataset
+        # Generate probe from family (enforces scientific invariant)
+        probe = self.variant.family.generate_analysis_dataset(
+            self.variant.params, device=self._device
+        )
 
-        fourier_basis, _ = get_fourier_basis(self.model_spec.prime, self.model_spec.device)
+        # Prepare analysis context from family (contains params + precomputed values)
+        context = self.variant.family.prepare_analysis_context(
+            self.variant.params, self._device
+        )
 
         total_epochs = len(all_epochs_needed)
         epochs_processed = 0
@@ -106,7 +136,7 @@ class AnalysisPipeline:
                     f"Analyzing checkpoint {epoch} ({epochs_processed + 1}/{total_epochs})",
                 )
 
-            self._run_single_epoch(epoch, work_queue, dataset, fourier_basis)
+            self._run_single_epoch(epoch, work_queue, probe, context)
             epochs_processed += 1
 
             if epochs_processed % save_every == 0:
@@ -193,20 +223,21 @@ class AnalysisPipeline:
         self,
         epoch: int,
         work_queue: list[tuple[Analyzer, list[int]]],
-        dataset: torch.Tensor,
-        fourier_basis: torch.Tensor,
+        probe: torch.Tensor,
+        context: dict[str, Any],
     ) -> None:
         """Run all relevant analyzers on a single checkpoint."""
-        state_dict = self.model_spec.load_checkpoint(epoch)
-        model = self.model_spec.create_model()
+        # Load checkpoint and create model via variant/family
+        state_dict = self.variant.load_checkpoint(epoch)
+        model = self.variant.family.create_model(self.variant.params, device=self._device)
         model.load_state_dict(state_dict)
 
         with torch.inference_mode():
-            _, cache = model.run_with_cache(dataset)
+            _, cache = model.run_with_cache(probe)
 
         for analyzer, needed_epochs in work_queue:
             if epoch in needed_epochs:
-                result = analyzer.analyze(model, dataset, cache, fourier_basis)
+                result = analyzer.analyze(model, probe, cache, context)
                 self._store_result(analyzer.name, epoch, result)
 
     def _store_result(self, analyzer_name: str, epoch: int, result: dict[str, np.ndarray]) -> None:
@@ -268,10 +299,9 @@ class AnalysisPipeline:
 
     def _save_manifest(self) -> None:
         """Save manifest to disk atomically."""
-        self._manifest["model_config"] = {
-            "prime": self.model_spec.prime,
-            "seed": self.model_spec.seed,
-        }
+        # Store variant params generically instead of hardcoded prime/seed
+        self._manifest["variant_params"] = self.variant.params
+        self._manifest["family_name"] = self.variant.family.name
 
         manifest_path = os.path.join(self.artifacts_dir, "manifest.json")
         temp_path = manifest_path + ".tmp"

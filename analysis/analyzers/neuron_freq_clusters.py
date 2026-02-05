@@ -3,6 +3,8 @@
 Computes neuron-frequency specialization matrix.
 """
 
+from typing import Any
+
 import numpy as np
 import torch
 from transformer_lens import HookedTransformer
@@ -31,25 +33,27 @@ class NeuronFreqClustersAnalyzer:
     def analyze(
         self,
         model: HookedTransformer,
-        dataset: torch.Tensor,
+        probe: torch.Tensor,
         cache: ActivationCache,
-        fourier_basis: torch.Tensor,
+        context: dict[str, Any],
     ) -> dict[str, np.ndarray]:
         """
         Compute fraction of variance explained by each frequency for each neuron.
 
         Args:
             model: The model loaded with checkpoint weights
-            dataset: Full dataset tensor (p^2, 3)
+            probe: Full probe tensor (p^2, 3)
             cache: Activation cache from forward pass
-            fourier_basis: Precomputed Fourier basis (n_components, p)
+            context: Analysis context containing 'fourier_basis'
 
         Returns:
             Dict with 'norm_matrix' array of shape (n_frequencies, d_mlp)
             where n_frequencies = p // 2
         """
-        # Get grid size from dataset
-        p = compute_grid_size_from_dataset(dataset)
+        fourier_basis = context["fourier_basis"]
+
+        # Get grid size from probe
+        p = compute_grid_size_from_dataset(probe)
 
         # Extract neuron activations at last token position
         neuron_acts = extract_mlp_activations(cache, layer=0, position=-1)

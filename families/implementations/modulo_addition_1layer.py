@@ -13,6 +13,7 @@ import einops
 import torch
 from transformer_lens import HookedTransformer, HookedTransformerConfig
 
+from analysis.library import get_fourier_basis
 from families.json_family import JsonModelFamily
 
 
@@ -188,6 +189,32 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
                     )
                 )
             ),
+        }
+
+    def prepare_analysis_context(
+        self,
+        params: dict[str, Any],
+        device: str | torch.device,
+    ) -> dict[str, Any]:
+        """Prepare precomputed values for modular addition analysis.
+
+        For modular addition, this includes:
+        - params: The variant's domain parameters
+        - fourier_basis: Precomputed Fourier basis for the given prime
+
+        Args:
+            params: Domain parameters containing 'prime'
+            device: Device for tensor computations
+
+        Returns:
+            Dict with 'params' and 'fourier_basis'
+        """
+        p = params["prime"]
+        fourier_basis, _ = get_fourier_basis(p, device)
+
+        return {
+            "params": params,
+            "fourier_basis": fourier_basis,
         }
 
 

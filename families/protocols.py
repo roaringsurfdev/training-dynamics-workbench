@@ -70,22 +70,32 @@ class ModelFamily(Protocol):
         """
         ...
 
-    def create_model(self, params: dict[str, Any]) -> HookedTransformer:
+    def create_model(
+        self,
+        params: dict[str, Any],
+        device: str | torch.device | None = None,
+    ) -> HookedTransformer:
         """Instantiate a model with the given domain parameters.
 
         Args:
             params: Domain parameter values (e.g., {"prime": 113, "seed": 42})
+            device: Device to place the model on
 
         Returns:
             A HookedTransformer configured for this family
         """
         ...
 
-    def generate_analysis_dataset(self, params: dict[str, Any]) -> torch.Tensor:
+    def generate_analysis_dataset(
+        self,
+        params: dict[str, Any],
+        device: str | torch.device | None = None,
+    ) -> torch.Tensor:
         """Generate the analysis dataset (probe) for a variant.
 
         Args:
             params: Domain parameter values
+            device: Device to place the dataset on
 
         Returns:
             Tensor of inputs for analysis forward passes
@@ -129,5 +139,30 @@ class ModelFamily(Protocol):
 
         Returns:
             Dict with learning_rate, weight_decay, betas, etc.
+        """
+        ...
+
+    def prepare_analysis_context(
+        self,
+        params: dict[str, Any],
+        device: str | torch.device,
+    ) -> dict[str, Any]:
+        """Prepare precomputed values needed for analysis.
+
+        This method allows families to provide domain-specific precomputed
+        values that analyzers need, without the pipeline having to know
+        what those values are.
+
+        The returned context dict should include:
+        - 'params': The variant's domain parameters
+        - Any family-specific precomputed values (e.g., 'fourier_basis' for
+          Modulo Addition families)
+
+        Args:
+            params: Domain parameter values (e.g., {"prime": 113, "seed": 42})
+            device: Device for tensor computations
+
+        Returns:
+            Dict containing 'params' and any precomputed analysis context
         """
         ...

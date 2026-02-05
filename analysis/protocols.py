@@ -1,11 +1,32 @@
 """Protocol definitions for analysis modules."""
 
-from typing import Protocol, runtime_checkable
+from dataclasses import dataclass, field
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 import torch
 from transformer_lens import HookedTransformer
 from transformer_lens.ActivationCache import ActivationCache
+
+
+@dataclass
+class AnalysisRunConfig:
+    """Configuration for an analysis run.
+
+    Specifies what work the pipeline should perform. This is variant-agnostic;
+    the same config can be applied to multiple variants.
+
+    Attributes:
+        analyzers: Which analyzers to run (by name). If empty, uses all
+            analyzers registered for the variant's family.
+        checkpoints: Which checkpoints to analyze. None means all available.
+    """
+
+    analyzers: list[str] = field(default_factory=list)
+    """Which analyzers to run (by name). Empty list means all family analyzers."""
+
+    checkpoints: list[int] | None = None
+    """Which checkpoints to analyze. None means all available."""
 
 
 @runtime_checkable
@@ -14,6 +35,11 @@ class Analyzer(Protocol):
 
     Analyzers compute analysis on a single checkpoint and return
     artifact-ready numpy arrays.
+
+    Analyzers receive a context dict prepared by the ModelFamily, which
+    contains domain parameters and any precomputed values (e.g., fourier_basis).
+    This allows the pipeline to be family-agnostic while analyzers can access
+    the domain-specific values they need.
     """
 
     @property
@@ -24,18 +50,20 @@ class Analyzer(Protocol):
     def analyze(
         self,
         model: HookedTransformer,
-        dataset: torch.Tensor,
+        probe: torch.Tensor,
         cache: ActivationCache,
-        fourier_basis: torch.Tensor,
+        context: dict[str, Any],
     ) -> dict[str, np.ndarray]:
         """
         Run analysis on a single checkpoint.
 
         Args:
             model: The model loaded with checkpoint weights
-            dataset: Full dataset tensor (p^2, 3) of [a, b, =] inputs
+            probe: The analysis dataset tensor (e.g., full (a, b) grid)
             cache: Activation cache from forward pass
-            fourier_basis: Precomputed Fourier basis (n_components, p)
+            context: Family-provided analysis context containing:
+                - 'params': Domain parameter values (e.g., {'prime': 113, 'seed': 42})
+                - Family-specific precomputed values (e.g., 'fourier_basis')
 
         Returns:
             Dict mapping artifact keys to numpy arrays.

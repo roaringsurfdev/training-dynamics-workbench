@@ -484,24 +484,14 @@ def run_analysis_for_variant(
         if variant is None:
             return "Variant not found", state
 
-        # Load config from variant
-        with open(variant.config_path) as f:
-            config = json.load(f)
-
-        spec = ModuloAdditionSpecification(
-            model_dir=str(variant.variant_dir.parent.parent),
-            prime=config.get("prime", config.get("n_ctx")),
-            device="cuda" if torch.cuda.is_available() else "cpu",
-            seed=config.get("model_seed", config.get("seed", 999)),
-        )
-
         progress(0.1, desc="Starting analysis pipeline...")
 
         def pipeline_progress(pct: float, desc: str):
             ui_progress = 0.1 + (pct * 0.9)
             progress(ui_progress, desc=desc)
 
-        pipeline = AnalysisPipeline(spec)
+        # Pipeline now takes Variant directly (no adapter needed)
+        pipeline = AnalysisPipeline(variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.register(NeuronFreqClustersAnalyzer())
@@ -509,10 +499,11 @@ def run_analysis_for_variant(
 
         progress(1.0, desc="Analysis complete!")
 
-        return f"Analysis complete! Artifacts saved to {spec.artifacts_dir}", state
+        return f"Analysis complete! Artifacts saved to {variant.artifacts_dir}", state
 
     except Exception as e:
-        return f"Analysis failed: {e}", state
+        import traceback
+        return f"Analysis failed: {e}\n\n{traceback.format_exc()}", state
 
 
 def refresh_variants(family_name: str | None) -> gr.Dropdown:

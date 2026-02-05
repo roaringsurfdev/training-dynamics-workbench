@@ -10,11 +10,12 @@ This package provides:
 from analysis.analyzers import AnalyzerRegistry
 from analysis.artifact_loader import ArtifactLoader
 from analysis.pipeline import AnalysisPipeline
-from analysis.protocols import Analyzer
+from analysis.protocols import Analyzer, AnalysisRunConfig
 
 __all__ = [
     "Analyzer",
     "AnalyzerRegistry",
     "AnalysisPipeline",
+    "AnalysisRunConfig",
     "ArtifactLoader",
 ]

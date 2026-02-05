@@ -3,6 +3,8 @@
 Extracts MLP neuron activations reshaped to input space.
 """
 
+from typing import Any
+
 import numpy as np
 import torch
 from transformer_lens import HookedTransformer
@@ -28,24 +30,24 @@ class NeuronActivationsAnalyzer:
     def analyze(
         self,
         model: HookedTransformer,
-        dataset: torch.Tensor,
+        probe: torch.Tensor,
         cache: ActivationCache,
-        fourier_basis: torch.Tensor,
+        context: dict[str, Any],  # noqa: ARG002
     ) -> dict[str, np.ndarray]:
         """
         Extract neuron activations and reshape to (d_mlp, p, p).
 
         Args:
             model: The model loaded with checkpoint weights
-            dataset: Full dataset tensor (p^2, 3)
+            probe: Full probe tensor (p^2, 3)
             cache: Activation cache from forward pass
-            fourier_basis: Precomputed Fourier basis (not used by this analyzer)
+            context: Analysis context (not used by this analyzer)
 
         Returns:
             Dict with 'activations' array of shape (d_mlp, p, p)
         """
-        # Get grid size from dataset
-        p = compute_grid_size_from_dataset(dataset)
+        # Get grid size from probe
+        p = compute_grid_size_from_dataset(probe)
 
         # Extract neuron activations at last token position
         neuron_acts = extract_mlp_activations(cache, layer=0, position=-1)

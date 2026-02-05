@@ -3,6 +3,8 @@
 Computes Fourier coefficient norms for embedding weights.
 """
 
+from typing import Any
+
 import numpy as np
 import torch
 from transformer_lens import HookedTransformer
@@ -24,22 +26,24 @@ class DominantFrequenciesAnalyzer:
     def analyze(
         self,
         model: HookedTransformer,
-        dataset: torch.Tensor,
+        probe: torch.Tensor,
         cache: ActivationCache,
-        fourier_basis: torch.Tensor,
+        context: dict[str, Any],
     ) -> dict[str, np.ndarray]:
         """
         Compute Fourier coefficient norms for embedding weights.
 
         Args:
             model: The model loaded with checkpoint weights
-            dataset: Full dataset tensor (not used by this analyzer)
+            probe: The analysis dataset (not used by this analyzer)
             cache: Activation cache (not used by this analyzer)
-            fourier_basis: Precomputed Fourier basis (n_components, p)
+            context: Analysis context containing 'fourier_basis'
 
         Returns:
             Dict with 'coefficients' array of shape (n_fourier_components,)
         """
+        fourier_basis = context["fourier_basis"]
+
         # Get embedding weights, excluding the equals token
         W_E = get_embedding_weights(model, exclude_special_tokens=1)
 
