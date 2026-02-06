@@ -11,7 +11,9 @@ for analyzing models that learn modular structure.
 import torch
 
 
-def get_fourier_basis(p: int, device: torch.device | str | None = None) -> tuple[torch.Tensor, list[str]]:
+def get_fourier_basis(
+    p: int, device: torch.device | str | None = None
+) -> tuple[torch.Tensor, list[str]]:
     """Generate normalized Fourier basis for modular arithmetic with period p.
 
     Creates a basis of sine and cosine functions at frequencies 1 through p//2,
@@ -78,9 +80,7 @@ def project_onto_fourier_basis(weights: torch.Tensor, basis: torch.Tensor) -> to
     return coefficients.norm(dim=-1)
 
 
-def compute_2d_fourier_transform(
-    activations: torch.Tensor, basis: torch.Tensor
-) -> torch.Tensor:
+def compute_2d_fourier_transform(activations: torch.Tensor, basis: torch.Tensor) -> torch.Tensor:
     """Apply 2D Fourier transform to activation grid using given basis.
 
     For activations of shape (..., p, p), computes basis @ activations @ basis.T
@@ -99,9 +99,7 @@ def compute_2d_fourier_transform(
     return basis @ activations @ basis.T
 
 
-def get_dominant_frequency_indices(
-    coefficients: torch.Tensor, threshold: float = 1.0
-) -> list[int]:
+def get_dominant_frequency_indices(coefficients: torch.Tensor, threshold: float = 1.0) -> list[int]:
     """Find indices of Fourier components with coefficients above threshold.
 
     Args:
@@ -116,9 +114,7 @@ def get_dominant_frequency_indices(
     return dominant_indices.flatten().tolist()
 
 
-def compute_frequency_variance_fractions(
-    fourier_activations: torch.Tensor, p: int
-) -> torch.Tensor:
+def compute_frequency_variance_fractions(fourier_activations: torch.Tensor, p: int) -> torch.Tensor:
     """Compute fraction of variance explained by each frequency.
 
     For each neuron (or batch dimension), computes what fraction of the

@@ -98,9 +98,7 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
         # Create all (a, b) pairs
         a_vector = einops.repeat(torch.arange(p), "i -> (i j)", j=p)
         b_vector = einops.repeat(torch.arange(p), "j -> (i j)", i=p)
-        equals_vector = einops.repeat(
-            torch.tensor(p), " -> (i j)", i=p, j=p
-        )
+        equals_vector = einops.repeat(torch.tensor(p), " -> (i j)", i=p, j=p)
 
         dataset = torch.stack([a_vector, b_vector, equals_vector], dim=1)
 

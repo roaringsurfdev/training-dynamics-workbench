@@ -49,14 +49,11 @@ class ArtifactLoader:
         Raises:
             FileNotFoundError: If artifact for this epoch doesn't exist
         """
-        artifact_path = os.path.join(
-            self.artifacts_dir, analyzer_name, f"epoch_{epoch:05d}.npz"
-        )
+        artifact_path = os.path.join(self.artifacts_dir, analyzer_name, f"epoch_{epoch:05d}.npz")
 
         if not os.path.exists(artifact_path):
             raise FileNotFoundError(
-                f"No artifact for '{analyzer_name}' at epoch {epoch}. "
-                f"Expected: {artifact_path}"
+                f"No artifact for '{analyzer_name}' at epoch {epoch}. Expected: {artifact_path}"
             )
 
         return dict(np.load(artifact_path))
@@ -84,9 +81,7 @@ class ArtifactLoader:
             epochs = self.get_epochs(analyzer_name)
 
         if not epochs:
-            raise FileNotFoundError(
-                f"No artifacts found for '{analyzer_name}'"
-            )
+            raise FileNotFoundError(f"No artifacts found for '{analyzer_name}'")
 
         epochs = sorted(epochs)
 
@@ -135,8 +130,9 @@ class ArtifactLoader:
             entry_path = os.path.join(self.artifacts_dir, entry)
             if os.path.isdir(entry_path):
                 # Check that it contains at least one epoch file
-                if any(f.startswith("epoch_") and f.endswith(".npz")
-                       for f in os.listdir(entry_path)):
+                if any(
+                    f.startswith("epoch_") and f.endswith(".npz") for f in os.listdir(entry_path)
+                ):
                     analyzers.append(entry)
 
         return sorted(analyzers)
@@ -157,7 +153,7 @@ class ArtifactLoader:
         epochs = []
         for filename in os.listdir(analyzer_dir):
             if filename.startswith("epoch_") and filename.endswith(".npz"):
-                epoch_str = filename[len("epoch_"):-len(".npz")]
+                epoch_str = filename[len("epoch_") : -len(".npz")]
                 try:
                     epochs.append(int(epoch_str))
                 except ValueError:

@@ -202,18 +202,14 @@ class TestVariantIntegration:
 
     def test_create_variant(self, registry):
         """Test creating a variant."""
-        variant = registry.create_variant(
-            "modulo_addition_1layer", {"prime": 113, "seed": 42}
-        )
+        variant = registry.create_variant("modulo_addition_1layer", {"prime": 113, "seed": 42})
 
         assert variant.name == "modulo_addition_1layer_p113_seed42"
         assert variant.state == VariantState.UNTRAINED
 
     def test_variant_directory_structure(self, registry, temp_project_dir):
         """Test variant directory paths."""
-        variant = registry.create_variant(
-            "modulo_addition_1layer", {"prime": 113, "seed": 42}
-        )
+        variant = registry.create_variant("modulo_addition_1layer", {"prime": 113, "seed": 42})
 
         expected_base = temp_project_dir / "results" / "modulo_addition_1layer"
         assert variant.variant_dir == expected_base / "modulo_addition_1layer_p113_seed42"

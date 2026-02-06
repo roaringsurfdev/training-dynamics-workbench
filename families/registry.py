@@ -157,9 +157,7 @@ class FamilyRegistry:
 
         return variants
 
-    def _pattern_to_regex(
-        self, pattern: str, domain_parameters: dict[str, Any]
-    ) -> re.Pattern[str]:
+    def _pattern_to_regex(self, pattern: str, domain_parameters: dict[str, Any]) -> re.Pattern[str]:
         """Convert variant pattern to regex for matching.
 
         Args:
@@ -214,9 +212,7 @@ class FamilyRegistry:
 
         return params
 
-    def create_variant(
-        self, family: ModelFamily | str, params: dict[str, Any]
-    ) -> Variant:
+    def create_variant(self, family: ModelFamily | str, params: dict[str, Any]) -> Variant:
         """Create a new Variant instance (does not create directories).
 
         Args:

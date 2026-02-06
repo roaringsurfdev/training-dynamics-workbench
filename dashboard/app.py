@@ -191,6 +191,7 @@ def run_family_training(
 
     except Exception as e:
         import traceback
+
         return f"Training failed: {e}\n\n{traceback.format_exc()}"
 
 
@@ -434,6 +435,7 @@ def run_analysis_for_variant(
 
     except Exception as e:
         import traceback
+
         return f"Analysis failed: {e}\n\n{traceback.format_exc()}", state
 
 
@@ -472,7 +474,9 @@ def generate_all_plots(state: DashboardState):
             try:
                 epoch_data = loader.load_epoch("dominant_frequencies", epoch)
                 freq_fig = render_dominant_frequencies(
-                    epoch_data, epoch=epoch, threshold=1.0,
+                    epoch_data,
+                    epoch=epoch,
+                    threshold=1.0,
                 )
             except FileNotFoundError:
                 freq_fig = create_empty_plot("No data for this epoch")
@@ -484,7 +488,9 @@ def generate_all_plots(state: DashboardState):
             try:
                 epoch_data = loader.load_epoch("neuron_activations", epoch)
                 activation_fig = render_neuron_heatmap(
-                    epoch_data, epoch=epoch, neuron_idx=state.selected_neuron,
+                    epoch_data,
+                    epoch=epoch,
+                    neuron_idx=state.selected_neuron,
                 )
             except FileNotFoundError:
                 activation_fig = create_empty_plot("No data for this epoch")
@@ -513,9 +519,7 @@ def format_epoch_display(epoch: int, index: int) -> str:
     return f"Epoch {epoch} (Index {index})"
 
 
-def update_visualizations(
-    epoch_idx: int | None, neuron_idx: int | None, state: DashboardState
-):
+def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: DashboardState):
     """Update all visualizations when slider or neuron changes."""
     # Guard against None values (BUG_003: slider fires event when input is cleared)
     if epoch_idx is None or neuron_idx is None:
@@ -532,9 +536,7 @@ def update_visualizations(
     return plots[0], plots[1], plots[2], plots[3], epoch_display, state
 
 
-def update_activation_only(
-    epoch_idx: int | None, neuron_idx: int | None, state: DashboardState
-):
+def update_activation_only(epoch_idx: int | None, neuron_idx: int | None, state: DashboardState):
     """Update only the activation heatmap when neuron changes."""
     # Guard against None values (BUG_003: slider fires event when input is cleared)
     if neuron_idx is None:
@@ -554,7 +556,9 @@ def update_activation_only(
             loader = ArtifactLoader(state.artifacts_dir)
             epoch_data = loader.load_epoch("neuron_activations", epoch)
             fig = render_neuron_heatmap(
-                epoch_data, epoch=epoch, neuron_idx=int(neuron_idx),
+                epoch_data,
+                epoch=epoch,
+                neuron_idx=int(neuron_idx),
             )
         except FileNotFoundError:
             fig = create_empty_plot("No data for this epoch")
@@ -577,7 +581,9 @@ def create_app() -> gr.Blocks:
 
     # Initialize variant choices for default family (fixes BUG_004)
     default_family = family_choices[0][1] if family_choices else None
-    initial_variant_choices = get_variant_choices(registry, default_family) if default_family else []
+    initial_variant_choices = (
+        get_variant_choices(registry, default_family) if default_family else []
+    )
 
     with gr.Blocks(title="Training Dynamics Workbench") as app:
         # Shared state

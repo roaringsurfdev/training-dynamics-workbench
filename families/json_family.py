@@ -134,11 +134,12 @@ class JsonModelFamily:
             NotImplementedError: Must be implemented by subclass
         """
         raise NotImplementedError(
-            f"create_model() not implemented for {self.name}. "
-            "Use a family-specific implementation."
+            f"create_model() not implemented for {self.name}. Use a family-specific implementation."
         )
 
-    def generate_analysis_dataset(self, params: dict[str, Any], device: str | torch.device | None = None) -> torch.Tensor:
+    def generate_analysis_dataset(
+        self, params: dict[str, Any], device: str | torch.device | None = None
+    ) -> torch.Tensor:
         """Generate the analysis dataset.
 
         Note: This base implementation raises NotImplementedError.

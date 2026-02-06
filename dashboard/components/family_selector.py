@@ -24,9 +24,7 @@ def get_family_choices(registry: FamilyRegistry) -> list[tuple[str, str]]:
     return [(f.display_name, f.name) for f in families]
 
 
-def get_variant_choices(
-    registry: FamilyRegistry, family_name: str | None
-) -> list[tuple[str, str]]:
+def get_variant_choices(registry: FamilyRegistry, family_name: str | None) -> list[tuple[str, str]]:
     """Get choices for variant dropdown.
 
     Args:
@@ -86,9 +84,7 @@ def format_variant_params(variant: Variant) -> str:
     return ", ".join(parts)
 
 
-def get_variant_table_data(
-    registry: FamilyRegistry, family_name: str | None
-) -> list[list[str]]:
+def get_variant_table_data(registry: FamilyRegistry, family_name: str | None) -> list[list[str]]:
     """Get data for variant table display.
 
     Args:

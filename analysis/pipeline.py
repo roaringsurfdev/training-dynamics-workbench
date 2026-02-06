@@ -109,9 +109,7 @@ class AnalysisPipeline:
         )
 
         # Prepare analysis context from family (contains params + precomputed values)
-        context = self.variant.family.prepare_analysis_context(
-            self.variant.params, self._device
-        )
+        context = self.variant.family.prepare_analysis_context(self.variant.params, self._device)
 
         total_epochs = len(all_epochs_needed)
         for i, epoch in enumerate(tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints")):
@@ -148,7 +146,7 @@ class AnalysisPipeline:
         epochs = []
         for filename in os.listdir(analyzer_dir):
             if filename.startswith("epoch_") and filename.endswith(".npz"):
-                epoch_str = filename[len("epoch_"):-len(".npz")]
+                epoch_str = filename[len("epoch_") : -len(".npz")]
                 try:
                     epochs.append(int(epoch_str))
                 except ValueError:
@@ -222,9 +220,7 @@ class AnalysisPipeline:
         temp_path = temp_base + ".npz"
         os.replace(temp_path, artifact_path)
 
-    def _update_manifest(
-        self, work_queue: list[tuple[Analyzer, list[int]]]
-    ) -> None:
+    def _update_manifest(self, work_queue: list[tuple[Analyzer, list[int]]]) -> None:
         """Update manifest with metadata for all analyzers that ran."""
         if "analyzers" not in self._manifest:
             self._manifest["analyzers"] = {}

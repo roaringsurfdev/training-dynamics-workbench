@@ -152,7 +152,9 @@ attn_pattern_to_a = einops.rearrange(
 attn_4d = attn_pattern_to_a.unsqueeze(1).float()  # (head, 1, a, b)
 
 for target_size in [28, 56]:
-    interpolated = F.interpolate(attn_4d, size=(target_size, target_size), mode="bilinear", align_corners=False)
+    interpolated = F.interpolate(
+        attn_4d, size=(target_size, target_size), mode="bilinear", align_corners=False
+    )
     imshow(
         interpolated.squeeze(1),
         title=f"Attention to 'a' per head (bilinear to {target_size}x{target_size})",
@@ -168,7 +170,9 @@ attn_pattern_to_b = einops.rearrange(
 attn_4d_b = attn_pattern_to_b.unsqueeze(1).float()
 
 for target_size in [28, 56]:
-    interpolated = F.interpolate(attn_4d_b, size=(target_size, target_size), mode="bilinear", align_corners=False)
+    interpolated = F.interpolate(
+        attn_4d_b, size=(target_size, target_size), mode="bilinear", align_corners=False
+    )
     imshow(
         interpolated.squeeze(1),
         title=f"Attention to 'b' per head (bilinear to {target_size}x{target_size})",
@@ -307,9 +311,7 @@ imshow(
 
 # %% Experiment - Compare different downsample factors
 for factor in [2, 4, 8]:
-    neuron_acts_4d = einops.rearrange(
-        neuron_acts[:, :5], "(a b) neuron -> neuron 1 a b", a=p, b=p
-    )
+    neuron_acts_4d = einops.rearrange(neuron_acts[:, :5], "(a b) neuron -> neuron 1 a b", a=p, b=p)
     pooled = F.avg_pool2d(neuron_acts_4d, kernel_size=factor).squeeze(1)
     imshow(
         pooled,
@@ -325,7 +327,9 @@ neuron_acts_2d = einops.rearrange(neuron_acts[:, :5], "(a b) neuron -> neuron a 
 neuron_acts_4d = neuron_acts_2d.unsqueeze(1).float()  # (neuron, 1, a, b)
 
 for target_size in [28, 56]:
-    interpolated = F.interpolate(neuron_acts_4d, size=(target_size, target_size), mode="bilinear", align_corners=False)
+    interpolated = F.interpolate(
+        neuron_acts_4d, size=(target_size, target_size), mode="bilinear", align_corners=False
+    )
     imshow(
         interpolated.squeeze(1),
         title=f"First 5 neuron activations (bilinear to {target_size}x{target_size})",
@@ -367,7 +371,9 @@ for blur_k, sample_f in [(3, 4), (5, 4), (7, 4), (5, 2)]:
 # Measures what fraction of total energy is in low frequencies (center of 2D FFT)
 
 
-def compute_low_freq_energy_ratio(activation_map_2d: torch.Tensor, radius_fraction: float = 0.125) -> float:
+def compute_low_freq_energy_ratio(
+    activation_map_2d: torch.Tensor, radius_fraction: float = 0.125
+) -> float:
     """Compute ratio of energy in low frequencies vs total energy.
 
     Args:
@@ -385,9 +391,9 @@ def compute_low_freq_energy_ratio(activation_map_2d: torch.Tensor, radius_fracti
     # Create circular mask for low frequencies (center of shifted FFT)
     cy, cx = h // 2, w // 2
     radius = int(min(h, w) * radius_fraction)
-    y_grid, x_grid = torch.meshgrid(torch.arange(h), torch.arange(w), indexing='ij')
+    y_grid, x_grid = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="ij")
     y_grid, x_grid = y_grid.to(activation_map_2d.device), x_grid.to(activation_map_2d.device)
-    mask = ((y_grid - cy) ** 2 + (x_grid - cx) ** 2) <= radius ** 2
+    mask = ((y_grid - cy) ** 2 + (x_grid - cx) ** 2) <= radius**2
 
     low_freq_energy = power[mask].sum()
     total_energy = power.sum()
@@ -413,7 +419,9 @@ line(
 # Measures how much variance survives downsampling and reconstruction
 
 
-def compute_variance_preservation(activation_map_2d: torch.Tensor, downsample_size: int = 14) -> float:
+def compute_variance_preservation(
+    activation_map_2d: torch.Tensor, downsample_size: int = 14
+) -> float:
     """Compute ratio of variance preserved after downsample/upsample cycle.
 
     Args:
@@ -430,8 +438,10 @@ def compute_variance_preservation(activation_map_2d: torch.Tensor, downsample_si
     h, w = activation_map_2d.shape
     map_4d = activation_map_2d.unsqueeze(0).unsqueeze(0).float()
 
-    downsampled = F.interpolate(map_4d, size=(downsample_size, downsample_size), mode='bilinear', align_corners=False)
-    upsampled = F.interpolate(downsampled, size=(h, w), mode='bilinear', align_corners=False)
+    downsampled = F.interpolate(
+        map_4d, size=(downsample_size, downsample_size), mode="bilinear", align_corners=False
+    )
+    upsampled = F.interpolate(downsampled, size=(h, w), mode="bilinear", align_corners=False)
 
     preserved_var = upsampled.var().item()
     return preserved_var / original_var

@@ -236,9 +236,7 @@ class TestFreqClustersRenderer:
         """Sparse labels are applied correctly."""
         from visualization import render_freq_clusters
 
-        fig = render_freq_clusters(
-            epoch_data, epoch=0, sparse_labels=True, label_interval=2
-        )
+        fig = render_freq_clusters(epoch_data, epoch=0, sparse_labels=True, label_interval=2)
 
         # Check y-axis has sparse tick values
         y_tickvals = fig.layout.yaxis.tickvals

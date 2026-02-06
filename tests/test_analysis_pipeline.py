@@ -23,9 +23,7 @@ class MockAnalyzer:
     def name(self) -> str:
         return self._name
 
-    def analyze(
-        self, model, probe, cache, context: dict[str, Any]
-    ) -> dict[str, np.ndarray]:
+    def analyze(self, model, probe, cache, context: dict[str, Any]) -> dict[str, np.ndarray]:
         """Mock analysis - returns simple test data."""
         return {"data": np.ones((10,), dtype=np.float32)}
 

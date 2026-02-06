@@ -388,7 +388,9 @@ class Variant:
             json.dump(kwargs, f)
 
     def __repr__(self) -> str:
-        return f"Variant(family={self._family.name!r}, name={self.name!r}, state={self.state.value})"
+        return (
+            f"Variant(family={self._family.name!r}, name={self.name!r}, state={self.state.value})"
+        )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Variant):
