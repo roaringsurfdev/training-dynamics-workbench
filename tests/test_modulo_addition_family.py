@@ -7,7 +7,6 @@ import pytest
 import torch
 
 from analysis.analyzers import AnalyzerRegistry
-from analysis.library import get_fourier_basis
 from families import FamilyRegistry, Variant, VariantState
 from families.implementations import ModuloAddition1LayerFamily
 
@@ -260,16 +259,16 @@ class TestAnalyzerIntegration:
 
         model = family.create_model(params)
         dataset = family.generate_analysis_dataset(params)
-        fourier_basis, _ = get_fourier_basis(params["prime"], model.cfg.device)
+        context = family.prepare_analysis_context(params, model.cfg.device)
 
         with torch.inference_mode():
             _, cache = model.run_with_cache(dataset)
 
         analyzer = AnalyzerRegistry.get("dominant_frequencies")
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, dataset, cache, context)
 
         assert "coefficients" in result
-        assert result["coefficients"].shape[0] == fourier_basis.shape[0]
+        assert result["coefficients"].shape[0] == context["fourier_basis"].shape[0]
 
     def test_run_neuron_activations_analyzer(self, registry):
         """Test running the neuron activations analyzer."""
@@ -278,13 +277,13 @@ class TestAnalyzerIntegration:
 
         model = family.create_model(params)
         dataset = family.generate_analysis_dataset(params)
-        fourier_basis, _ = get_fourier_basis(params["prime"], model.cfg.device)
+        context = family.prepare_analysis_context(params, model.cfg.device)
 
         with torch.inference_mode():
             _, cache = model.run_with_cache(dataset)
 
         analyzer = AnalyzerRegistry.get("neuron_activations")
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, dataset, cache, context)
 
         assert "activations" in result
         p = params["prime"]
@@ -298,13 +297,13 @@ class TestAnalyzerIntegration:
 
         model = family.create_model(params)
         dataset = family.generate_analysis_dataset(params)
-        fourier_basis, _ = get_fourier_basis(params["prime"], model.cfg.device)
+        context = family.prepare_analysis_context(params, model.cfg.device)
 
         with torch.inference_mode():
             _, cache = model.run_with_cache(dataset)
 
         analyzer = AnalyzerRegistry.get("neuron_freq_norm")
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, dataset, cache, context)
 
         assert "norm_matrix" in result
         p = params["prime"]
@@ -343,11 +342,11 @@ class TestEndToEnd:
         assert logits.shape == (49, 3, 7)
 
         # 6. Get and run analyzers
-        fourier_basis, _ = get_fourier_basis(params["prime"], model.cfg.device)
+        context = family.prepare_analysis_context(params, model.cfg.device)
         analyzers = AnalyzerRegistry.get_for_family(family)
 
         for analyzer in analyzers:
-            result = analyzer.analyze(model, dataset, cache, fourier_basis)
+            result = analyzer.analyze(model, dataset, cache, context)
             assert len(result) > 0
 
 

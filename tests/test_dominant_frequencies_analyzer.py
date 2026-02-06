@@ -177,54 +177,70 @@ class TestDominantFrequenciesAnalyzerIntegration:
     """Integration tests with AnalysisPipeline."""
 
     def test_pipeline_creates_artifact(self, trained_variant):
-        """Pipeline creates dominant_frequencies.npz artifact."""
+        """Pipeline creates per-epoch artifact files."""
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact_path = os.path.join(pipeline.artifacts_dir, "dominant_frequencies.npz")
-        assert os.path.exists(artifact_path)
+        analyzer_dir = os.path.join(pipeline.artifacts_dir, "dominant_frequencies")
+        assert os.path.isdir(analyzer_dir)
 
     def test_artifact_contains_epochs(self, trained_variant):
-        """Artifact contains epochs array."""
+        """Artifact loader discovers correct epochs."""
+        from analysis import ArtifactLoader
+
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        artifact = loader.load("dominant_frequencies")
         assert "epochs" in artifact
         np.testing.assert_array_equal(artifact["epochs"], [0, 25, 49])
 
     def test_artifact_contains_coefficients(self, trained_variant):
         """Artifact contains coefficients array."""
+        from analysis import ArtifactLoader
+
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
-        assert "coefficients" in artifact
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        epoch_data = loader.load_epoch("dominant_frequencies", 0)
+        assert "coefficients" in epoch_data
 
     def test_artifact_coefficients_shape(self, trained_variant):
-        """Artifact coefficients have correct shape (n_epochs, n_components)."""
+        """Artifact coefficients have correct shape."""
+        from analysis import ArtifactLoader
+
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
-        n_epochs = len(trained_variant.get_available_checkpoints())
+        loader = ArtifactLoader(pipeline.artifacts_dir)
         prime = trained_variant.params["prime"]
-        # For prime=17: n_components = 2*(17//2) + 1 = 17
         n_components = 2 * (prime // 2) + 1
 
+        # Single epoch: (n_components,)
+        epoch_data = loader.load_epoch("dominant_frequencies", 0)
+        assert epoch_data["coefficients"].shape == (n_components,)
+
+        # Stacked: (n_epochs, n_components)
+        artifact = loader.load("dominant_frequencies")
+        n_epochs = len(trained_variant.get_available_checkpoints())
         assert artifact["coefficients"].shape == (n_epochs, n_components)
 
     def test_coefficients_change_across_epochs(self, trained_variant):
         """Coefficients differ between epochs (training changes weights)."""
+        from analysis import ArtifactLoader
+
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        artifact = loader.load("dominant_frequencies")
         coefficients = artifact["coefficients"]
 
         # First and last epoch should have different coefficients

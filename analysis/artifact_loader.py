@@ -1,4 +1,9 @@
-"""Standalone artifact loader for visualization components."""
+"""Standalone artifact loader for visualization components.
+
+Supports per-epoch artifact storage where each analyzer's results
+are stored as individual files per epoch:
+    artifacts/{analyzer_name}/epoch_{NNNNN}.npz
+"""
 
 import json
 import os
@@ -10,13 +15,12 @@ import numpy as np
 class ArtifactLoader:
     """Loads analysis artifacts for visualization components.
 
-    Provides a standalone interface for loading artifacts without
-    requiring the full pipeline or model specification.
+    Provides both per-epoch loading (for dashboard slider interaction)
+    and multi-epoch loading (for cross-epoch views and notebooks).
     """
 
     def __init__(self, artifacts_dir: str):
-        """
-        Initialize the artifact loader.
+        """Initialize the artifact loader.
 
         Args:
             artifacts_dir: Path to the artifacts directory
@@ -31,40 +35,114 @@ class ArtifactLoader:
             self._manifest = self._load_manifest()
         return self._manifest
 
-    def load(self, analyzer_name: str) -> dict[str, np.ndarray]:
-        """
-        Load aggregated artifact for an analyzer.
+    def load_epoch(self, analyzer_name: str, epoch: int) -> dict[str, np.ndarray]:
+        """Load analysis results for a single epoch.
 
         Args:
             analyzer_name: Name of the analyzer (e.g., "dominant_frequencies")
+            epoch: Epoch number to load
 
         Returns:
-            Dict with 'epochs' array and data arrays
+            Dict of numpy arrays (e.g., {"coefficients": ndarray})
+            Does NOT include an "epochs" key — this is single-epoch data.
 
         Raises:
-            FileNotFoundError: If artifact doesn't exist
+            FileNotFoundError: If artifact for this epoch doesn't exist
         """
-        artifact_path = os.path.join(self.artifacts_dir, f"{analyzer_name}.npz")
+        artifact_path = os.path.join(
+            self.artifacts_dir, analyzer_name, f"epoch_{epoch:05d}.npz"
+        )
 
         if not os.path.exists(artifact_path):
             raise FileNotFoundError(
-                f"No artifact found for '{analyzer_name}'. Expected file: {artifact_path}"
+                f"No artifact for '{analyzer_name}' at epoch {epoch}. "
+                f"Expected: {artifact_path}"
             )
 
         return dict(np.load(artifact_path))
 
-    def get_available_analyzers(self) -> list[str]:
+    def load_epochs(
+        self, analyzer_name: str, epochs: list[int] | None = None
+    ) -> dict[str, np.ndarray]:
+        """Load and stack results across multiple epochs.
+
+        Loads individual per-epoch files and stacks them along axis=0.
+        Useful for cross-epoch visualizations and notebook exploration.
+
+        Args:
+            analyzer_name: Name of the analyzer
+            epochs: Specific epochs to load. None means all available.
+
+        Returns:
+            Dict with 'epochs' array and stacked data arrays.
+            E.g., {"epochs": (n,), "coefficients": (n, n_fourier)}
+
+        Raises:
+            FileNotFoundError: If no epochs available for this analyzer
         """
-        List available analyzers from manifest.
+        if epochs is None:
+            epochs = self.get_epochs(analyzer_name)
+
+        if not epochs:
+            raise FileNotFoundError(
+                f"No artifacts found for '{analyzer_name}'"
+            )
+
+        epochs = sorted(epochs)
+
+        # Load first epoch to determine keys
+        first = self.load_epoch(analyzer_name, epochs[0])
+        keys = list(first.keys())
+
+        # Pre-allocate and fill
+        result: dict[str, list[np.ndarray]] = {k: [first[k]] for k in keys}
+
+        for epoch in epochs[1:]:
+            data = self.load_epoch(analyzer_name, epoch)
+            for k in keys:
+                result[k].append(data[k])
+
+        stacked = {"epochs": np.array(epochs)}
+        for k in keys:
+            stacked[k] = np.stack(result[k], axis=0)
+
+        return stacked
+
+    def load(self, analyzer_name: str) -> dict[str, np.ndarray]:
+        """Load all epochs for an analyzer (backward-compatible alias).
+
+        Equivalent to load_epochs(analyzer_name, epochs=None).
+
+        Args:
+            analyzer_name: Name of the analyzer
+
+        Returns:
+            Dict with 'epochs' array and stacked data arrays
+        """
+        return self.load_epochs(analyzer_name)
+
+    def get_available_analyzers(self) -> list[str]:
+        """List available analyzers by checking for subdirectories with artifacts.
 
         Returns:
             List of analyzer names with saved artifacts
         """
-        return list(self.manifest.get("analyzers", {}).keys())
+        if not os.path.isdir(self.artifacts_dir):
+            return []
+
+        analyzers = []
+        for entry in os.listdir(self.artifacts_dir):
+            entry_path = os.path.join(self.artifacts_dir, entry)
+            if os.path.isdir(entry_path):
+                # Check that it contains at least one epoch file
+                if any(f.startswith("epoch_") and f.endswith(".npz")
+                       for f in os.listdir(entry_path)):
+                    analyzers.append(entry)
+
+        return sorted(analyzers)
 
     def get_epochs(self, analyzer_name: str) -> list[int]:
-        """
-        Get list of epochs available for an analyzer.
+        """Get list of available epochs for an analyzer from filesystem.
 
         Args:
             analyzer_name: Name of the analyzer
@@ -72,12 +150,23 @@ class ArtifactLoader:
         Returns:
             Sorted list of epoch numbers
         """
-        analyzer_info = self.manifest.get("analyzers", {}).get(analyzer_name, {})
-        return sorted(analyzer_info.get("epochs_completed", []))
+        analyzer_dir = os.path.join(self.artifacts_dir, analyzer_name)
+        if not os.path.isdir(analyzer_dir):
+            return []
+
+        epochs = []
+        for filename in os.listdir(analyzer_dir):
+            if filename.startswith("epoch_") and filename.endswith(".npz"):
+                epoch_str = filename[len("epoch_"):-len(".npz")]
+                try:
+                    epochs.append(int(epoch_str))
+                except ValueError:
+                    continue
+
+        return sorted(epochs)
 
     def get_metadata(self, analyzer_name: str) -> dict[str, Any]:
-        """
-        Get metadata for an analyzer.
+        """Get metadata for an analyzer from manifest.
 
         Args:
             analyzer_name: Name of the analyzer
@@ -99,8 +188,7 @@ class ArtifactLoader:
         return analyzers[analyzer_name]
 
     def get_model_config(self) -> dict[str, Any]:
-        """
-        Get model configuration from manifest.
+        """Get model configuration from manifest.
 
         Returns:
             Dict with model config (prime, seed, etc.)

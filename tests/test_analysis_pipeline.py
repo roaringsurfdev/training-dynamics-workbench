@@ -165,13 +165,19 @@ class TestAnalysisPipelineRun:
         assert os.path.exists(manifest_path)
 
     def test_run_saves_artifacts(self, trained_variant):
-        """Running pipeline saves artifact files."""
+        """Running pipeline saves per-epoch artifact files."""
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(MockAnalyzer("test_analyzer"))
         pipeline.run()
 
-        artifact_path = os.path.join(pipeline.artifacts_dir, "test_analyzer.npz")
-        assert os.path.exists(artifact_path)
+        # Per-epoch storage: artifacts/{analyzer_name}/epoch_{NNNNN}.npz
+        analyzer_dir = os.path.join(pipeline.artifacts_dir, "test_analyzer")
+        assert os.path.isdir(analyzer_dir)
+
+        checkpoints = trained_variant.get_available_checkpoints()
+        for epoch in checkpoints:
+            epoch_file = os.path.join(analyzer_dir, f"epoch_{epoch:05d}.npz")
+            assert os.path.exists(epoch_file)
 
     def test_run_processes_all_checkpoints(self, trained_variant):
         """Pipeline processes all available checkpoints."""
@@ -276,59 +282,89 @@ class TestAnalysisPipelineResumability:
 
 
 class TestAnalysisPipelineArtifactLoading:
-    """Tests for artifact loading."""
+    """Tests for loading pipeline artifacts via ArtifactLoader."""
 
-    def test_load_artifact_returns_dict(self, trained_variant):
-        """load_artifact returns dict with epochs and data."""
+    def test_artifacts_loadable_by_loader(self, trained_variant):
+        """Artifacts created by pipeline are discoverable by ArtifactLoader."""
+        from analysis import ArtifactLoader
+
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(MockAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("mock")
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        epochs = loader.get_epochs("mock")
+        assert len(epochs) > 0
+
+    def test_load_epoch_returns_data(self, trained_variant):
+        """Can load a single epoch's data via ArtifactLoader."""
+        from analysis import ArtifactLoader
+
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(MockAnalyzer())
+        pipeline.run()
+
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        epochs = loader.get_epochs("mock")
+        epoch_data = loader.load_epoch("mock", epochs[0])
+
+        assert isinstance(epoch_data, dict)
+        assert "data" in epoch_data
+        assert epoch_data["data"].shape == (10,)
+
+    def test_load_all_epochs_stacked(self, trained_variant):
+        """Can load all epochs stacked via ArtifactLoader.load()."""
+        from analysis import ArtifactLoader
+
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(MockAnalyzer())
+        pipeline.run()
+
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        artifact = loader.load("mock")
+
         assert isinstance(artifact, dict)
         assert "epochs" in artifact
         assert "data" in artifact
-
-    def test_load_artifact_epochs_array(self, trained_variant):
-        """Artifact contains correct epochs array."""
-        pipeline = AnalysisPipeline(trained_variant)
-        pipeline.register(MockAnalyzer())
-        pipeline.run()
-
-        artifact = pipeline.load_artifact("mock")
         expected_epochs = np.array([0, 25, 49])
         np.testing.assert_array_equal(artifact["epochs"], expected_epochs)
 
-    def test_load_artifact_data_shape(self, trained_variant):
-        """Artifact data has correct shape (n_epochs, ...)."""
+    def test_load_stacked_data_shape(self, trained_variant):
+        """Stacked data has correct shape (n_epochs, ...)."""
+        from analysis import ArtifactLoader
+
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(MockAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("mock")
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        artifact = loader.load("mock")
         assert artifact["data"].shape[0] == 3
         assert artifact["data"].shape[1] == 10
 
-    def test_load_artifact_not_found_raises(self, trained_variant):
-        """load_artifact raises FileNotFoundError for missing analyzer."""
+    def test_load_nonexistent_raises(self, trained_variant):
+        """Loading nonexistent analyzer raises FileNotFoundError."""
+        from analysis import ArtifactLoader
+
         pipeline = AnalysisPipeline(trained_variant)
+        loader = ArtifactLoader(pipeline.artifacts_dir)
 
         with pytest.raises(FileNotFoundError):
-            pipeline.load_artifact("nonexistent")
+            loader.load("nonexistent")
 
 
 class TestAnalysisPipelineMultipleAnalyzers:
     """Tests for multiple analyzers."""
 
     def test_multiple_analyzers_produce_separate_artifacts(self, trained_variant):
-        """Each analyzer creates its own artifact file."""
+        """Each analyzer creates its own artifact directory."""
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(MockAnalyzer("analyzer_a"))
         pipeline.register(MockAnalyzer("analyzer_b"))
         pipeline.run()
 
-        assert os.path.exists(os.path.join(pipeline.artifacts_dir, "analyzer_a.npz"))
-        assert os.path.exists(os.path.join(pipeline.artifacts_dir, "analyzer_b.npz"))
+        assert os.path.isdir(os.path.join(pipeline.artifacts_dir, "analyzer_a"))
+        assert os.path.isdir(os.path.join(pipeline.artifacts_dir, "analyzer_b"))
 
     def test_manifest_tracks_all_analyzers(self, trained_variant):
         """Manifest tracks completion for all analyzers."""

@@ -6,6 +6,7 @@ REQ_009: Loss curves with epoch indicator
 REQ_020: Checkpoint epoch-index display
 REQ_021d: Dashboard integration with Model Families
 REQ_021e: Training integration with Model Families
+REQ_021f: Per-epoch artifact loading
 """
 
 import json
@@ -13,7 +14,6 @@ from pathlib import Path
 
 import gradio as gr
 import plotly.graph_objects as go
-import torch
 
 from analysis import AnalysisPipeline, ArtifactLoader
 from analysis.analyzers import (
@@ -27,15 +27,9 @@ from dashboard.components import (
     render_loss_curves_with_indicator,
 )
 from dashboard.state import DashboardState
-from dashboard.utils import (
-    discover_trained_models,
-    get_model_choices,
-    parse_checkpoint_epochs,
-    validate_training_params,
-)
+from dashboard.utils import parse_checkpoint_epochs
 from dashboard.version import __version__
 from families import FamilyRegistry, TrainingResult
-from ModuloAdditionSpecification import ModuloAdditionSpecification
 from visualization import (
     render_dominant_frequencies,
     render_freq_clusters,
@@ -200,70 +194,6 @@ def run_family_training(
         return f"Training failed: {e}\n\n{traceback.format_exc()}"
 
 
-def run_training(
-    modulus: int,
-    model_seed: int,
-    data_seed: int,
-    train_fraction: float,
-    num_epochs: int,
-    checkpoint_str: str,
-    save_path: str,
-    progress=gr.Progress(),
-) -> str:
-    """Execute training with the given parameters (legacy function).
-
-    Note: This is kept for backward compatibility. New training should use
-    run_family_training() which goes through the family abstraction.
-    """
-    # Validate inputs
-    is_valid, error_msg = validate_training_params(
-        int(modulus),
-        int(model_seed),
-        int(data_seed),
-        train_fraction,
-        int(num_epochs),
-        checkpoint_str,
-        save_path,
-    )
-    if not is_valid:
-        return f"Error: {error_msg}"
-
-    try:
-        # Parse checkpoint epochs
-        checkpoint_epochs = parse_checkpoint_epochs(checkpoint_str)
-        if not checkpoint_epochs:
-            checkpoint_epochs = None  # Use defaults
-
-        progress(0, desc="Initializing model...")
-
-        spec = ModuloAdditionSpecification(
-            model_dir=save_path,
-            prime=int(modulus),
-            device="cuda" if torch.cuda.is_available() else "cpu",
-            seed=int(model_seed),
-            data_seed=int(data_seed),
-            training_fraction=train_fraction,
-        )
-
-        progress(0.1, desc="Starting training...")
-
-        # Training (synchronous for MVP)
-        spec.train(num_epochs=int(num_epochs), checkpoint_epochs=checkpoint_epochs)
-
-        progress(1.0, desc="Training complete!")
-
-        return (
-            f"Training complete!\n"
-            f"Model saved to: {spec.full_dir}\n"
-            f"Checkpoints: {spec.checkpoint_epochs}\n"
-            f"Final train loss: {spec.train_losses[-1]:.6f}\n"
-            f"Final test loss: {spec.test_losses[-1]:.6f}"
-        )
-
-    except Exception as e:
-        return f"Training failed: {e}"
-
-
 # ============================================================================
 # Analysis Tab Handlers (REQ_008)
 # ============================================================================
@@ -333,7 +263,8 @@ def on_family_change(family_name: str | None, state: DashboardState):
 def on_variant_change(variant_name: str | None, family_name: str | None, state: DashboardState):
     """Handle variant dropdown selection change.
 
-    Loads variant data and artifacts for visualization.
+    Loads variant metadata and discovers available artifacts (REQ_021f).
+    Artifact data is NOT loaded into state — loaded per-epoch on demand.
 
     Args:
         variant_name: Selected variant name
@@ -397,28 +328,28 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         state.train_losses = metadata.get("train_losses", [])
         state.test_losses = metadata.get("test_losses", [])
 
-    # Load config
+    # Load config (includes d_mlp for neuron count)
     if variant.config_path.exists():
         with open(variant.config_path) as f:
-            state.model_config = json.load(f)
+            config = json.load(f)
+        state.model_config = config
+        state.n_neurons = config.get("d_mlp", 512)
 
-    # Check for artifacts
+    # Discover available artifacts without loading data (REQ_021f)
     artifacts_dir = variant.artifacts_dir
     if artifacts_dir.exists():
         try:
             loader = ArtifactLoader(str(artifacts_dir))
             available = loader.get_available_analyzers()
+            state.artifacts_dir = str(artifacts_dir)
+            state.available_analyzers = available
 
-            if "dominant_frequencies" in available:
-                state.dominant_freq_artifact = loader.load("dominant_frequencies")
-                state.available_epochs = list(state.dominant_freq_artifact["epochs"])
-
-            if "neuron_activations" in available:
-                state.neuron_activations_artifact = loader.load("neuron_activations")
-                state.n_neurons = state.neuron_activations_artifact["activations"].shape[1]
-
-            if "neuron_freq_norm" in available:
-                state.freq_clusters_artifact = loader.load("neuron_freq_norm")
+            # Discover available epochs from any analyzer
+            for analyzer_name in available:
+                epochs = loader.get_epochs(analyzer_name)
+                if epochs:
+                    state.available_epochs = epochs
+                    break
 
         except Exception:
             pass  # Artifacts not available yet
@@ -517,148 +448,11 @@ def refresh_variants(family_name: str | None) -> gr.Dropdown:
     return gr.Dropdown(choices=variant_choices, value=None)
 
 
-# ============================================================================
-# Legacy Model Discovery (kept for backward compatibility)
-# ============================================================================
-
-
-def refresh_models(base_path: str) -> gr.Dropdown:
-    """Refresh the model dropdown with discovered models."""
-    models = discover_trained_models(base_path)
-    choices = get_model_choices(models)
-    return gr.Dropdown(choices=choices, value=None)
-
-
-def load_model_data(model_path: str | None, state: DashboardState):
-    """Load model metadata and artifacts when a model is selected."""
-    if not model_path:
-        state.clear_artifacts()
-        return (
-            state,
-            gr.Slider(minimum=0, maximum=1, value=0),
-            create_empty_plot("Select a model"),
-            create_empty_plot("Select a model"),
-            create_empty_plot("Select a model"),
-            create_empty_plot("Select a model"),
-            "No model selected",
-            "Epoch 0 (Index 0)",  # REQ_020: initial epoch display
-            gr.Slider(minimum=0, maximum=511, value=0, step=1),
-        )
-
-    state.selected_model_path = model_path
-    state.clear_artifacts()
-
-    # Load metadata for loss curves
-    metadata_path = Path(model_path) / "metadata.json"
-    if metadata_path.exists():
-        with open(metadata_path) as f:
-            metadata = json.load(f)
-        state.train_losses = metadata.get("train_losses", [])
-        state.test_losses = metadata.get("test_losses", [])
-
-    # Load config
-    config_path = Path(model_path) / "config.json"
-    if config_path.exists():
-        with open(config_path) as f:
-            state.model_config = json.load(f)
-
-    # Check for artifacts
-    artifacts_dir = Path(model_path) / "artifacts"
-    if artifacts_dir.exists():
-        try:
-            loader = ArtifactLoader(str(artifacts_dir))
-            available = loader.get_available_analyzers()
-
-            if "dominant_frequencies" in available:
-                state.dominant_freq_artifact = loader.load("dominant_frequencies")
-                state.available_epochs = list(state.dominant_freq_artifact["epochs"])
-
-            if "neuron_activations" in available:
-                state.neuron_activations_artifact = loader.load("neuron_activations")
-                state.n_neurons = state.neuron_activations_artifact["activations"].shape[1]
-
-            if "neuron_freq_norm" in available:
-                state.freq_clusters_artifact = loader.load("neuron_freq_norm")
-
-        except Exception:
-            pass  # Artifacts not available yet
-
-    # Generate initial plots
-    state.current_epoch_idx = 0
-    plots = generate_all_plots(state)
-
-    # Configure slider
-    max_idx = max(0, len(state.available_epochs) - 1)
-
-    status = f"Loaded: p={(state.model_config or {}).get('prime', '?')}"
-    if state.available_epochs:
-        status += f", {len(state.available_epochs)} checkpoints"
-    else:
-        status += " (no analysis yet)"
-
-    # REQ_020: format initial epoch display with index
-    initial_epoch = state.get_current_epoch()
-    epoch_display_text = format_epoch_display(initial_epoch, 0)
-
-    return (
-        state,
-        gr.Slider(minimum=0, maximum=max_idx, value=0, step=1),
-        plots[0],  # loss
-        plots[1],  # freq
-        plots[2],  # activation
-        plots[3],  # clusters
-        status,
-        epoch_display_text,
-        gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
-    )
-
-
-def run_analysis(model_path: str | None, state: DashboardState, progress=gr.Progress()):
-    """Run analysis pipeline on the selected model."""
-    if not model_path:
-        return "No model selected", state
-
-    try:
-        progress(0, desc="Initializing analysis...")
-
-        # Load model spec
-        config_path = Path(model_path) / "config.json"
-        with open(config_path) as f:
-            config = json.load(f)
-
-        spec = ModuloAdditionSpecification(
-            model_dir=str(Path(model_path).parent.parent),
-            prime=config.get("prime", config.get("n_ctx")),
-            device="cuda" if torch.cuda.is_available() else "cpu",
-            seed=config.get("model_seed", config.get("seed", 999)),
-        )
-
-        progress(0.1, desc="Starting analysis pipeline...")
-
-        # Create progress callback that maps pipeline progress (0-1) to UI progress (0.1-1.0)
-        def pipeline_progress(pct: float, desc: str):
-            # Map pipeline 0-1 to UI 0.1-1.0 (reserving 0-0.1 for init)
-            ui_progress = 0.1 + (pct * 0.9)
-            progress(ui_progress, desc=desc)
-
-        # Run analysis with progress callback
-        pipeline = AnalysisPipeline(spec)
-        pipeline.register(DominantFrequenciesAnalyzer())
-        pipeline.register(NeuronActivationsAnalyzer())
-        pipeline.register(NeuronFreqClustersAnalyzer())
-        pipeline.run(progress_callback=pipeline_progress)
-
-        progress(1.0, desc="Analysis complete!")
-
-        return f"Analysis complete! Artifacts saved to {spec.artifacts_dir}", state
-
-    except Exception as e:
-        return f"Analysis failed: {e}", state
-
-
 def generate_all_plots(state: DashboardState):
-    """Generate all 4 visualization plots for current state."""
-    epoch_idx = state.current_epoch_idx
+    """Generate all 4 visualization plots for current state.
+
+    Loads per-epoch artifact data on demand via ArtifactLoader (REQ_021f).
+    """
     epoch = state.get_current_epoch()
 
     # Loss curves
@@ -669,33 +463,46 @@ def generate_all_plots(state: DashboardState):
         checkpoint_epochs=state.available_epochs,
     )
 
-    # Dominant frequencies
-    if state.dominant_freq_artifact is not None:
-        freq_fig = render_dominant_frequencies(
-            state.dominant_freq_artifact,
-            epoch_idx=epoch_idx,
-            threshold=1.0,
-        )
+    # Load per-epoch data on demand
+    if state.artifacts_dir and state.available_epochs:
+        loader = ArtifactLoader(state.artifacts_dir)
+
+        # Dominant frequencies
+        if "dominant_frequencies" in state.available_analyzers:
+            try:
+                epoch_data = loader.load_epoch("dominant_frequencies", epoch)
+                freq_fig = render_dominant_frequencies(
+                    epoch_data, epoch=epoch, threshold=1.0,
+                )
+            except FileNotFoundError:
+                freq_fig = create_empty_plot("No data for this epoch")
+        else:
+            freq_fig = create_empty_plot("Run analysis first")
+
+        # Neuron activation
+        if "neuron_activations" in state.available_analyzers:
+            try:
+                epoch_data = loader.load_epoch("neuron_activations", epoch)
+                activation_fig = render_neuron_heatmap(
+                    epoch_data, epoch=epoch, neuron_idx=state.selected_neuron,
+                )
+            except FileNotFoundError:
+                activation_fig = create_empty_plot("No data for this epoch")
+        else:
+            activation_fig = create_empty_plot("Run analysis first")
+
+        # Frequency clusters
+        if "neuron_freq_norm" in state.available_analyzers:
+            try:
+                epoch_data = loader.load_epoch("neuron_freq_norm", epoch)
+                clusters_fig = render_freq_clusters(epoch_data, epoch=epoch)
+            except FileNotFoundError:
+                clusters_fig = create_empty_plot("No data for this epoch")
+        else:
+            clusters_fig = create_empty_plot("Run analysis first")
     else:
         freq_fig = create_empty_plot("Run analysis first")
-
-    # Neuron activation
-    if state.neuron_activations_artifact is not None:
-        activation_fig = render_neuron_heatmap(
-            state.neuron_activations_artifact,
-            epoch_idx=epoch_idx,
-            neuron_idx=state.selected_neuron,
-        )
-    else:
         activation_fig = create_empty_plot("Run analysis first")
-
-    # Frequency clusters
-    if state.freq_clusters_artifact is not None:
-        clusters_fig = render_freq_clusters(
-            state.freq_clusters_artifact,
-            epoch_idx=epoch_idx,
-        )
-    else:
         clusters_fig = create_empty_plot("Run analysis first")
 
     return loss_fig, freq_fig, activation_fig, clusters_fig
@@ -737,12 +544,20 @@ def update_activation_only(
 
     state.selected_neuron = int(neuron_idx)
 
-    if state.neuron_activations_artifact is not None:
-        fig = render_neuron_heatmap(
-            state.neuron_activations_artifact,
-            epoch_idx=int(epoch_idx),
-            neuron_idx=int(neuron_idx),
-        )
+    if (
+        state.artifacts_dir
+        and "neuron_activations" in state.available_analyzers
+        and state.available_epochs
+    ):
+        try:
+            epoch = state.get_current_epoch()
+            loader = ArtifactLoader(state.artifacts_dir)
+            epoch_data = loader.load_epoch("neuron_activations", epoch)
+            fig = render_neuron_heatmap(
+                epoch_data, epoch=epoch, neuron_idx=int(neuron_idx),
+            )
+        except FileNotFoundError:
+            fig = create_empty_plot("No data for this epoch")
     else:
         fig = create_empty_plot("Run analysis first")
 
@@ -906,17 +721,6 @@ def create_app() -> gr.Blocks:
 
                 analysis_status = gr.Textbox(
                     label="Status", value="Select a family and variant", interactive=False
-                )
-
-                # Hidden components for backward compatibility
-                results_path = gr.Textbox(
-                    label="Results Path", value="results/", visible=False
-                )
-                model_dropdown = gr.Dropdown(
-                    label="Select Trained Model (Legacy)",
-                    choices=[],
-                    interactive=True,
-                    visible=False,
                 )
 
                 gr.Markdown("### Global Epoch Control")

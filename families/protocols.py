@@ -16,7 +16,7 @@ class ModelFamily(Protocol):
     - Architecture (layer count, head count, activation functions)
     - Analyzers (which analysis functions are valid)
     - Visualizations (which visualizations can be rendered)
-    - Analysis dataset schema (what kind of probe input is valid)
+    - Probe schema (what kind of probe input is valid)
 
     The `name` property serves as the directory key for both
     `model_families/{name}/` and `results/{name}/`.

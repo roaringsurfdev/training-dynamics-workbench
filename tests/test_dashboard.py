@@ -77,7 +77,8 @@ class TestDashboardState:
         assert state.selected_model_path is None
         assert state.available_epochs == []
         assert state.current_epoch_idx == 0
-        assert state.dominant_freq_artifact is None
+        assert state.artifacts_dir is None
+        assert state.available_analyzers == []
 
     def test_get_current_epoch_empty(self):
         """Returns 0 when no epochs available."""
@@ -98,12 +99,15 @@ class TestDashboardState:
         state.selected_model_path = "/some/path"
         state.available_epochs = [0, 100]
         state.train_losses = [1.0, 0.5]
+        state.artifacts_dir = "/some/artifacts"
+        state.available_analyzers = ["dominant_frequencies"]
 
         state.clear_artifacts()
 
         assert state.available_epochs == []
         assert state.train_losses is None
-        assert state.dominant_freq_artifact is None
+        assert state.artifacts_dir is None
+        assert state.available_analyzers == []
 
 
 class TestModelDiscovery:

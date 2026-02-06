@@ -2,6 +2,7 @@
   "name": "modulo_addition_1layer",
   "display_name": "Modulo Addition (1 Layer)",
   "description": "Single-layer transformer trained on modular arithmetic. Based on Neel Nanda's grokking experiment.",
+  "class_type": "families.implementations.modulo_addition_1layer.ModuloAddition1LayerFamily",
 
   "architecture": {
     "n_layers": 1,
@@ -43,6 +44,27 @@
   "analysis_dataset": {
     "type": "modulo_addition_grid",
     "description": "Full (a, b) input grid for modular arithmetic"
+  },
+
+  "probes": {
+    "probe": {
+      "name": "modulo_addition_grid",
+      "description": "Full (a, b) input grid for modular arithmetic",
+      "method": "get_default_probe"
+    }
+  },
+
+  "variants": {
+    "variant": {
+      "name": "",
+      "description": "",
+      "parameters": {
+        "prime": 113,
+        "seed": 999
+      },
+      "checkpoints": [],
+      "state": 0
+    }
   },
 
   "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}"
