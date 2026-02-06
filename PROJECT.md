@@ -59,7 +59,7 @@ I am able to able analyze mechanistic behaviors that emerge during training.
 A module responsible for generating analysis data given a Model Variant Checkpoint and its activation cache. Computes a single analysis function and returns numpy arrays as analysis artifacts. It's possible to re-use Analyzers across multiple Model Families.
 
 **Analysis Run:** 
-The workbench focuses on analysis runs instead of training runs. The goal is to optimize the ability to analyze models across training checkpoints instead of optimizing models themselves. Analysis Runs orchestrate the creation of analysis dataset artifacts. The Analysis Run is reponsible for loading checkpoints of a Model Variant, executing forward passes through each checkpoint, passing the output of the forward pass and activation cache to each Analyzer defined in the run.
+The workbench focuses on analysis runs instead of training runs. The goal is to optimize the ability to analyze models across training checkpoints instead of optimizing models themselves. Analysis Runs orchestrate the creation of analysis dataset artifacts. The Analysis Run is reponsible for loading checkpoints of a Model Variant, executing forward passes through each checkpoint, passing the output of the forward pass and activation cache to each Analyzer defined in the run. (Note: within the codebase, the Analysis Run is called AnalysisPipeline. I'm intentionally keeping this discrepancy for now.)
 
 **Analysis Report:**
 A web-based report made up of visualization components. A single Analysis Report and its Visualization components can be used by any Variant within a Model Family. The data rendered by the visualizers is generated from Analyzers generating Analysis artifacts on a Model Variant's training checkpoints.
@@ -75,7 +75,7 @@ Training Runner:
 Analysis Engine:
 - Responsible for loading checkpoints, executing forward passes with probes, and generating analysis artifacts
 - Enforces the scientific invariant: same Variant + same Probe across all checkpoints
-- Receives work via AnalysisRunConfig (which analyzers, which checkpoints)
+- Receives work via AnalysisPipelineConfig (which analyzers, which checkpoints)
 - Artifacts are keyed by (Variant, Analyzer, Checkpoint) for incremental computation
 - Future: gap-filling pattern to compute only missing (analyzer, checkpoint) combinations
 
@@ -119,7 +119,7 @@ See `requirements/archive/` for detailed MVP requirements.
 - Training integration with family selection (REQ_021e - partial)
 - REQ_021e: Training Integration (end-to-end flow validation)
 - Pipeline interface refinement: eliminating VariantSpecificationAdapter
-- Formalize AnalysisRunConfig as a first-class concept
+- Formalize AnalysisPipelineConfig as a first-class concept
 
 **Next Up:**
 - Gap-filling pattern for incremental analysis

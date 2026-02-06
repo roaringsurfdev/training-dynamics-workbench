@@ -22,7 +22,7 @@ classDiagram
         <<protocol>>
         +name: str
         +display_name: str
-        +config: HookedTransformerConfig
+        +architecture: ArchitectureSpec
         +domain_parameters: dict[str, ParameterSpec]
         +analyzers: list[str]
         +variant_pattern: str
@@ -55,29 +55,21 @@ classDiagram
         ANALYZED
     }
 
-    class AnalysisRun {
+    class AnalysisPipeline {
         -variant: Variant
-        -config: AnalysisRunConfig
+        -config: AnalysisPipelineConfig
         -analyzers: list[Analyzer]
         -manifest: dict
         -results: dict
-        -state: AnalysisRunState
+        -state: AnalysisPipelineState
         +artifacts_dir: str
-        +register(analyzer) AnalysisRun
+        +register(analyzer) AnalysisPipeline
         +run(force, save_every, progress_callback)
         +get_completed_epochs(analyzer_name) list[int]
         +load_artifact(analyzer_name) dict
     }
 
-    class AnalysisRunState {
-        <<enumeration>>
-        NOT_STARTED
-        IN_PROGRESS
-        COMPLETE
-        TERMINATED
-    }
-
-    class AnalysisRunConfig {
+    class AnalysisPipelineConfig {
         <<dataclass>>
         - family : ModelFamily
         +analyzers: list[str]
@@ -120,17 +112,15 @@ classDiagram
     Variant "1" --> "1" VariantState : has state
     Variant "1" ..> "1" TrainingResult : produces
 
-    AnalysisRun "1" --> "1" Variant : analyzes
-    AnalysisRun "1" --> "0..1" AnalysisRunConfig : configured by
-    AnalysisRun "1" --> "1" AnalysisRunState : has state
-    AnalysisRun "1" --> "*" Analyzer : uses
+    AnalysisPipeline "1" --> "1" Variant : analyzes
+    AnalysisPipeline "1" --> "0..1" AnalysisPipelineConfig : configured by
+    AnalysisPipeline "1" --> "*" Analyzer : uses
 
     AnalyzerRegistry "1" --> "*" Analyzer : manages
 
     ArtifactLoader "1" --> "1" Variant : loads from
 
     ModelFamily ..> HookedTransformer : creates
-    ModelFamily ..> HookedTransformerConfig : configured by
 ```
 
 ## Core Concepts
@@ -157,8 +147,8 @@ A module responsible for generating analysis data given a Model Variant Checkpoi
 
 Analyzers are defined by 'analyzer.json' in `analyzers/`.
 
-### AnalysisRun
+### AnalysisPipeline
 Orchestrates analysis across a model variant's checkpoints given a list of analysis functions. Manages artifact persistence and resumability.
 The workbench focuses on analysis runs instead of training runs. The goal is to optimize the ability to analyze models across training checkpoints instead of optimizing models themselves. Analysis Runs orchestrate the creation of analysis dataset artifacts. The Analysis Run is reponsible for loading checkpoints of a Model Variant, executing forward passes through each checkpoint, passing the output of the forward pass and activation cache to each Analyzer defined in the run.
 
-Analyzer results for a given AnalysisRun are stored under `results/{model name}/{variant name}/analysis/` as `npz` files. Completed analyses are logged in `manifest.json` in `results/{model name}/{variant name}/analysis/`.
+Analyzer results for a given AnalysisPipeline are stored under `results/{model name}/{variant name}/analysis/` as `npz` files. Completed analyses are logged in `manifest.json` in `results/{model name}/{variant name}/analysis/`.
