@@ -1,9 +1,10 @@
 """State management for the dashboard."""
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
+if TYPE_CHECKING:
+    pass
 
 
 @dataclass
@@ -12,19 +13,27 @@ class DashboardState:
 
     This state is passed through Gradio's gr.State() mechanism
     to persist data across interactions.
+
+    Artifact data is NOT cached in state. Instead, artifacts_dir is stored
+    and per-epoch data is loaded on demand via ArtifactLoader.
     """
 
-    # Model selection
+    # Family/Variant selection (REQ_021d)
+    selected_family_name: str | None = None
+    selected_variant_name: str | None = None
+
+    # Model selection (legacy, kept for compatibility)
     selected_model_path: str | None = None
 
-    # Available epochs from loaded artifacts
+    # Artifacts directory for on-demand loading (REQ_021f)
+    artifacts_dir: str | None = None
+
+    # Available epochs from artifact filesystem
     available_epochs: list[int] = field(default_factory=list)
     current_epoch_idx: int = 0
 
-    # Cached artifacts for fast slider updates
-    dominant_freq_artifact: dict[str, np.ndarray] | None = None
-    neuron_activations_artifact: dict[str, np.ndarray] | None = None
-    freq_clusters_artifact: dict[str, np.ndarray] | None = None
+    # Available analyzers for this variant
+    available_analyzers: list[str] = field(default_factory=list)
 
     # Loss data
     train_losses: list[float] | None = None
@@ -44,12 +53,18 @@ class DashboardState:
         return 0
 
     def clear_artifacts(self) -> None:
-        """Clear all cached artifacts."""
-        self.dominant_freq_artifact = None
-        self.neuron_activations_artifact = None
-        self.freq_clusters_artifact = None
+        """Clear artifact references and related state."""
+        self.artifacts_dir = None
+        self.available_analyzers = []
         self.train_losses = None
         self.test_losses = None
         self.available_epochs = []
         self.current_epoch_idx = 0
         self.model_config = None
+
+    def clear_selection(self) -> None:
+        """Clear family/variant selection and all artifacts."""
+        self.selected_family_name = None
+        self.selected_variant_name = None
+        self.selected_model_path = None
+        self.clear_artifacts()

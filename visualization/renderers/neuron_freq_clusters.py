@@ -9,8 +9,8 @@ import plotly.graph_objects as go
 
 
 def render_freq_clusters(
-    artifact: dict[str, np.ndarray],
-    epoch_idx: int,
+    epoch_data: dict[str, np.ndarray],
+    epoch: int,
     sparse_labels: bool = True,
     label_interval: int = 5,
     title: str | None = None,
@@ -25,9 +25,8 @@ def render_freq_clusters(
     by each frequency component.
 
     Args:
-        artifact: Dict containing 'epochs' and 'norm_matrix' arrays.
-            norm_matrix shape: (n_epochs, n_freq, d_mlp)
-        epoch_idx: Index into epochs array.
+        epoch_data: Dict containing 'norm_matrix' array of shape (n_freq, d_mlp).
+        epoch: Epoch number (used for title).
         sparse_labels: If True, only show every nth frequency label.
         label_interval: Show label every N frequencies when sparse_labels=True.
         title: Custom title.
@@ -39,14 +38,7 @@ def render_freq_clusters(
     Returns:
         Plotly Figure with heatmap.
     """
-    epochs = artifact["epochs"]
-    norm_matrix = artifact["norm_matrix"]
-
-    if epoch_idx < 0 or epoch_idx >= len(epochs):
-        raise IndexError(f"epoch_idx {epoch_idx} out of range [0, {len(epochs)})")
-
-    epoch = int(epochs[epoch_idx])
-    data = norm_matrix[epoch_idx]  # Shape: (n_freq, d_mlp)
+    data = epoch_data["norm_matrix"]  # Shape: (n_freq, d_mlp)
     n_freq, d_mlp = data.shape
 
     # Generate frequency labels (1-indexed as in original)
@@ -118,7 +110,8 @@ def render_freq_clusters_comparison(
     """Render frequency cluster heatmaps for multiple epochs side by side.
 
     Args:
-        artifact: Dict containing 'epochs' and 'norm_matrix' arrays.
+        artifact: Dict containing 'epochs' and 'norm_matrix' arrays
+            (stacked format from ArtifactLoader.load_epochs()).
         epoch_indices: List of epoch indices to compare.
         sparse_labels: If True, only show every nth frequency label.
         label_interval: Show label every N frequencies.
@@ -201,23 +194,21 @@ def render_freq_clusters_comparison(
 
 
 def get_specialized_neurons(
-    artifact: dict[str, np.ndarray],
-    epoch_idx: int,
+    epoch_data: dict[str, np.ndarray],
     frequency: int,
     threshold: float = 0.85,
 ) -> list[int]:
     """Get neurons specialized for a specific frequency.
 
     Args:
-        artifact: Dict containing 'epochs' and 'norm_matrix' arrays.
-        epoch_idx: Which epoch to analyze.
+        epoch_data: Dict containing 'norm_matrix' array of shape (n_freq, d_mlp).
         frequency: Target frequency (1-indexed).
         threshold: Minimum fraction explained to be considered specialized.
 
     Returns:
         List of neuron indices specialized for the frequency.
     """
-    norm_matrix = artifact["norm_matrix"][epoch_idx]
+    norm_matrix = epoch_data["norm_matrix"]
     freq_idx = frequency - 1  # Convert to 0-indexed
 
     if freq_idx < 0 or freq_idx >= norm_matrix.shape[0]:
@@ -228,21 +219,19 @@ def get_specialized_neurons(
 
 
 def get_neuron_specialization(
-    artifact: dict[str, np.ndarray],
-    epoch_idx: int,
+    epoch_data: dict[str, np.ndarray],
     neuron_idx: int,
 ) -> tuple[int, float]:
     """Get the dominant frequency for a specific neuron.
 
     Args:
-        artifact: Dict containing 'epochs' and 'norm_matrix' arrays.
-        epoch_idx: Which epoch to analyze.
+        epoch_data: Dict containing 'norm_matrix' array of shape (n_freq, d_mlp).
         neuron_idx: Which neuron to analyze.
 
     Returns:
         Tuple of (frequency, fraction_explained) where frequency is 1-indexed.
     """
-    norm_matrix = artifact["norm_matrix"][epoch_idx]
+    norm_matrix = epoch_data["norm_matrix"]
 
     if neuron_idx < 0 or neuron_idx >= norm_matrix.shape[1]:
         raise IndexError(f"neuron_idx {neuron_idx} out of range")

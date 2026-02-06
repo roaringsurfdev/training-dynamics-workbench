@@ -30,31 +30,31 @@ This doesn't seem to be affecting any observable behavior. There is another bug 
 ## Actual Behavior
 An error is generated in the web app output in the terminal:
 ```
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/queueing.py", line 766, in process_events
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/queueing.py", line 766, in process_events
     response = await route_utils.call_process_api(
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<5 lines>...
     )
     ^
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/route_utils.py", line 355, in call_process_api
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/route_utils.py", line 355, in call_process_api
     output = await app.get_blocks().process_api(
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<11 lines>...
     )
     ^
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/blocks.py", line 2148, in process_api
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/blocks.py", line 2148, in process_api
     inputs = await self.preprocess_data(
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
         block_fn, inputs, state, explicit_call
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/blocks.py", line 1790, in preprocess_data
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/blocks.py", line 1790, in preprocess_data
     processed_value = block.preprocess(inputs_cached)
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/components/slider.py", line 154, in preprocess
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/components/slider.py", line 154, in preprocess
     Number.raise_if_out_of_bounds(payload, self.minimum, self.maximum)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/megano/projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/components/number.py", line 136, in raise_if_out_of_bounds
+  File "/home/.../projects/mechinterp/training-dynamics-workbench/.venv/lib/python3.13/site-packages/gradio/components/number.py", line 136, in raise_if_out_of_bounds
     raise Error(f"Value {num} is greater than maximum value {maximum}.")
 gradio.exceptions.Error: 'Value 512 is greater than maximum value 511.'
 ```

@@ -4,13 +4,16 @@ This package provides Plotly-based renderers for analysis artifacts
 created by the analysis pipeline. Each renderer is Gradio-agnostic
 and simply returns a plotly.graph_objects.Figure.
 
+Per-epoch renderers accept single-epoch data + epoch number.
+Cross-epoch renderers accept stacked data from load_epochs().
+
 Usage:
     from analysis import ArtifactLoader
     from visualization import render_dominant_frequencies
 
     loader = ArtifactLoader(artifacts_dir)
-    artifact = loader.load("dominant_frequencies")
-    fig = render_dominant_frequencies(artifact, epoch_idx=0)
+    epoch_data = loader.load_epoch("dominant_frequencies", epoch=100)
+    fig = render_dominant_frequencies(epoch_data, epoch=100)
     fig.show()  # or pass to Gradio
 """
 

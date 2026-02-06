@@ -218,5 +218,6 @@ __marimo__/
 # Project-specific
 /results
 *.pth
+/temp_artifacts
 
 

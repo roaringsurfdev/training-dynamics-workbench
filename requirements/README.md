@@ -32,6 +32,7 @@ Requirements that have been documented but are not yet scheduled for implementat
 | [REQ_014](future/REQ_014_checkpoint_click_navigation.md) | Click-to-navigate checkpoint markers | Low | Medium |
 | [REQ_015](future/REQ_015_checkpoint_editor.md) | Checkpoint editor using Train/Test loss curve | Medium | High |
 | [REQ_017](future/REQ_017_multi_model_support.md) | Support for multiple toy models | High | High |
+| [REQ_019](future/REQ_019_multiscale_activation_visualization.md) | Multi-scale activation visualization (downsampled) | Medium | Medium |
 
 ### Completed Milestones
 
