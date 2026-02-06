@@ -57,21 +57,17 @@ classDiagram
 
     class AnalysisPipeline {
         -variant: Variant
-        -config: AnalysisPipelineConfig
+        -config: AnalysisRunConfig
         -analyzers: list[Analyzer]
         -manifest: dict
-        -results: dict
-        -state: AnalysisPipelineState
         +artifacts_dir: str
         +register(analyzer) AnalysisPipeline
-        +run(force, save_every, progress_callback)
+        +run(force, progress_callback)
         +get_completed_epochs(analyzer_name) list[int]
-        +load_artifact(analyzer_name) dict
     }
 
-    class AnalysisPipelineConfig {
+    class AnalysisRunConfig {
         <<dataclass>>
-        - family : ModelFamily
         +analyzers: list[str]
         +checkpoints: list[int] | None
     }
@@ -90,9 +86,13 @@ classDiagram
     }
 
     class ArtifactLoader {
-        +variant: Variant
+        +artifacts_dir: str
+        +load_epoch(analyzer_name, epoch) dict
+        +load_epochs(analyzer_name, epochs) dict
         +load(analyzer_name) dict
-        +list_available() list[str]
+        +get_available_analyzers() list[str]
+        +get_epochs(analyzer_name) list[int]
+        +get_metadata(analyzer_name) dict
     }
 
     class TrainingResult {
@@ -113,7 +113,7 @@ classDiagram
     Variant "1" ..> "1" TrainingResult : produces
 
     AnalysisPipeline "1" --> "1" Variant : analyzes
-    AnalysisPipeline "1" --> "0..1" AnalysisPipelineConfig : configured by
+    AnalysisPipeline "1" --> "0..1" AnalysisRunConfig : configured by
     AnalysisPipeline "1" --> "*" Analyzer : uses
 
     AnalyzerRegistry "1" --> "*" Analyzer : manages
@@ -151,4 +151,4 @@ Analyzers are defined by 'analyzer.json' in `analyzers/`.
 Orchestrates analysis across a model variant's checkpoints given a list of analysis functions. Manages artifact persistence and resumability.
 The workbench focuses on analysis runs instead of training runs. The goal is to optimize the ability to analyze models across training checkpoints instead of optimizing models themselves. Analysis Runs orchestrate the creation of analysis dataset artifacts. The Analysis Run is reponsible for loading checkpoints of a Model Variant, executing forward passes through each checkpoint, passing the output of the forward pass and activation cache to each Analyzer defined in the run.
 
-Analyzer results for a given AnalysisPipeline are stored under `results/{model name}/{variant name}/analysis/` as `npz` files. Completed analyses are logged in `manifest.json` in `results/{model name}/{variant name}/analysis/`.
+Analyzer results are stored as per-epoch files under `results/{family name}/{variant name}/artifacts/{analyzer name}/epoch_{NNNNN}.npz`. Each file contains a single epoch's analysis output. This per-epoch storage (REQ_021f) eliminates memory exhaustion during analysis and enables on-demand loading. Completed analyses are tracked in `manifest.json` under `results/{family name}/{variant name}/artifacts/`.

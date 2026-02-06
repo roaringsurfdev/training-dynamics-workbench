@@ -96,33 +96,32 @@ MVP was released with v0.1.0. The initial release delivered:
 See `requirements/archive/` for detailed MVP requirements.
 
 ## Current Status
-**Completed:**
-- First pass at end-to-end process: Training -> Analysis -> Visualizations
-- Ability to start training from Dashboard for Modulo Addition
-- Ability to start Analysis from Dashboard for Modulo Addition
-- Ability to explore 3 visualizations (Dominant Fourier Frequencies in Embeddings, Neuron Activation Heatmaps - all 512, Neuron Frequency Clusters) across checkpoints for Modulo Addition
-- Project structure and collaboration framework (Claude.md, policies, requirements templates)
-- Interactive slider for navigating multiple visualizations in sync with checkpoints across a test/train loss curves. The interactive slider allows a user to skip ahead to interesting points along the loss curves and see how the visualizations change.
 
-^^Pre-existing:**
-- Baseline modulo addition model implementation (ModuloAdditionSpecification.py)
-- Fourier analysis utilities (FourierEvaluation.py)
-- Working end-to-end analysis script (ModuloAdditionRefactored.py)
-- Parameterized model by modulus (p) with dynamic dominant frequency detection
+**v0.2.0 — First Foundational Release**
 
+This release takes the project from prototype to a foundational architecture. The MVP proved viability; v0.2.0 establishes the abstractions and infrastructure for sustained research.
 
-**In Progress:**
+**Completed (v0.2.0):**
 - Model Family abstraction (REQ_021a): ModelFamily protocol, Variant class, FamilyRegistry
 - Analysis library architecture (REQ_021b): library/ + analyzers/ separation
 - Modulo Addition 1-Layer family implementation (REQ_021c)
 - Dashboard integration with family-aware Analysis tab (REQ_021d)
-- Training integration with family selection (REQ_021e - partial)
-- REQ_021e: Training Integration (end-to-end flow validation)
-- Pipeline interface refinement: eliminating VariantSpecificationAdapter
-- Formalize AnalysisPipelineConfig as a first-class concept
+- Training integration with family selection (REQ_021e)
+- Per-epoch artifact storage (REQ_021f): eliminates memory exhaustion, enables on-demand loading
+- End-to-end workflow: Family selection, variant training, analysis, visualization
+- Five trained variants across different primes (p=97, 101, 103, 109, 113)
+
+**Completed (v0.1.x — MVP):**
+- First pass at end-to-end process: Training -> Analysis -> Visualizations
+- Three core visualizations (Dominant Frequencies, Neuron Activations, Frequency Clusters)
+- Interactive slider for navigating visualizations in sync with loss curves
+- Gradio dashboard with Training and Analysis tabs
+- Project structure and collaboration framework
 
 **Next Up:**
+- Notebook-based exploratory visualization design
 - Gap-filling pattern for incremental analysis
+- Analysis Report concept (web-based visualization reports per family)
 
 ## Dependencies & Constraints
 
@@ -156,9 +155,8 @@ See `requirements/archive/` for detailed MVP requirements.
 
 
 ## Open Questions
-- Analysis artifact storage format (flexibility for implementation - not critical for MVP)
 - Optimal visualization presentation for neuron frequency clusters (remove/minimize legend)
 - Async architecture patterns for training and analysis
 
 ---
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-06
