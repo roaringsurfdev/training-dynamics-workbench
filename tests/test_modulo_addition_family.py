@@ -1,4 +1,8 @@
 """Tests for Modulo Addition 1-Layer family implementation (REQ_021c)."""
+# pyright: reportArgumentType=false
+# pyright: reportInvalidTypeForm=false
+# pyright: reportReturnType=false
+# pyright: reportAttributeAccessIssue=false
 
 import tempfile
 from pathlib import Path
@@ -7,7 +11,7 @@ import pytest
 import torch
 
 from analysis.analyzers import AnalyzerRegistry
-from families import FamilyRegistry, Variant, VariantState
+from families import FamilyRegistry, VariantState
 from families.implementations import ModuloAddition1LayerFamily
 
 

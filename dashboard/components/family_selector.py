@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from families import FamilyRegistry, ModelFamily, Variant
+    from families import FamilyRegistry, Variant
 
 
 def get_family_choices(registry: FamilyRegistry) -> list[tuple[str, str]]:

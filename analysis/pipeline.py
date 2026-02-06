@@ -6,7 +6,6 @@ import json
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -219,7 +218,7 @@ class AnalysisPipeline:
 
         artifact_path = os.path.join(analyzer_dir, f"epoch_{epoch:05d}.npz")
         temp_base = os.path.join(analyzer_dir, f".epoch_{epoch:05d}_tmp")
-        np.savez_compressed(temp_base, **result)
+        np.savez_compressed(temp_base, **result)  # type: ignore[arg-type]
         temp_path = temp_base + ".npz"
         os.replace(temp_path, artifact_path)
 

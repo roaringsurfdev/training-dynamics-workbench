@@ -409,7 +409,7 @@ class TestFamilySelectorComponent:
     def test_get_state_indicator(self, mock_family_dir):
         """get_state_indicator returns correct symbols for states."""
         from dashboard.components import get_state_indicator
-        from families import FamilyRegistry, VariantState
+        from families import FamilyRegistry
 
         registry = FamilyRegistry(
             model_families_dir=Path(mock_family_dir) / "model_families",

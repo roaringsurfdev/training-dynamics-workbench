@@ -1,4 +1,9 @@
 """Tests for the families module (REQ_021a)."""
+# pyright: reportArgumentType=false
+# pyright: reportInvalidTypeForm=false
+# pyright: reportReturnType=false
+# pyright: reportIndexIssue=false
+# pyright: reportTypedDictNotRequiredAccess=false
 
 import json
 import tempfile
@@ -12,7 +17,6 @@ from families import (
     Variant,
     VariantState,
 )
-
 
 # --- Fixtures ---
 

@@ -1,6 +1,5 @@
 """Tests for analysis library functions (REQ_021b)."""
 
-import numpy as np
 import pytest
 import torch
 
@@ -8,14 +7,12 @@ from analysis.library import (
     compute_2d_fourier_transform,
     compute_frequency_variance_fractions,
     compute_grid_size_from_dataset,
-    extract_mlp_activations,
     get_dominant_frequency_indices,
     get_embedding_weights,
     get_fourier_basis,
     project_onto_fourier_basis,
     reshape_to_grid,
 )
-
 
 # --- Fourier Library Tests ---
 

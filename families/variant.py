@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import torch
 import tqdm.auto as tqdm
@@ -218,10 +219,10 @@ class Variant:
         training_config = self._family.get_training_config()
 
         if num_epochs is None:
-            num_epochs = training_config.get("num_epochs", 25000)
+            num_epochs = int(training_config.get("num_epochs", 25000))
 
         if checkpoint_epochs is None:
-            checkpoint_epochs = training_config.get("default_checkpoint_epochs", [])
+            checkpoint_epochs = list(training_config.get("default_checkpoint_epochs", []))
 
         # Filter and sort checkpoint epochs
         checkpoint_epochs = sorted([e for e in checkpoint_epochs if e < num_epochs])

@@ -11,7 +11,6 @@ from families.json_family import JsonModelFamily
 from families.protocols import ModelFamily
 from families.variant import Variant
 
-
 # Mapping of family names to their implementation classes
 # Families not in this map will use JsonModelFamily (config-only)
 _FAMILY_IMPLEMENTATIONS: dict[str, type[JsonModelFamily]] = {}

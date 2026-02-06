@@ -121,7 +121,7 @@ class JsonModelFamily:
         """
         return self.variant_pattern.format(**params)
 
-    def create_model(self, params: dict[str, Any]) -> Any:
+    def create_model(self, params: dict[str, Any], device: str | torch.device | None = None) -> Any:
         """Create a model instance.
 
         Note: This base implementation raises NotImplementedError.
@@ -138,7 +138,7 @@ class JsonModelFamily:
             "Use a family-specific implementation."
         )
 
-    def generate_analysis_dataset(self, params: dict[str, Any]) -> torch.Tensor:
+    def generate_analysis_dataset(self, params: dict[str, Any], device: str | torch.device | None = None) -> torch.Tensor:
         """Generate the analysis dataset.
 
         Note: This base implementation raises NotImplementedError.
@@ -199,6 +199,28 @@ class JsonModelFamily:
         """
         raise NotImplementedError(
             f"get_training_config() not implemented for {self.name}. "
+            "Use a family-specific implementation."
+        )
+
+    def prepare_analysis_context(
+        self,
+        params: dict[str, Any],
+        device: str | torch.device,
+    ) -> dict[str, Any]:
+        """Prepare precomputed values needed for analysis.
+
+        Note: This base implementation raises NotImplementedError.
+        Family-specific subclasses should override this method.
+
+        Args:
+            params: Domain parameter values
+            device: Device for tensor computations
+
+        Raises:
+            NotImplementedError: Must be implemented by subclass
+        """
+        raise NotImplementedError(
+            f"prepare_analysis_context() not implemented for {self.name}. "
             "Use a family-specific implementation."
         )
 

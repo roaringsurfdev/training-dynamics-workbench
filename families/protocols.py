@@ -142,6 +142,14 @@ class ModelFamily(Protocol):
         """
         ...
 
+    def get_default_params(self) -> dict[str, Any]:
+        """Get default parameter values from domain_parameters.
+
+        Returns:
+            Dict of parameter name to default value
+        """
+        ...
+
     def prepare_analysis_context(
         self,
         params: dict[str, Any],

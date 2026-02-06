@@ -89,7 +89,7 @@ def run_with_cache(
     """
     with torch.inference_mode():
         logits, cache = model.run_with_cache(inputs)
-    return logits, cache
+    return logits, cache  # type: ignore[return-value]
 
 
 def compute_grid_size_from_dataset(dataset: torch.Tensor) -> int:

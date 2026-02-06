@@ -10,7 +10,7 @@ This package provides:
 from analysis.analyzers import AnalyzerRegistry
 from analysis.artifact_loader import ArtifactLoader
 from analysis.pipeline import AnalysisPipeline
-from analysis.protocols import Analyzer, AnalysisRunConfig
+from analysis.protocols import AnalysisRunConfig, Analyzer
 
 __all__ = [
     "Analyzer",

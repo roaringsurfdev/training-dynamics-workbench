@@ -64,7 +64,7 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
             d_vocab_out=p,  # Output is 0 to p-1
             n_ctx=arch.get("n_ctx", 3),  # a, b, =
             init_weights=True,
-            device=device,
+            device=str(device) if device is not None else None,
             seed=seed,
         )
 
@@ -230,4 +230,6 @@ def load_modulo_addition_1layer_family(
         ModuloAddition1LayerFamily instance
     """
     family_json = Path(model_families_dir) / "modulo_addition_1layer" / "family.json"
-    return ModuloAddition1LayerFamily.from_json(family_json)
+    family = ModuloAddition1LayerFamily.from_json(family_json)
+    assert isinstance(family, ModuloAddition1LayerFamily)
+    return family
