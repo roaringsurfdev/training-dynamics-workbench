@@ -3,11 +3,18 @@
 Extracts MLP neuron activations reshaped to input space.
 """
 
-import einops
+from typing import Any
+
 import numpy as np
 import torch
 from transformer_lens import HookedTransformer
 from transformer_lens.ActivationCache import ActivationCache
+
+from analysis.library import (
+    compute_grid_size_from_dataset,
+    extract_mlp_activations,
+    reshape_to_grid,
+)
 
 
 class NeuronActivationsAnalyzer:
@@ -17,37 +24,35 @@ class NeuronActivationsAnalyzer:
     and reshapes them to (d_mlp, p, p) for visualization as heatmaps.
     """
 
-    @property
-    def name(self) -> str:
-        return "neuron_activations"
+    name = "neuron_activations"
+    description = "Computes neuron activation heatmaps for (a, b) inputs"
 
     def analyze(
         self,
         model: HookedTransformer,
-        dataset: torch.Tensor,
+        probe: torch.Tensor,
         cache: ActivationCache,
-        fourier_basis: torch.Tensor,
+        context: dict[str, Any],  # noqa: ARG002
     ) -> dict[str, np.ndarray]:
         """
         Extract neuron activations and reshape to (d_mlp, p, p).
 
         Args:
             model: The model loaded with checkpoint weights
-            dataset: Full dataset tensor (p^2, 3)
+            probe: Full probe tensor (p^2, 3)
             cache: Activation cache from forward pass
-            fourier_basis: Precomputed Fourier basis (not used by this analyzer)
+            context: Analysis context (not used by this analyzer)
 
         Returns:
             Dict with 'activations' array of shape (d_mlp, p, p)
         """
-        # Get prime from dataset shape
-        p = int(np.sqrt(dataset.shape[0]))
+        # Get grid size from probe
+        p = compute_grid_size_from_dataset(probe)
 
         # Extract neuron activations at last token position
-        # Shape: (p^2, d_mlp)
-        neuron_acts = cache["post", 0, "mlp"][:, -1, :]
+        neuron_acts = extract_mlp_activations(cache, layer=0, position=-1)
 
         # Reshape to (d_mlp, p, p)
-        activations = einops.rearrange(neuron_acts, "(a b) neuron -> neuron a b", a=p, b=p)
+        activations = reshape_to_grid(neuron_acts, p)
 
         return {"activations": activations.detach().cpu().numpy()}

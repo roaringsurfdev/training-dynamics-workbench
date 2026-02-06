@@ -10,6 +10,7 @@ import os
 import einops
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import plotly.io as pio
 import torch
 import torch.nn.functional as F
@@ -658,4 +659,91 @@ imshow(
 )
 
 
+# %% Experiment - All 512 neurons visualization (composite image)
+# Display all MLP neurons as a single composite image for artifact-free rendering
+# To identify a neuron: neuron_idx = row * n_cols + col (0-indexed)
+
+n_neurons = 512
+n_cols = 32
+n_rows = (n_neurons + n_cols - 1) // n_cols  # 16 rows
+cell_size = p  # 113 for full resolution
+
+# Reshape all neuron activations to 2D maps
+all_neuron_maps = utils.to_numpy(
+    einops.rearrange(neuron_acts[:, :n_neurons], "(a b) neuron -> neuron a b", a=p, b=p)
+)
+
+# Build composite image
+composite_raw = np.zeros((n_rows * cell_size, n_cols * cell_size))
+for idx in range(n_neurons):
+    row, col = idx // n_cols, idx % n_cols
+    composite_raw[
+        row * cell_size : (row + 1) * cell_size,
+        col * cell_size : (col + 1) * cell_size,
+    ] = all_neuron_maps[idx]
+
+# Display as single heatmap
+fig = go.Figure(
+    go.Heatmap(
+        z=composite_raw,
+        colorscale="RdBu",
+        zmid=0,
+        showscale=True,
+    )
+)
+fig.update_layout(
+    title=f"All {n_neurons} MLP Neuron Activations ({n_rows}x{n_cols} grid, {cell_size}x{cell_size} per neuron)",
+    height=800,
+    width=1600,
+)
+fig.update_xaxes(showticklabels=False)
+fig.update_yaxes(showticklabels=False)
+fig.show()
+
+# %% Experiment - All 512 neurons visualization (downsampled composite)
+# Same composite approach with bilinear downsampling to reveal coarse structure
+# To identify a neuron: neuron_idx = row * n_cols + col (0-indexed)
+
+target_size = 28  # Downsample from 113x113 to 28x28
+n_neurons = 512
+n_cols = 32
+n_rows = (n_neurons + n_cols - 1) // n_cols
+
+# Reshape and apply bilinear interpolation
+all_neuron_maps_tensor = einops.rearrange(
+    neuron_acts[:, :n_neurons], "(a b) neuron -> neuron a b", a=p, b=p
+)
+all_neuron_maps_4d = all_neuron_maps_tensor.unsqueeze(1).float()
+interpolated = utils.to_numpy(
+    F.interpolate(
+        all_neuron_maps_4d, size=(target_size, target_size), mode="bilinear", align_corners=False
+    ).squeeze(1)
+)
+
+# Build composite image
+composite_downsampled = np.zeros((n_rows * target_size, n_cols * target_size))
+for idx in range(n_neurons):
+    row, col = idx // n_cols, idx % n_cols
+    composite_downsampled[
+        row * target_size : (row + 1) * target_size,
+        col * target_size : (col + 1) * target_size,
+    ] = interpolated[idx]
+
+# Display as single heatmap
+fig = go.Figure(
+    go.Heatmap(
+        z=composite_downsampled,
+        colorscale="RdBu",
+        zmid=0,
+        showscale=True,
+    )
+)
+fig.update_layout(
+    title=f"All {n_neurons} MLP Neuron Activations - Downsampled ({n_rows}x{n_cols} grid, {target_size}x{target_size} per neuron)",
+    height=800,
+    width=1600,
+)
+fig.update_xaxes(showticklabels=False)
+fig.update_yaxes(showticklabels=False)
+fig.show()
 # %%

@@ -187,35 +187,41 @@ Two layers:
 
 ## Sub-Requirements
 
-This requirement is broken into four sub-requirements for cleanly subdivided work:
+This requirement is broken into five sub-requirements for cleanly subdivided work:
 
 | Sub-Req | Title | Dependencies | Focus |
 |---------|-------|--------------|-------|
 | [REQ_021a](REQ_021a_core_abstractions.md) | Core Abstractions | None | ModelFamily protocol, Variant class, directory conventions |
 | [REQ_021b](REQ_021b_analysis_library.md) | Analysis Library Architecture | None | Separate library/ from analyzers/ |
 | [REQ_021c](REQ_021c_modulo_addition_family.md) | Modulo Addition 1-Layer Implementation | 021a, 021b | Concrete family implementation |
-| [REQ_021d](REQ_021d_dashboard_integration.md) | Dashboard Integration | 021a, 021c | Family-aware UI |
+| [REQ_021d](REQ_021d_dashboard_integration.md) | Dashboard Integration | 021a, 021c | Family-aware Analysis UI |
+| [REQ_021e](REQ_021e_training_integration.md) | Training Integration | 021a, 021c | Family-aware Training UI |
 
 **Dependency graph:**
 ```
-REQ_021a ──────┬──→ REQ_021c ──→ REQ_021d
-               │         ↑
-REQ_021b ──────┴─────────┘
+REQ_021a ──────┬──→ REQ_021c ──→ REQ_021d (Analysis)
+               │         ↑            │
+REQ_021b ──────┴─────────┘            │
+                                      ▼
+                               REQ_021e (Training)
 ```
 
-REQ_021a and REQ_021b can be worked in parallel. REQ_021c integrates both. REQ_021d adds UI support.
+REQ_021a and REQ_021b can be worked in parallel. REQ_021c integrates both. REQ_021d and REQ_021e add family-aware UI for analysis and training respectively.
 
 ## Conditions of Satisfaction
 
 All conditions are tracked in sub-requirements. Summary:
 
-- [ ] ModelFamily protocol formally defined (021a)
-- [ ] Variant concept implemented with state tracking (021a)
-- [ ] Analysis library separated from family-specific analyzers (021b)
-- [ ] At least one family (`modulo_addition_1layer`) implemented with `family.json` (021c)
-- [ ] Dashboard lists families, selecting one filters to its variants (021d)
-- [ ] Existing functionality preserved (no regression) (021d)
-- [ ] New family can be created by: adding `family.json` + implementing protocol (021c)
+- [x] ModelFamily protocol formally defined (021a) ✓
+- [x] Variant concept implemented with state tracking (021a) ✓
+- [x] Analysis library separated from family-specific analyzers (021b) ✓
+- [x] At least one family (`modulo_addition_1layer`) implemented with `family.json` (021c) ✓
+- [x] Dashboard Analysis tab lists families, selecting one filters to its variants (021d) ✓
+- [x] Existing analysis functionality preserved (no regression) (021d) ✓
+- [x] New family can be created by: adding `family.json` + implementing protocol (021c) ✓
+- [ ] Training flows through family abstraction (021e)
+- [ ] Dashboard Training tab uses family selection (021e)
+- [ ] Full end-to-end: Train → Analyze → Visualize via families (021e)
 
 ## Constraints
 
@@ -272,8 +278,9 @@ All conditions are tracked in sub-requirements. Summary:
 - `variant_pattern` updated to include full family name for consistency
 
 **Implementation phases:**
-1. Define `ModelFamily` protocol and `Variant` class (021a)
-2. Refactor analysis into library/ + analyzers/ structure (021b)
-3. Create `model_families/modulo_addition_1layer/family.json` and implement (021c)
-4. Update dashboard to be family-aware (021d)
-5. Validate: can add second family with minimal code (021c)
+1. Define `ModelFamily` protocol and `Variant` class (021a) ✓
+2. Refactor analysis into library/ + analyzers/ structure (021b) ✓
+3. Create `model_families/modulo_addition_1layer/family.json` and implement (021c) ✓
+4. Update dashboard Analysis tab to be family-aware (021d) ✓
+5. Update dashboard Training tab to use family abstraction (021e)
+6. Validate: can add second family with minimal code

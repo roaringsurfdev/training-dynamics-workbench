@@ -11,8 +11,8 @@ from plotly.subplots import make_subplots
 
 
 def render_neuron_heatmap(
-    artifact: dict[str, np.ndarray],
-    epoch_idx: int,
+    epoch_data: dict[str, np.ndarray],
+    epoch: int,
     neuron_idx: int,
     title: str | None = None,
     colorscale: str = "RdBu",
@@ -20,9 +20,8 @@ def render_neuron_heatmap(
     """Render activation heatmap for a single neuron.
 
     Args:
-        artifact: Dict containing 'epochs' and 'activations' arrays.
-            activations shape: (n_epochs, d_mlp, p, p)
-        epoch_idx: Index into epochs array.
+        epoch_data: Dict containing 'activations' array of shape (d_mlp, p, p).
+        epoch: Epoch number (used for title).
         neuron_idx: Which neuron to display (0 to d_mlp-1).
         title: Custom title (default: auto-generated).
         colorscale: Plotly colorscale name.
@@ -30,18 +29,13 @@ def render_neuron_heatmap(
     Returns:
         Plotly Figure with heatmap.
     """
-    epochs = artifact["epochs"]
-    activations = artifact["activations"]
+    activations = epoch_data["activations"]
 
-    if epoch_idx < 0 or epoch_idx >= len(epochs):
-        raise IndexError(f"epoch_idx {epoch_idx} out of range [0, {len(epochs)})")
-
-    n_neurons = activations.shape[1]
+    n_neurons = activations.shape[0]
     if neuron_idx < 0 or neuron_idx >= n_neurons:
         raise IndexError(f"neuron_idx {neuron_idx} out of range [0, {n_neurons})")
 
-    epoch = int(epochs[epoch_idx])
-    data = activations[epoch_idx, neuron_idx]  # Shape: (p, p)
+    data = activations[neuron_idx]  # Shape: (p, p)
     p = data.shape[0]
 
     # Center colorscale at 0
@@ -80,8 +74,8 @@ def render_neuron_heatmap(
 
 
 def render_neuron_grid(
-    artifact: dict[str, np.ndarray],
-    epoch_idx: int,
+    epoch_data: dict[str, np.ndarray],
+    epoch: int,
     neuron_indices: list[int],
     cols: int = 5,
     title: str | None = None,
@@ -91,8 +85,8 @@ def render_neuron_grid(
     """Render grid of activation heatmaps for multiple neurons.
 
     Args:
-        artifact: Dict containing 'epochs' and 'activations' arrays.
-        epoch_idx: Index into epochs array.
+        epoch_data: Dict containing 'activations' array of shape (d_mlp, p, p).
+        epoch: Epoch number (used for title).
         neuron_indices: List of neuron indices to display.
         cols: Number of columns in grid.
         title: Main title for the figure.
@@ -102,13 +96,8 @@ def render_neuron_grid(
     Returns:
         Plotly Figure with grid of heatmaps.
     """
-    epochs = artifact["epochs"]
-    activations = artifact["activations"]
+    activations = epoch_data["activations"]
 
-    if epoch_idx < 0 or epoch_idx >= len(epochs):
-        raise IndexError(f"epoch_idx {epoch_idx} out of range [0, {len(epochs)})")
-
-    epoch = int(epochs[epoch_idx])
     n_neurons = len(neuron_indices)
     rows = (n_neurons + cols - 1) // cols
 
@@ -124,7 +113,7 @@ def render_neuron_grid(
     )
 
     # Find global color range for consistent scaling
-    all_data = activations[epoch_idx, neuron_indices]
+    all_data = activations[neuron_indices]
     zmax = max(abs(all_data.min()), abs(all_data.max()))
     zmin = -zmax
 
@@ -132,7 +121,7 @@ def render_neuron_grid(
         row = i // cols + 1
         col = i % cols + 1
 
-        data = activations[epoch_idx, neuron_idx]
+        data = activations[neuron_idx]
 
         fig.add_trace(
             go.Heatmap(
@@ -176,7 +165,8 @@ def render_neuron_across_epochs(
     Useful for visualizing how a neuron's activation pattern evolves.
 
     Args:
-        artifact: Dict containing 'epochs' and 'activations' arrays.
+        artifact: Dict containing 'epochs' and 'activations' arrays
+            (stacked format from ArtifactLoader.load_epochs()).
         neuron_idx: Which neuron to display.
         epoch_indices: Which epoch indices to show (default: all).
         cols: Number of columns in grid.
@@ -248,8 +238,7 @@ def render_neuron_across_epochs(
 
 
 def get_most_active_neurons(
-    artifact: dict[str, np.ndarray],
-    epoch_idx: int,
+    epoch_data: dict[str, np.ndarray],
     top_k: int = 10,
 ) -> list[int]:
     """Get indices of neurons with highest activation variance.
@@ -257,14 +246,13 @@ def get_most_active_neurons(
     Useful for identifying "interesting" neurons to display.
 
     Args:
-        artifact: Dict containing 'epochs' and 'activations' arrays.
-        epoch_idx: Which epoch to analyze.
+        epoch_data: Dict containing 'activations' array of shape (d_mlp, p, p).
         top_k: Number of top neurons to return.
 
     Returns:
         List of neuron indices sorted by activation variance.
     """
-    activations = artifact["activations"][epoch_idx]  # (d_mlp, p, p)
+    activations = epoch_data["activations"]  # (d_mlp, p, p)
 
     # Compute variance across (a, b) for each neuron
     variances = activations.var(axis=(1, 2))

@@ -43,8 +43,8 @@ def get_dominant_indices(coefficients: np.ndarray, threshold: float = 1.0) -> li
 
 
 def render_dominant_frequencies(
-    artifact: dict[str, np.ndarray],
-    epoch_idx: int,
+    epoch_data: dict[str, np.ndarray],
+    epoch: int,
     threshold: float = 1.0,
     highlight_dominant: bool = True,
     title: str | None = None,
@@ -52,8 +52,8 @@ def render_dominant_frequencies(
     """Render dominant frequencies as a bar plot for a single epoch.
 
     Args:
-        artifact: Dict containing 'epochs' and 'coefficients' arrays.
-        epoch_idx: Index into epochs array for which epoch to display.
+        epoch_data: Dict containing 'coefficients' array of shape (n_fourier,).
+        epoch: Epoch number (used for title).
         threshold: Threshold line for dominance indication.
         highlight_dominant: Whether to highlight bars above threshold.
         title: Custom title (default: auto-generated with epoch number).
@@ -61,14 +61,7 @@ def render_dominant_frequencies(
     Returns:
         Plotly Figure object ready for display.
     """
-    epochs = artifact["epochs"]
-    coefficients = artifact["coefficients"]
-
-    if epoch_idx < 0 or epoch_idx >= len(epochs):
-        raise IndexError(f"epoch_idx {epoch_idx} out of range [0, {len(epochs)})")
-
-    epoch = int(epochs[epoch_idx])
-    data = coefficients[epoch_idx]
+    data = epoch_data["coefficients"]
     n_components = len(data)
 
     # Generate labels
@@ -132,7 +125,8 @@ def render_dominant_frequencies_over_time(
     Useful for visualizing how frequency dominance evolves during training.
 
     Args:
-        artifact: Dict containing 'epochs' and 'coefficients' arrays.
+        artifact: Dict containing 'epochs' and 'coefficients' arrays
+            (stacked format from ArtifactLoader.load_epochs()).
         component_indices: Specific component indices to plot.
             If None, uses top_k components from final epoch.
         top_k: Number of top components to show if component_indices is None.

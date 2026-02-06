@@ -4,7 +4,7 @@
 **Priority:** High
 **Parent:** [REQ_021](REQ_021_model_families.md)
 **Dependencies:** None (can be worked in parallel with REQ_021a)
-**Last Updated:** 2026-02-03
+**Last Updated:** 2026-02-04
 
 ## Problem Statement
 
@@ -12,6 +12,30 @@ Current analysis code is tightly coupled to `ModuloAdditionSpecification`. To su
 1. A library of generic, reusable analysis functions
 2. Family-bound analyzers that compose library functions
 3. Clear separation so new families can reuse existing analysis logic
+
+## Core Principle: The Scientific Invariant
+
+The workbench exists to answer: **"How does behavior X change across training?"**
+
+For that question to be meaningful, analysis must hold constant:
+- The trained model instance (Variant)
+- The probe (analysis dataset)
+
+The **only independent variable** is the checkpoint (training moment).
+
+This invariant is what the platform enforces. The `AnalysisPipeline` must systematically apply the same probe across all checkpoints to ensure visualizations are scientifically meaningful and not prone to researcher errors in data generation.
+
+## Key Terminology
+
+**Probe (Analysis Dataset):** The input data used during analysis forward passes. For small toy models, often one canonical dataset (e.g., full (a, b) grid for Modulo Addition). For larger models, probes are specific input sets designed to exercise behaviors of interest. Probe design is part of the research.
+
+> **Note:** A single Variant may support multiple Probes in the future. For current toy models, one Probe per Variant is sufficient. Larger models won't allow full coverage (all possible inputs), so multiple specialized probes become necessary.
+
+**AnalysisRunConfig:** Configuration specifying what work the pipeline should perform:
+- Which analyzers to run
+- Which checkpoints to analyze (optional subset; defaults to all available)
+
+This is variant-agnosti: the same config can be applied to multiple variants.
 
 ## Scope
 
@@ -191,17 +215,98 @@ class AnalyzerRegistry:
         return [cls.get(name) for name in family.analyzers]
 ```
 
+### AnalysisRunConfig
+
+```python
+@dataclass
+class AnalysisRunConfig:
+    """Configuration for an analysis run.
+
+    Specifies what work the pipeline should perform. This is variant-agnostic;
+    the same config can be applied to multiple variants.
+    """
+
+    analyzers: list[str]
+    """Which analyzers to run (by name)."""
+
+    checkpoints: list[int] | None = None
+    """Which checkpoints to analyze. None means all available."""
+```
+
+### AnalysisPipeline Interface (Refined)
+
+The pipeline takes a Variant and an AnalysisRunConfig. It obtains everything it needs through the Variant and its Family:
+
+```python
+class AnalysisPipeline:
+    """Orchestrates analysis across checkpoints.
+
+    Enforces the scientific invariant: same Variant + same Probe across
+    all analyzed checkpoints.
+    """
+
+    def __init__(self, variant: Variant, config: AnalysisRunConfig):
+        """
+        Initialize the pipeline.
+
+        The pipeline retrieves what it needs from the variant:
+        - variant.family → analyzers, model creation, probe generation
+        - variant → checkpoints, checkpoint loading, artifacts_dir
+        - config → which (analyzers × checkpoints) to compute
+        """
+        self.variant = variant
+        self.config = config
+        self.artifacts_dir = variant.artifacts_dir
+
+        # Generate probe from family (enforces invariant)
+        self._probe = variant.family.generate_analysis_dataset(variant.params)
+
+    def run(self, force: bool = False) -> None:
+        """Execute analysis, computing only missing artifacts unless force=True."""
+        ...
+```
+
+This design eliminates the need for adapter classes. The pipeline is family-agnostic—it doesn't need to know about `prime`, `seed`, or other domain-specific parameters. It asks the Variant/Family for what it needs.
+
+### Future: Gap-Filling Pattern
+
+For report rendering, the system can identify missing (analyzer, checkpoint) combinations and construct an `AnalysisRunConfig` to fill gaps:
+
+```python
+def get_missing_analyses(
+    variant: Variant,
+    required_analyzers: list[str]
+) -> AnalysisRunConfig | None:
+    """Identify missing analyses needed for a report.
+
+    Returns an AnalysisRunConfig for just the missing work, or None if complete.
+    """
+    ...
+```
+
+This enables incremental analysis—only compute what's needed, never redo existing work.
+
 ## Conditions of Satisfaction
 
-- [ ] `analysis/library/` contains extracted generic functions
-- [ ] `analysis/analyzers/` contains family-bound analyzers
-- [ ] `Analyzer` protocol defined with analyze/save/load methods
-- [ ] `AnalyzerRegistry` can discover and instantiate analyzers
-- [ ] Existing Fourier analysis code migrated to `library/fourier.py`
-- [ ] Existing activation analysis code migrated to `library/activations.py`
-- [ ] At least 3 analyzers implemented (dominant_frequencies, neuron_activations, neuron_frequency_clusters)
-- [ ] Analyzers can be instantiated and run independently of dashboard
+### Library & Analyzers (Original)
+- [x] `analysis/library/` contains extracted generic functions
+- [x] `analysis/analyzers/` contains family-bound analyzers
+- [x] `Analyzer` protocol defined with analyze/save/load methods
+- [x] `AnalyzerRegistry` can discover and instantiate analyzers
+- [x] Existing Fourier analysis code migrated to `library/fourier.py`
+- [x] Existing activation analysis code migrated to `library/activations.py`
+- [x] At least 3 analyzers implemented (dominant_frequencies, neuron_activations, neuron_frequency_clusters)
+- [x] Analyzers can be instantiated and run independently of dashboard
 - [ ] Unit tests for library functions
+
+### Pipeline Refinement (Added 2026-02-04)
+- [x] `AnalysisRunConfig` dataclass defined
+- [x] `AnalysisPipeline` accepts `(Variant, AnalysisRunConfig)` instead of `model_spec`
+- [x] Pipeline obtains probe via `variant.family.generate_analysis_dataset()`
+- [x] Pipeline obtains domain params via `variant.params` (not hardcoded `prime`, `seed`)
+- [x] `VariantSpecificationAdapter` eliminated
+- [x] Analyzers receive `context: dict` containing params and precomputed values
+- [ ] Remaining test files updated for new API (test_remaining_analyzers.py, test_req_003_integration.py, test_artifact_loader.py, test_modulo_addition_family.py)
 
 ## Constraints
 
@@ -209,10 +314,14 @@ class AnalyzerRegistry:
 - Clear separation: library functions have no family knowledge
 - Analyzers compose library functions, don't duplicate logic
 - Artifact format supports incremental loading (don't load all checkpoints to view one)
+- Pipeline enforces scientific invariant (same probe across all checkpoints)
+- Pipeline is family-agnostic (no hardcoded domain parameter names)
 
 **Must avoid:**
 - Library functions depending on specific family implementations
 - Analyzers with hardcoded model architecture assumptions
+- Adapter classes that duplicate logic already in Family/Variant
+- Pipeline depending on domain-specific properties like `prime` or `seed` directly
 
 **Flexible:**
 - Artifact storage format (numpy, torch, pickle, etc.)
@@ -226,3 +335,22 @@ Code to extract from existing implementation:
 - Visualization-specific analysis → respective analyzer modules
 
 The goal is extraction and reorganization, not rewriting. Preserve working logic while establishing clean boundaries.
+
+## Decision Log
+
+| Date | Question | Decision | Rationale |
+|------|----------|----------|-----------|
+| 2026-02-04 | How should pipeline get domain params? | Via `variant.params` dict | Pipeline should be family-agnostic; analyzers interpret params |
+| 2026-02-04 | Keep or eliminate `VariantSpecificationAdapter`? | Eliminate | Adapter duplicates logic and couples pipeline to Modulo Addition specifics |
+| 2026-02-04 | What is the analysis input called? | "Probe" (analysis dataset) | Domain-meaningful term; clarifies it's intentionally designed input for analysis |
+| 2026-02-04 | Can same probe be used across checkpoints? | Yes, required | This is the scientific invariant—only checkpoint varies |
+| 2026-02-04 | Multiple probes per variant? | Future enhancement | MVP uses one probe; larger models will need multiple specialized probes |
+
+## Notes
+
+**2026-02-04:** Refined based on analysis of `VariantSpecificationAdapter`. Key insights:
+- The adapter existed because `AnalysisPipeline` was designed around `ModuloAdditionSpecification`'s interface
+- The adapter duplicated ~40 lines of domain-specific data generation
+- Proper fix: make pipeline take `(Variant, AnalysisRunConfig)` and ask Family for what it needs
+- The "scientific invariant" (same probe across checkpoints) is the core value proposition of the workbench
+- "Probe" terminology preferred over "analysis dataset" for clarity

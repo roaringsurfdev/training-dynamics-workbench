@@ -1,4 +1,4 @@
-"""Tests for REQ_003_004: Artifact Loader."""
+"""Tests for REQ_003_004: Artifact Loader (updated for REQ_021f per-epoch storage)."""
 
 import json
 import os
@@ -7,9 +7,7 @@ import tempfile
 import numpy as np
 import pytest
 
-from analysis import AnalysisPipeline, ArtifactLoader
-from analysis.analyzers import DominantFrequenciesAnalyzer
-from ModuloAdditionSpecification import ModuloAdditionSpecification
+from analysis import ArtifactLoader
 
 
 class TestArtifactLoaderInstantiation:
@@ -57,75 +55,105 @@ class TestArtifactLoaderWithEmptyDirectory:
         assert "nonexistent" in str(exc_info.value)
 
 
-class TestArtifactLoaderWithPipeline:
-    """Tests with artifacts created by pipeline."""
+class TestArtifactLoaderPerEpoch:
+    """Tests with per-epoch artifact files (REQ_021f format)."""
 
     @pytest.fixture
-    def temp_dir(self):
+    def artifacts_with_epochs(self):
+        """Create per-epoch artifact files matching pipeline output format."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            yield tmpdir
+            artifacts_dir = tmpdir
 
-    @pytest.fixture
-    def model_spec_with_artifacts(self, temp_dir):
-        """Create model spec, run pipeline, return spec."""
-        spec = ModuloAdditionSpecification(
-            model_dir=temp_dir,
-            prime=17,
-            device="cpu",
-            seed=42,
-        )
-        spec.train(num_epochs=50, checkpoint_epochs=[0, 25, 49])
+            # Create dominant_frequencies analyzer directory with per-epoch files
+            analyzer_dir = os.path.join(artifacts_dir, "dominant_frequencies")
+            os.makedirs(analyzer_dir)
 
-        # Run pipeline to create artifacts
-        pipeline = AnalysisPipeline(spec)
-        pipeline.register(DominantFrequenciesAnalyzer())
-        pipeline.run()
+            epochs = [0, 25, 49]
+            for epoch in epochs:
+                coefficients = np.random.rand(33).astype(np.float32)  # p=17 → 2p-1=33
+                np.savez_compressed(
+                    os.path.join(analyzer_dir, f"epoch_{epoch:05d}.npz"),
+                    coefficients=coefficients,
+                )
 
-        return spec
+            # Create manifest
+            manifest = {
+                "analyzers": {
+                    "dominant_frequencies": {
+                        "epochs_completed": epochs,
+                        "shapes": {"coefficients": [33]},
+                        "dtypes": {"coefficients": "float32"},
+                    }
+                },
+                "variant_params": {"prime": 17, "seed": 42},
+                "family_name": "modulo_addition_1layer",
+            }
+            with open(os.path.join(artifacts_dir, "manifest.json"), "w") as f:
+                json.dump(manifest, f)
 
-    def test_load_artifact(self, model_spec_with_artifacts):
-        """Can load artifact using just artifacts directory."""
-        loader = ArtifactLoader(model_spec_with_artifacts.artifacts_dir)
+            yield artifacts_dir
+
+    def test_load_epoch(self, artifacts_with_epochs):
+        """Can load a single epoch's data."""
+        loader = ArtifactLoader(artifacts_with_epochs)
+        epoch_data = loader.load_epoch("dominant_frequencies", 0)
+
+        assert isinstance(epoch_data, dict)
+        assert "coefficients" in epoch_data
+        assert "epochs" not in epoch_data  # Single-epoch — no epochs key
+        assert epoch_data["coefficients"].shape == (33,)
+
+    def test_load_epoch_not_found(self, artifacts_with_epochs):
+        """Raises FileNotFoundError for missing epoch."""
+        loader = ArtifactLoader(artifacts_with_epochs)
+        with pytest.raises(FileNotFoundError):
+            loader.load_epoch("dominant_frequencies", 999)
+
+    def test_load_all_epochs_stacked(self, artifacts_with_epochs):
+        """load() returns stacked data with epochs key."""
+        loader = ArtifactLoader(artifacts_with_epochs)
         artifact = loader.load("dominant_frequencies")
 
         assert isinstance(artifact, dict)
         assert "epochs" in artifact
         assert "coefficients" in artifact
+        np.testing.assert_array_equal(artifact["epochs"], [0, 25, 49])
+        assert artifact["coefficients"].shape == (3, 33)
 
-    def test_get_available_analyzers(self, model_spec_with_artifacts):
-        """Lists available analyzers."""
-        loader = ArtifactLoader(model_spec_with_artifacts.artifacts_dir)
+    def test_load_epochs_subset(self, artifacts_with_epochs):
+        """load_epochs() with specific epoch list."""
+        loader = ArtifactLoader(artifacts_with_epochs)
+        artifact = loader.load_epochs("dominant_frequencies", epochs=[0, 49])
+
+        np.testing.assert_array_equal(artifact["epochs"], [0, 49])
+        assert artifact["coefficients"].shape == (2, 33)
+
+    def test_get_available_analyzers(self, artifacts_with_epochs):
+        """Lists available analyzers from directory structure."""
+        loader = ArtifactLoader(artifacts_with_epochs)
         available = loader.get_available_analyzers()
 
         assert "dominant_frequencies" in available
 
-    def test_get_epochs(self, model_spec_with_artifacts):
-        """Gets epochs for analyzer."""
-        loader = ArtifactLoader(model_spec_with_artifacts.artifacts_dir)
+    def test_get_epochs(self, artifacts_with_epochs):
+        """Gets epochs for analyzer from filesystem."""
+        loader = ArtifactLoader(artifacts_with_epochs)
         epochs = loader.get_epochs("dominant_frequencies")
 
         assert epochs == [0, 25, 49]
 
-    def test_get_metadata(self, model_spec_with_artifacts):
-        """Gets metadata for analyzer."""
-        loader = ArtifactLoader(model_spec_with_artifacts.artifacts_dir)
+    def test_get_metadata(self, artifacts_with_epochs):
+        """Gets metadata for analyzer from manifest."""
+        loader = ArtifactLoader(artifacts_with_epochs)
         metadata = loader.get_metadata("dominant_frequencies")
 
         assert "epochs_completed" in metadata
         assert "shapes" in metadata
         assert "dtypes" in metadata
 
-    def test_get_model_config(self, model_spec_with_artifacts):
-        """Gets model config from manifest."""
-        loader = ArtifactLoader(model_spec_with_artifacts.artifacts_dir)
-        config = loader.get_model_config()
-
-        assert config["prime"] == 17
-        assert config["seed"] == 42
-
 
 class TestArtifactLoaderIndependence:
-    """Tests verifying loader works without pipeline."""
+    """Tests verifying loader works without pipeline (per-epoch format)."""
 
     @pytest.fixture
     def temp_dir(self):
@@ -134,26 +162,29 @@ class TestArtifactLoaderIndependence:
 
     @pytest.fixture
     def artifacts_dir_only(self, temp_dir):
-        """Create artifacts manually without using pipeline."""
+        """Create per-epoch artifacts manually without using pipeline."""
         artifacts_dir = os.path.join(temp_dir, "artifacts")
         os.makedirs(artifacts_dir)
 
-        # Save test artifact
-        epochs = np.array([0, 100, 200])
-        data = np.random.randn(3, 10)
-        np.savez_compressed(
-            os.path.join(artifacts_dir, "test_analyzer.npz"),
-            epochs=epochs,
-            data=data,
-        )
+        # Create per-epoch files
+        analyzer_dir = os.path.join(artifacts_dir, "test_analyzer")
+        os.makedirs(analyzer_dir)
+
+        np.random.seed(42)
+        for epoch in [0, 100, 200]:
+            data = np.random.randn(10)
+            np.savez_compressed(
+                os.path.join(analyzer_dir, f"epoch_{epoch:05d}.npz"),
+                data=data,
+            )
 
         # Save manifest
         manifest = {
             "analyzers": {
                 "test_analyzer": {
                     "epochs_completed": [0, 100, 200],
-                    "shapes": {"epochs": [3], "data": [3, 10]},
-                    "dtypes": {"epochs": "int64", "data": "float64"},
+                    "shapes": {"data": [10]},
+                    "dtypes": {"data": "float64"},
                 }
             },
             "model_config": {"prime": 113, "seed": 999},
@@ -164,13 +195,21 @@ class TestArtifactLoaderIndependence:
         return artifacts_dir
 
     def test_load_without_pipeline(self, artifacts_dir_only):
-        """Can load artifacts without any pipeline involvement."""
+        """Can load stacked artifacts without any pipeline involvement."""
         loader = ArtifactLoader(artifacts_dir_only)
         artifact = loader.load("test_analyzer")
 
         assert "epochs" in artifact
         assert "data" in artifact
         np.testing.assert_array_equal(artifact["epochs"], [0, 100, 200])
+
+    def test_load_epoch_without_pipeline(self, artifacts_dir_only):
+        """Can load single epoch without pipeline."""
+        loader = ArtifactLoader(artifacts_dir_only)
+        epoch_data = loader.load_epoch("test_analyzer", 100)
+
+        assert "data" in epoch_data
+        assert epoch_data["data"].shape == (10,)
 
     def test_metadata_without_pipeline(self, artifacts_dir_only):
         """Can read metadata without pipeline."""

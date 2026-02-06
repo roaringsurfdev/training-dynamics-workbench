@@ -1,170 +1,156 @@
 # Training Dynamics Workbench
 
-A mechanistic interpretability research tool for analyzing how neural networks learn during training. Built to streamline the analysis of emergent model behaviors through interactive visualizations of training dynamics.
+A mechanistic interpretability research tool for studying how neural networks learn during training. The workbench systematizes training, analysis, and visualization so that researchers can focus on exploring emergent behaviors rather than managing infrastructure.
 
 ## Purpose
 
-Train small experimental Transformer models, capture snapshots during training, and analyze how computational structures emerge over time. Move beyond static post-training analysis to understand **when** and **how** models develop their learned algorithms.
+The workbench exists to answer: **"How does behavior X change across training?"**
+
+Train small Transformer models, capture checkpoints at key moments, and analyze how computational structures emerge over time. The platform enforces a scientific invariant — same model variant, same probe, only the checkpoint varies — so that visualizations are directly comparable and scientifically meaningful.
 
 ## Current Status
 
-**Phase: Requirements Definition Complete ✓**
+**v0.2.0 — First Foundational Release**
 
-- [x] Project structure and collaboration framework established
-- [x] Baseline modulo addition model implementation (from Neel Nanda's grokking experiments)
-- [x] Fourier analysis utilities implemented
-- [x] 8 structured requirements defined for MVP
-- [ ] Implementation in progress
+The MVP (v0.1.x) proved viability as a prototype. This release establishes the architecture for sustained research: Model Families, Variants, per-epoch artifact storage, and a family-aware dashboard.
 
-## MVP Goal
+Five trained Modulo Addition variants across different primes are actively being used for research.
 
-**End-to-end workflow for modulo addition grokking analysis:**
+## Workflow
 
-1. **Train** a 1-layer Transformer on modulo addition task
-2. **Capture** checkpoints at configurable epochs (densify around grokking phase)
-3. **Analyze** checkpoints to generate visualization artifacts
-4. **Explore** training dynamics through synchronized interactive visualizations:
-   - Dominant Fourier frequencies in embedding space
-   - Neuron activation patterns over input space
-   - Neuron-frequency cluster specialization
+```
+Define Family → Train Variants → Analyze Checkpoints → Explore Visualizations
+```
 
-**Key Innovation:** Synchronized checkpoint slider across all visualizations to observe correlations - "When frequencies emerge at epoch X, what happens to neuron clusters?"
+1. **Define** a Model Family with architecture, analyzers, and probes (`model_families/`)
+2. **Train** Variants with different domain parameters (e.g., different primes or seeds)
+3. **Analyze** each variant's checkpoints to generate per-epoch analysis artifacts
+4. **Explore** training dynamics through synchronized interactive visualizations
+
+## Key Features
+
+### Model Families and Variants
+- Model Family protocol for grouping structurally similar models
+- Variants differ only in domain parameters (e.g., modulus, seed)
+- Family defines architecture, analyzers, probes, and visualizations
+- FamilyRegistry discovers and manages families from `model_families/`
+
+### Analysis Engine
+- Per-epoch artifact storage: one file per (analyzer, epoch) for constant memory usage
+- Resumable analysis: skips already-computed epochs automatically
+- Three built-in analyzers: Dominant Frequencies, Neuron Activations, Frequency Clusters
+- Extensible Analyzer protocol for adding new analysis functions
+
+### Workbench Dashboard
+- Family and variant selection with state-aware UI
+- Training and analysis from the dashboard
+- **Synchronized checkpoint slider** across all visualizations
+- On-demand per-epoch loading (no full dataset in memory)
+- Interactive Plotly visualizations with hover details
 
 ## Technology Stack
 
 - **Python 3.13** - Core language
 - **PyTorch + CUDA** - Training and model execution
 - **TransformerLens** - Model architecture (HookedTransformer)
-- **Safetensors** - Modern checkpoint persistence
+- **Safetensors** - Checkpoint persistence
 - **Plotly** - Interactive visualizations
-- **Gradio** - Dashboard UI (ML-focused)
-- **NumPy** - Analysis artifact storage
+- **Gradio** - Dashboard UI
+- **NumPy** - Analysis artifact storage (per-epoch `.npz` files)
 - **pytest** - Testing framework
-
-## Architecture
-
-### Three-Layer Design
-
-1. **Training Runner** - Execute training runs with configurable checkpoints
-2. **Analysis Engine** - Process checkpoints to generate analysis artifacts (cached computations)
-3. **Workbench** - Gradio dashboard for training control and interactive visualization
-
-### Artifact-Based Analysis
-
-```
-Training → Checkpoints (safetensors) → Analysis (compute once) → Artifacts (disk) → Visualizations (iterate)
-```
-
-This separation enables fast iteration on visualizations without re-running expensive forward passes.
 
 ## Project Structure
 
 ```
 /
-├── Claude.md                      # Collaboration framework and coding guidelines
-├── PROJECT.md                     # Project scope, MVP definition, tech decisions
-├── README.md                      # This file
-├── requirements/                  # Structured requirements (8 files)
-│   ├── README.md                 # Requirements overview
-├── policies/                      # Development policies
-│   ├── debugging/                # Structured debugging process
-│   └── requirements/             # Requirements workflow templates
-├── notes/                        # Observations and ideas
+├── analysis/                     # Analysis engine
+│   ├── analyzers/               # Analyzer implementations
+│   ├── library/                 # Shared analysis utilities (Fourier basis, etc.)
+│   ├── pipeline.py              # AnalysisPipeline orchestration
+│   └── artifact_loader.py       # Per-epoch artifact loading
+├── dashboard/                    # Gradio web dashboard
+│   ├── components/              # UI components (family selector, loss curves)
+│   ├── app.py                   # Main application
+│   └── state.py                 # Dashboard state management
+├── families/                     # Model Family framework
+│   ├── implementations/         # Concrete family implementations
+│   └── protocols.py             # ModelFamily protocol, Variant, FamilyRegistry
+├── model_families/               # Family definitions (family.json files)
+│   └── modulo_addition_1layer/  # Modulo Addition 1-Layer family
+├── visualization/                # Visualization renderers
+│   └── renderers/               # Per-epoch and cross-epoch renderers
+├── requirements/                 # Structured requirements
+├── tests/                        # Test suite
 └── results/                      # Training outputs (not in repo)
-    └── model_p{prime}_seed{seed}/
-        ├── checkpoints/          # Model checkpoints (.safetensors)
-        ├── artifacts/            # Analysis artifacts (.npz)
-        ├── metadata.json         # Training metrics
-        └── config.json           # Model configuration
+    └── {family}/
+        └── {variant}/
+            ├── checkpoints/     # Model checkpoints (.safetensors)
+            ├── artifacts/       # Per-epoch analysis artifacts
+            │   └── {analyzer}/  # epoch_00000.npz, epoch_00100.npz, ...
+            ├── metadata.json    # Training metrics
+            └── config.json      # Variant configuration
 ```
-
-## Key Features (MVP)
-
-### Training Runner
-- Configurable checkpoint epochs (integer list - densify around grokking)
-- Safetensors persistence with immediate disk writes (constant memory)
-- Parameterized by modulus (p), seeds, training fraction
-
-### Analysis Engine
-- Forward pass computation with activation caching
-- Fourier transform analysis of embeddings and activations
-- Neuron frequency cluster analysis
-- Persistent artifacts (NumPy `.npz` files)
-- Resumable analysis (skip existing artifacts)
-
-### Workbench Dashboard
-- Training run configuration and execution
-- Analysis triggering with progress indication
-- **Synchronized checkpoint slider** across all visualizations
-- Interactive Plotly visualizations with hover details
-- Two-stage neuron exploration (browse trained → select for history)
-
-## Research Hypothesis
-
-**Frequency Emergence During Grokking:**
-- Early training shows noise in Fourier space
-- Dominant frequencies emerge at specific training phases
-- Frequencies may shift before settling into final computational structure
-- Neurons specialize to detect specific frequency combinations
-
-The synchronized slider enables manual exploration of these dynamics.
 
 ## Getting Started
 
 ### Prerequisites
 ```bash
-# Python 3.13 with virtual environment
-python --version  # Should be 3.13
-
-# CUDA support for PyTorch (optional but recommended)
-nvidia-smi  # Check GPU availability
+python --version  # Python 3.13
+nvidia-smi        # CUDA support (optional but recommended)
 ```
 
 ### Installation
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd training-dynamics-workbench
 
-# Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate
 
-# Install dependencies (once requirements.txt is created)
 pip install -r requirements.txt
 ```
 
-### Running the Baseline
+### Running the Dashboard
 ```bash
-# Currently available: baseline modulo addition training
-python ModuloAdditionRefactored.py
+python main.py
 ```
+
+### Running Tests
+```bash
+pytest
+```
+
+## Architecture
+
+### Three-Layer Design
+
+1. **Model Families** — Define model architecture, training data, probes, and analyzers
+2. **Analysis Engine** — Load checkpoints, run forward passes, generate per-epoch artifacts
+3. **Workbench Dashboard** — Family-aware UI for training, analysis, and visualization
+
+### Per-Epoch Artifact Storage
+
+```
+Training → Checkpoints (safetensors) → Analysis (per-epoch) → Artifacts (disk) → Visualizations (on-demand)
+```
+
+Analysis artifacts are stored one file per (analyzer, epoch), eliminating memory exhaustion during analysis and enabling the dashboard to load only the data it needs for the current view.
 
 ## Documentation
 
-- [**PROJECT.md**](PROJECT.md) - Detailed project scope, architecture, MVP definition
-- [**Claude.md**](Claude.md) - Collaboration framework and coding principles
-- [**requirements/**](requirements/README.md) - Structured requirements for MVP implementation
-- [**policies/**](policies/) - Development policies (debugging, requirements workflow)
+- [**PROJECT.md**](PROJECT.md) - Project scope, architecture, and current status
+- [**DOMAIN_MODEL.md**](DOMAIN_MODEL.md) - Core domain objects and relationships
+- [**requirements/**](requirements/) - Structured requirements
 
-## Collaboration
+## Future Directions
 
-This project uses structured requirements and development policies for AI-assisted development. See [Claude.md](Claude.md) for collaboration framework.
-
-## Future Enhancements (Post-MVP)
-
-- Multiple model architectures beyond 1-layer Transformers
-- Configurable visualization dashboard
+- Notebook-based exploratory visualization design
+- Analysis Reports (web-based visualization components per family)
+- Gap-filling pattern for incremental analysis
+- Additional model families beyond Modulo Addition
 - Automatic grokking phase detection
-- Intelligent checkpoint frequency based on loss dynamics
-- Side-by-side comparison of training runs
-- Independent visualization sliders with link/unlink
+- Side-by-side variant comparison
 - AWS deployment for larger models
-- Export capabilities for visualizations
-
-## License
-
-[Specify license]
 
 ## Acknowledgments
 
@@ -173,6 +159,4 @@ Based on research from:
 - TransformerLens library for interpretability research
 
 ---
-
-**Status:** Requirements complete, ready for implementation.
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-06

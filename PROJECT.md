@@ -1,8 +1,32 @@
 # [Project Name]
 Training Dynamics Workbench
 
+## Summary
+The workbench exists to answer: **"How does behavior X change across training?"**
+
+For that question to be meaningful, analysis must hold constant:
+- The trained model instance (Model Variant)
+- The probe dataset
+
+The **only independent variable** is the checkpoint (training moment).
+
+This invariant is what the platform enforces. Without it, researcher error could introduce confounding variables—different probes, accidental model variations—making visualizations misleading. The workbench systematizes this so visualizations are scientifically meaningful.
+
 ## Purpose
-The goal of this project is to create a system that allows me to train experimental models, export snapshots during training, and use the snapshots for evaluating emergent model behaviors during training.
+The primary purpose of this project is to systematize the training, analysis, and visualization of models over the course of their training.
+
+Unlike typical ML training platforms, this platform is focused on studying *how* models learn a task, not on *optimizing* a model for a given task.
+
+For any given model, this platform is designed to allow a mechanistic researcher to define a Model Family, train Variants of that family, define Probes, and to consistently apply a given Probe across custom-defined Training Checkpoints for single Model Variant.
+
+By applying a single Probe across Variant Training Checkpoints systematically, a researcher will be able to reliable study emergence across training knowing that the only independent variable is the Training Checkpoint.
+
+The secondary purpose, but still central to the purpose of the project, is to create a streamlined and parallelizable analysis engine that allows a researcher to define analysis data they want to capture over training and to define visualizations that are most meaningful for a given Model Family. This allows a researcher to focus on exploring visualizations for signs of emergent behavior.
+
+The analysis engine should be available through a notebook for exploratory visualization design.
+
+The workbench provides a web-based dashboard interface for exploring visualizations across training. The researcher should be able to choose a given Model Family, a subset of analyses and visualizations, and compile data results using a Variant across its Training Checkpoints.
+This platform should allow the researcher to spend more time doing analysis and designing visualizations and to minimize time spend training models and generating analysis data.
 
 ## Goals
 I am able to able analyze mechanistic behaviors that emerge during training.
@@ -20,9 +44,25 @@ I am able to able analyze mechanistic behaviors that emerge during training.
 - No use of cloud infrastructure. All models will be trained locally. This could change.
 
 ## Domain Context
-[Background knowledge needed to understand the problem space]
-I would like to move away from working in Notebooks for doing analysis. Instead, I would like to be able to focus on iterating on useful visualizations for discovering what might be happening during model training.
-[Key concepts, terminology, constraints]
+
+### Key Concepts & Terminology
+
+**Model Family:** A declared grouping of models that share architecture, valid analyzers, and visualizations. Examples: "Modulo Addition 1-Layer", "Indirect Object Identification". Families are defined by `family.json` files in `model_families/`. The family is responsible for creating models and definining analysis and visualization sets that are useful across variants. Families are explicitly registered because what constitutes "structurally similar" is learned over time by the researcher. The Model Family defines the training datasets and the Probe datasets. Training and Probe datasets should be able to accomodate variations in domain parameters that generate Variants. By making the model responsible for training and probe data, this ensures that data generation remains constant across variants, which makes it easier to attribute differences in emergent behavior to changes in parameters as opposed to errors or discrepancies in data generation.
+
+**Model Variant:** A specific trained model within a family. Variants share architecture and analysis logic but differ in domain parameters. In the "Modulo Addition 1-Layer" example, a Model Variant would be a model trainined on a different Modulus or Seed value without changing any of the model architecture. Model Variants are meant to allow researchers to explore how small changes to task definitions and seed values affect training dynamics. Each variant contains its own checkpoints and analysis artifacts directories. Each variant contains its own list of Probe datasets.
+
+**Probe:** The input data used by a Model Family during analysis forward passes. For small toy models, this might be one canonical dataset (e.g., full (a, b) grid for Modulo Addition). For larger models, a Model Family may contain many smaller probes that exercise behaviors of interest. Probe design is part of the research for larger models.
+
+**Checkpoint:** A snapshot of model weights at a specific training epoch. The workbench saves checkpoints at configurable intervals to enable analysis of how behaviors emerge over training.
+
+**Analyzer:**
+A module responsible for generating analysis data given a Model Variant Checkpoint and its activation cache. Computes a single analysis function and returns numpy arrays as analysis artifacts. It's possible to re-use Analyzers across multiple Model Families.
+
+**Analysis Run:** 
+The workbench focuses on analysis runs instead of training runs. The goal is to optimize the ability to analyze models across training checkpoints instead of optimizing models themselves. Analysis Runs orchestrate the creation of analysis dataset artifacts. The Analysis Run is reponsible for loading checkpoints of a Model Variant, executing forward passes through each checkpoint, passing the output of the forward pass and activation cache to each Analyzer defined in the run. (Note: within the codebase, the Analysis Run is called AnalysisPipeline. I'm intentionally keeping this discrepancy for now.)
+
+**Analysis Report:**
+A web-based report made up of visualization components. A single Analysis Report and its Visualization components can be used by any Variant within a Model Family. The data rendered by the visualizers is generated from Analyzers generating Analysis artifacts on a Model Variant's training checkpoints.
 
 ## High-Level Architecture
 Training Runner: 
@@ -30,11 +70,14 @@ Training Runner:
 - Models limited to what is supported by TransformerLens
 - Ideally, model configuration files + training data modules should be configurable. Training data modules may need to be code modules for generating synthetic data
 - Responsible for creating model checkpoints
-- Initially, model checkpoints will be accessible to the runner as an array of important checkpoints. Going forward, there may be more intelligent decisions to make on when to create checkpoints (EX: change in TEST LOSS curve might kick off higher checkpoint rate)
+- Initially, model checkpoints will be accessible to the runner as an array of important checkpoints. Going forward, it may be possible to create checkpoints programmatically based on deterministic model training behavior. (EX: change in TEST LOSS curve might kick off higher checkpoint rate)
 
 Analysis Engine:
-- Responsible for loading snapshots, executing forward passes, and generating analysis artifacts
-- Analysis artifacts might be anything from raw datasets to chart animations
+- Responsible for loading checkpoints, executing forward passes with probes, and generating analysis artifacts
+- Enforces the scientific invariant: same Variant + same Probe across all checkpoints
+- Receives work via AnalysisPipelineConfig (which analyzers, which checkpoints)
+- Artifacts are keyed by (Variant, Analyzer, Checkpoint) for incremental computation
+- Future: gap-filling pattern to compute only missing (analyzer, checkpoint) combinations
 
 Workbench:
 - This is the primary user interface
@@ -42,51 +85,43 @@ Workbench:
 - Surfaces ability to kick off asynchronous training run analysis via Analysis Engine
 - Provides configurable dashboard to view analysis visualizations
 
-## MVP Definition
-**Minimum viable product includes:**
-Given a single simple toy Transformer model, execute a training run and generate animations for 3 visualizations to be displayed on a simple dashboard that does not accomodate customization.
+## MVP (Completed)
 
-Toy model: 1-layer Transformer based on the Modulo Addition Grokking Experiment from Neel Nanda. Model definition will be provided in a config file. Training data will be synthetically generated.
-3 visualizations from the original notebook:
-    - Dominant embedding frequencies summary. What, if any, frequencies have the most dominant coefficents over the course of training? The visualization should show a line graph of dominant frequencies over the learned embedding space. The line graph should plot ((fourier_bases @ W_E).norm(dim=-1), with fourier_bases=bases defined by the modulus as period, W_E = embedding weights, fourier bases along the x-axis, normed coefficients along the y-axis).
-    - Activation Heat Maps. For a given neuron, what activation patterns emerge over training? The heatmap should be an image of (a, b, activation). The model spec calls for 512 mlps, which may be excessive for visualization. Some thought may be required to determine how best to show emergence across neuron activations.
-    - Neuron frequency cluster analysis. Which neurons respond to which frequencies over training? The heatmap should show neuron_freq_norm with neurons on x-axis and frequencies on y-axis. Legend should be minimal/removed to avoid obscuring data.
+MVP was released with v0.1.0. The initial release delivered:
+- End-to-end training and analysis of Modulo Addition 1-Layer model
+- Three core visualizations (Dominant Frequencies, Neuron Activations, Frequency Clusters)
+- Gradio dashboard with basic Training and Analysis tabs
+- Parameterization by modulus (p) and seed
 
-**Success criteria for MVP:**
-- [How we'll know MVP is working]
-- I can start a training run of the Modulo Addition model.
-- I can start the analysis of a training run of the Modulo Addition model
-- The dashboard shows 3 visualization that are hard-coded (not configurable)
-- I can change a parameter for the Modulo Addition model and see different analysis results
-- Parameters available for changing: Modulus(Period), Random Seeds
-- [What we'll validate with MVP]
-- This will give us a first end-to-end path through the system for future refinements
-- We will have a strategy for saving snapshots to be analysed and surfaced on the workbench
-- We will learn about storage constraints and areas for future improvements or changes in direction
-
-**Explicitly deferred (post-MVP):**
-- [Features that can wait]
-- Configuring the workbench visualizations
-- Alternate strategies for generating analysis artifacts
-- Real-time training progress visualization (status indicator acceptable)
-- [Optimizations that can come later]
-- Asynchronous training/analysis operations (can run synchronously for MVP)
+See `requirements/archive/` for detailed MVP requirements.
 
 ## Current Status
-**Completed:**
-- Project structure and collaboration framework (Claude.md, policies, requirements templates)
-- Baseline modulo addition model implementation (ModuloAdditionSpecification.py)
-- Fourier analysis utilities (FourierEvaluation.py)
-- Working end-to-end analysis script (ModuloAdditionRefactored.py)
-- Parameterized model by modulus (p) with dynamic dominant frequency detection
 
-**In Progress:**
-- Defining requirements for MVP implementation
+**v0.2.0 — First Foundational Release**
+
+This release takes the project from prototype to a foundational architecture. The MVP proved viability; v0.2.0 establishes the abstractions and infrastructure for sustained research.
+
+**Completed (v0.2.0):**
+- Model Family abstraction (REQ_021a): ModelFamily protocol, Variant class, FamilyRegistry
+- Analysis library architecture (REQ_021b): library/ + analyzers/ separation
+- Modulo Addition 1-Layer family implementation (REQ_021c)
+- Dashboard integration with family-aware Analysis tab (REQ_021d)
+- Training integration with family selection (REQ_021e)
+- Per-epoch artifact storage (REQ_021f): eliminates memory exhaustion, enables on-demand loading
+- End-to-end workflow: Family selection, variant training, analysis, visualization
+- Five trained variants across different primes (p=97, 101, 103, 109, 113)
+
+**Completed (v0.1.x — MVP):**
+- First pass at end-to-end process: Training -> Analysis -> Visualizations
+- Three core visualizations (Dominant Frequencies, Neuron Activations, Frequency Clusters)
+- Interactive slider for navigating visualizations in sync with loss curves
+- Gradio dashboard with Training and Analysis tabs
+- Project structure and collaboration framework
 
 **Next Up:**
-- Training Runner enhancements (configurable checkpoints, safetensors)
-- Analysis Engine modularization
-- Gradio workbench implementation
+- Notebook-based exploratory visualization design
+- Gap-filling pattern for incremental analysis
+- Analysis Report concept (web-based visualization reports per family)
 
 ## Dependencies & Constraints
 
@@ -108,7 +143,7 @@ Toy model: 1-layer Transformer based on the Modulo Addition Grokking Experiment 
 **Storage:**
 - Local filesystem only for MVP
 - 1TB available after WSL instance migration
-- Future: Potential AWS deployment and mini rack
+- Future: Potential AWS deployment
 
 **Training:**
 - Small toy models (Modulo Addition, p=113)
@@ -120,32 +155,8 @@ Toy model: 1-layer Transformer based on the Modulo Addition Grokking Experiment 
 
 
 ## Open Questions
-- Analysis artifact storage format (flexibility for implementation - not critical for MVP)
 - Optimal visualization presentation for neuron frequency clusters (remove/minimize legend)
-- Post-MVP: Async architecture patterns for training and analysis
+- Async architecture patterns for training and analysis
 
 ---
-**Last Updated:** 2026-01-30
-```
-
-## Where MVP Lives
-
-**MVP definition should be in PROJECT.md because:**
-- It's about project scope and goals, not process
-- It provides context for all requirements
-- Requirements can reference it ("This is part of MVP" vs "Post-MVP")
-- It evolves as you learn (living document)
-
-**How requirements relate to MVP:**
-- PROJECT.md defines MVP scope at high level
-- Individual requirements can tag themselves as MVP or post-MVP
-- This helps me prioritize and understand scope boundaries
-
-## Project Structure With This Addition
-```
-/
-  Claude.md              # Collaboration framework (stable)
-  PROJECT.md             # Project-specific context (living)
-  /requirements/         # What to build
-  /policies/             # How to work
-  /notes/                # Observations and ideas
+**Last Updated:** 2026-02-06

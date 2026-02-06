@@ -1,7 +1,9 @@
 """Tests for REQ_003_002: Dominant Frequencies Analyzer."""
 
+import json
 import os
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -9,8 +11,8 @@ import torch
 
 from analysis import AnalysisPipeline, Analyzer
 from analysis.analyzers import DominantFrequenciesAnalyzer
-from FourierEvaluation import get_fourier_bases
-from ModuloAdditionSpecification import ModuloAdditionSpecification
+from analysis.library import get_fourier_basis
+from families import FamilyRegistry
 
 
 class TestDominantFrequenciesAnalyzerProtocol:
@@ -32,152 +34,213 @@ class TestDominantFrequenciesAnalyzerProtocol:
         assert callable(analyzer.analyze)
 
 
+@pytest.fixture
+def temp_dirs():
+    """Create temporary directories for model_families and results."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_families_dir = Path(tmpdir) / "model_families"
+        results_dir = Path(tmpdir) / "results"
+        model_families_dir.mkdir()
+        results_dir.mkdir()
+        yield model_families_dir, results_dir
+
+
+@pytest.fixture
+def registry_with_family(temp_dirs):
+    """Create a registry with the modulo addition family."""
+    model_families_dir, results_dir = temp_dirs
+
+    family_dir = model_families_dir / "modulo_addition_1layer"
+    family_dir.mkdir()
+
+    family_json = {
+        "name": "modulo_addition_1layer",
+        "display_name": "Modulo Addition (1 Layer)",
+        "description": "Single-layer transformer for modular arithmetic",
+        "architecture": {
+            "n_layers": 1,
+            "n_heads": 4,
+            "d_model": 128,
+            "d_head": 32,
+            "d_mlp": 512,
+            "act_fn": "relu",
+            "normalization_type": None,
+            "n_ctx": 3,
+        },
+        "domain_parameters": {
+            "prime": {"type": "int", "description": "Modulus", "default": 113},
+            "seed": {"type": "int", "description": "Random seed", "default": 999},
+        },
+        "analyzers": ["dominant_frequencies", "neuron_activations", "neuron_freq_norm"],
+        "visualizations": [],
+        "analysis_dataset": {"type": "modulo_addition_grid"},
+        "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}",
+    }
+    with open(family_dir / "family.json", "w") as f:
+        json.dump(family_json, f)
+
+    registry = FamilyRegistry(
+        model_families_dir=model_families_dir,
+        results_dir=results_dir,
+    )
+    return registry, results_dir
+
+
+@pytest.fixture
+def trained_variant(registry_with_family):
+    """Create a trained variant with minimal training."""
+    registry, results_dir = registry_with_family
+    family = registry.get_family("modulo_addition_1layer")
+    params = {"prime": 17, "seed": 42}
+    variant = registry.create_variant(family, params)
+
+    variant.train(
+        num_epochs=50,
+        checkpoint_epochs=[0, 25, 49],
+        device="cpu",
+    )
+    return variant
+
+
 class TestDominantFrequenciesAnalyzerOutput:
     """Tests for analyzer output shape and values."""
 
     @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test artifacts."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield tmpdir
+    def model_with_context(self, trained_variant):
+        """Create model, run forward pass, return model, probe, cache, and context."""
+        device = "cpu"  # Force CPU for consistent testing
+        family = trained_variant.family
+        params = trained_variant.params
 
-    @pytest.fixture
-    def model_spec(self, temp_dir):
-        """Create a model spec with minimal training."""
-        spec = ModuloAdditionSpecification(
-            model_dir=temp_dir,
-            prime=17,  # Small prime for fast tests
-            device="cpu",
-            seed=42,
-        )
-        spec.train(num_epochs=50, checkpoint_epochs=[0, 25, 49])
-        return spec
+        # Generate probe and context on same device
+        probe = family.generate_analysis_dataset(params, device=device)
+        context = family.prepare_analysis_context(params, device)
 
-    @pytest.fixture
-    def model_with_cache(self, model_spec):
-        """Create model, run forward pass, return model and cache."""
-        model_spec.generate_training_data()
-        model = model_spec.load_from_file()
-        _, cache = model.run_with_cache(model_spec.dataset)
-        fourier_basis, _ = get_fourier_bases(model_spec.prime, model_spec.device)
-        return model, model_spec.dataset, cache, fourier_basis
+        # Create model on the same device and load checkpoint weights
+        model = family.create_model(params, device=device)
+        state_dict = trained_variant.load_checkpoint(49)
+        model.load_state_dict(state_dict)
 
-    def test_returns_dict(self, model_with_cache):
+        # Run forward pass
+        with torch.inference_mode():
+            _, cache = model.run_with_cache(probe)
+
+        return model, probe, cache, context
+
+    def test_returns_dict(self, model_with_context):
         """analyze returns a dict."""
-        model, dataset, cache, fourier_basis = model_with_cache
+        model, probe, cache, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, probe, cache, context)
         assert isinstance(result, dict)
 
-    def test_returns_coefficients_key(self, model_with_cache):
+    def test_returns_coefficients_key(self, model_with_context):
         """Result contains 'coefficients' key."""
-        model, dataset, cache, fourier_basis = model_with_cache
+        model, probe, cache, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, probe, cache, context)
         assert "coefficients" in result
 
-    def test_coefficients_is_numpy_array(self, model_with_cache):
+    def test_coefficients_is_numpy_array(self, model_with_context):
         """Coefficients is a numpy array."""
-        model, dataset, cache, fourier_basis = model_with_cache
+        model, probe, cache, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, probe, cache, context)
         assert isinstance(result["coefficients"], np.ndarray)
 
-    def test_coefficients_shape(self, model_with_cache):
+    def test_coefficients_shape(self, model_with_context):
         """Coefficients has correct shape (n_fourier_components,)."""
-        model, dataset, cache, fourier_basis = model_with_cache
+        model, probe, cache, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, probe, cache, context)
 
-        # For prime=17, fourier_basis has shape (18, 17): 1 constant + 17 sin/cos pairs
-        # Actually: (2*(17//2) + 1, 17) = (17, 17) for odd primes
+        fourier_basis = context["fourier_basis"]
         n_components = fourier_basis.shape[0]
         assert result["coefficients"].shape == (n_components,)
 
-    def test_coefficients_are_non_negative(self, model_with_cache):
+    def test_coefficients_are_non_negative(self, model_with_context):
         """Coefficient values are non-negative (they are norms)."""
-        model, dataset, cache, fourier_basis = model_with_cache
+        model, probe, cache, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, probe, cache, context)
         assert np.all(result["coefficients"] >= 0)
 
-    def test_coefficients_on_cpu(self, model_with_cache):
+    def test_coefficients_on_cpu(self, model_with_context):
         """Coefficients are on CPU (numpy array, not tensor)."""
-        model, dataset, cache, fourier_basis = model_with_cache
+        model, probe, cache, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(model, dataset, cache, fourier_basis)
+        result = analyzer.analyze(model, probe, cache, context)
         assert not isinstance(result["coefficients"], torch.Tensor)
 
 
 class TestDominantFrequenciesAnalyzerIntegration:
     """Integration tests with AnalysisPipeline."""
 
-    @pytest.fixture
-    def temp_dir(self):
-        """Create a temporary directory for test artifacts."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            yield tmpdir
-
-    @pytest.fixture
-    def model_spec(self, temp_dir):
-        """Create a model spec with minimal training."""
-        spec = ModuloAdditionSpecification(
-            model_dir=temp_dir,
-            prime=17,
-            device="cpu",
-            seed=42,
-        )
-        spec.train(num_epochs=50, checkpoint_epochs=[0, 25, 49])
-        return spec
-
-    def test_pipeline_creates_artifact(self, model_spec):
-        """Pipeline creates dominant_frequencies.npz artifact."""
-        pipeline = AnalysisPipeline(model_spec)
+    def test_pipeline_creates_artifact(self, trained_variant):
+        """Pipeline creates per-epoch artifact files."""
+        pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact_path = os.path.join(model_spec.artifacts_dir, "dominant_frequencies.npz")
-        assert os.path.exists(artifact_path)
+        analyzer_dir = os.path.join(pipeline.artifacts_dir, "dominant_frequencies")
+        assert os.path.isdir(analyzer_dir)
 
-    def test_artifact_contains_epochs(self, model_spec):
-        """Artifact contains epochs array."""
-        pipeline = AnalysisPipeline(model_spec)
+    def test_artifact_contains_epochs(self, trained_variant):
+        """Artifact loader discovers correct epochs."""
+        from analysis import ArtifactLoader
+
+        pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        artifact = loader.load("dominant_frequencies")
         assert "epochs" in artifact
         np.testing.assert_array_equal(artifact["epochs"], [0, 25, 49])
 
-    def test_artifact_contains_coefficients(self, model_spec):
+    def test_artifact_contains_coefficients(self, trained_variant):
         """Artifact contains coefficients array."""
-        pipeline = AnalysisPipeline(model_spec)
+        from analysis import ArtifactLoader
+
+        pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
-        assert "coefficients" in artifact
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        epoch_data = loader.load_epoch("dominant_frequencies", 0)
+        assert "coefficients" in epoch_data
 
-    def test_artifact_coefficients_shape(self, model_spec):
-        """Artifact coefficients have correct shape (n_epochs, n_components)."""
-        pipeline = AnalysisPipeline(model_spec)
+    def test_artifact_coefficients_shape(self, trained_variant):
+        """Artifact coefficients have correct shape."""
+        from analysis import ArtifactLoader
+
+        pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
-        n_epochs = len(model_spec.get_available_checkpoints())
-        # For prime=17: n_components = 2*(17//2) + 1 = 17
-        n_components = 2 * (model_spec.prime // 2) + 1
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        prime = trained_variant.params["prime"]
+        n_components = 2 * (prime // 2) + 1
 
+        # Single epoch: (n_components,)
+        epoch_data = loader.load_epoch("dominant_frequencies", 0)
+        assert epoch_data["coefficients"].shape == (n_components,)
+
+        # Stacked: (n_epochs, n_components)
+        artifact = loader.load("dominant_frequencies")
+        n_epochs = len(trained_variant.get_available_checkpoints())
         assert artifact["coefficients"].shape == (n_epochs, n_components)
 
-    def test_coefficients_change_across_epochs(self, model_spec):
+    def test_coefficients_change_across_epochs(self, trained_variant):
         """Coefficients differ between epochs (training changes weights)."""
-        pipeline = AnalysisPipeline(model_spec)
+        from analysis import ArtifactLoader
+
+        pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.run()
 
-        artifact = pipeline.load_artifact("dominant_frequencies")
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        artifact = loader.load("dominant_frequencies")
         coefficients = artifact["coefficients"]
 
         # First and last epoch should have different coefficients
