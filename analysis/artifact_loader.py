@@ -3,6 +3,9 @@
 Supports per-epoch artifact storage where each analyzer's results
 are stored as individual files per epoch:
     artifacts/{analyzer_name}/epoch_{NNNNN}.npz
+
+Also supports summary statistics (REQ_022) stored as a single file:
+    artifacts/{analyzer_name}/summary.npz
 """
 
 import json
@@ -182,6 +185,44 @@ class ArtifactLoader:
             )
 
         return analyzers[analyzer_name]
+
+    def load_summary(self, analyzer_name: str) -> dict[str, np.ndarray]:
+        """Load summary statistics for an analyzer.
+
+        Summary files contain cross-epoch aggregate values computed inline
+        during analysis (REQ_022). These are small values (scalars or small
+        arrays per epoch) stored in a single file for efficient access.
+
+        Args:
+            analyzer_name: Name of the analyzer
+
+        Returns:
+            Dict with 'epochs' array and one array per summary statistic.
+            E.g., {"epochs": (N,), "mean_coarseness": (N,), "blob_count": (N,)}
+
+        Raises:
+            FileNotFoundError: If no summary exists for this analyzer
+        """
+        summary_path = os.path.join(self.artifacts_dir, analyzer_name, "summary.npz")
+
+        if not os.path.exists(summary_path):
+            raise FileNotFoundError(
+                f"No summary for '{analyzer_name}'. Expected: {summary_path}"
+            )
+
+        return dict(np.load(summary_path))
+
+    def has_summary(self, analyzer_name: str) -> bool:
+        """Check whether summary statistics exist for an analyzer.
+
+        Args:
+            analyzer_name: Name of the analyzer
+
+        Returns:
+            True if summary.npz exists for this analyzer
+        """
+        summary_path = os.path.join(self.artifacts_dir, analyzer_name, "summary.npz")
+        return os.path.exists(summary_path)
 
     def get_model_config(self) -> dict[str, Any]:
         """Get model configuration from manifest.

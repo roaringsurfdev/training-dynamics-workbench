@@ -1,4 +1,5 @@
-"""Tests for REQ_003_001: Core Infrastructure and REQ_021b Pipeline Refinement."""
+"""Tests for REQ_003_001: Core Infrastructure, REQ_021b Pipeline Refinement,
+and REQ_022 Summary Statistics."""
 
 import json
 import os
@@ -397,3 +398,174 @@ class TestAnalysisRunConfig:
         """Can specify checkpoints in config."""
         config = AnalysisRunConfig(checkpoints=[0, 100, 200])
         assert config.checkpoints == [0, 100, 200]
+
+
+class SummaryMockAnalyzer:
+    """Mock analyzer that produces both artifacts and summary statistics."""
+
+    def __init__(self, name: str = "summary_mock"):
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def analyze(self, model, probe, cache, context: dict[str, Any]) -> dict[str, np.ndarray]:
+        """Returns per-epoch artifact data."""
+        return {"data": np.random.rand(10).astype(np.float32)}
+
+    def get_summary_keys(self) -> list[str]:
+        return ["mean_val", "max_val"]
+
+    def compute_summary(
+        self, result: dict[str, np.ndarray], context: dict[str, Any]
+    ) -> dict[str, float]:
+        return {
+            "mean_val": float(np.mean(result["data"])),
+            "max_val": float(np.max(result["data"])),
+        }
+
+
+class TestPipelineSummaryStatistics:
+    """Tests for REQ_022: Summary statistics collection and persistence."""
+
+    def test_summary_file_created(self, trained_variant):
+        """Pipeline creates summary.npz for analyzer with summary support."""
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(SummaryMockAnalyzer())
+        pipeline.run()
+
+        summary_path = os.path.join(
+            pipeline.artifacts_dir, "summary_mock", "summary.npz"
+        )
+        assert os.path.exists(summary_path)
+
+    def test_summary_file_contents(self, trained_variant):
+        """Summary file contains epochs and declared summary keys."""
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(SummaryMockAnalyzer())
+        pipeline.run()
+
+        summary_path = os.path.join(
+            pipeline.artifacts_dir, "summary_mock", "summary.npz"
+        )
+        summary = dict(np.load(summary_path))
+
+        assert "epochs" in summary
+        assert "mean_val" in summary
+        assert "max_val" in summary
+
+        expected_epochs = sorted(trained_variant.get_available_checkpoints())
+        np.testing.assert_array_equal(summary["epochs"], expected_epochs)
+        assert summary["mean_val"].shape == (len(expected_epochs),)
+        assert summary["max_val"].shape == (len(expected_epochs),)
+
+    def test_no_summary_for_regular_analyzer(self, trained_variant):
+        """MockAnalyzer (no summary methods) does not produce summary.npz."""
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(MockAnalyzer())
+        pipeline.run()
+
+        summary_path = os.path.join(
+            pipeline.artifacts_dir, "mock", "summary.npz"
+        )
+        assert not os.path.exists(summary_path)
+
+    def test_mixed_analyzers(self, trained_variant):
+        """Pipeline handles mix of summary and non-summary analyzers."""
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(MockAnalyzer("regular"))
+        pipeline.register(SummaryMockAnalyzer("with_summary"))
+        pipeline.run()
+
+        # Regular analyzer: no summary file
+        assert not os.path.exists(
+            os.path.join(pipeline.artifacts_dir, "regular", "summary.npz")
+        )
+        # Summary analyzer: has summary file
+        assert os.path.exists(
+            os.path.join(pipeline.artifacts_dir, "with_summary", "summary.npz")
+        )
+        # Both produce per-epoch artifacts
+        assert len(os.listdir(os.path.join(pipeline.artifacts_dir, "regular"))) > 0
+        assert any(
+            f.startswith("epoch_")
+            for f in os.listdir(os.path.join(pipeline.artifacts_dir, "with_summary"))
+        )
+
+    def test_mock_analyzer_still_conforms_to_protocol(self):
+        """MockAnalyzer without summary methods still conforms to Analyzer protocol."""
+        analyzer = MockAnalyzer()
+        assert isinstance(analyzer, Analyzer)
+
+    def test_summary_gap_filling(self, trained_variant):
+        """Incremental run merges new summaries with existing ones."""
+        # First run: analyze epochs [0, 25] only
+        config1 = AnalysisRunConfig(checkpoints=[0, 25])
+        pipeline1 = AnalysisPipeline(trained_variant, config1)
+        pipeline1.register(SummaryMockAnalyzer())
+        pipeline1.run()
+
+        summary_path = os.path.join(
+            pipeline1.artifacts_dir, "summary_mock", "summary.npz"
+        )
+        summary1 = dict(np.load(summary_path))
+        np.testing.assert_array_equal(summary1["epochs"], [0, 25])
+
+        # Second run: analyze all (should add epoch 49)
+        pipeline2 = AnalysisPipeline(trained_variant)
+        pipeline2.register(SummaryMockAnalyzer())
+        pipeline2.run()
+
+        summary2 = dict(np.load(summary_path))
+        np.testing.assert_array_equal(summary2["epochs"], [0, 25, 49])
+        assert summary2["mean_val"].shape == (3,)
+        assert summary2["max_val"].shape == (3,)
+
+    def test_summary_force_recompute(self, trained_variant):
+        """force=True rewrites summary from scratch."""
+        pipeline1 = AnalysisPipeline(trained_variant)
+        pipeline1.register(SummaryMockAnalyzer())
+        pipeline1.run()
+
+        summary_path = os.path.join(
+            pipeline1.artifacts_dir, "summary_mock", "summary.npz"
+        )
+        summary1 = dict(np.load(summary_path))
+
+        # Force recompute (random data, so values will differ)
+        pipeline2 = AnalysisPipeline(trained_variant)
+        pipeline2.register(SummaryMockAnalyzer())
+        pipeline2.run(force=True)
+
+        summary2 = dict(np.load(summary_path))
+        np.testing.assert_array_equal(summary2["epochs"], summary1["epochs"])
+
+    def test_summary_loadable_by_artifact_loader(self, trained_variant):
+        """Summary statistics are loadable via ArtifactLoader."""
+        from analysis import ArtifactLoader
+
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(SummaryMockAnalyzer())
+        pipeline.run()
+
+        loader = ArtifactLoader(pipeline.artifacts_dir)
+        assert loader.has_summary("summary_mock")
+
+        summary = loader.load_summary("summary_mock")
+        assert "epochs" in summary
+        assert "mean_val" in summary
+        assert "max_val" in summary
+
+    def test_summary_with_specific_checkpoints(self, trained_variant):
+        """Summary only contains epochs that were analyzed."""
+        config = AnalysisRunConfig(checkpoints=[0, 49])
+        pipeline = AnalysisPipeline(trained_variant, config)
+        pipeline.register(SummaryMockAnalyzer())
+        pipeline.run()
+
+        summary_path = os.path.join(
+            pipeline.artifacts_dir, "summary_mock", "summary.npz"
+        )
+        summary = dict(np.load(summary_path))
+        np.testing.assert_array_equal(summary["epochs"], [0, 49])

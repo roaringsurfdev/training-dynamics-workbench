@@ -32,6 +32,10 @@ class AnalysisPipeline:
     - Incremental computation (resume by checking file existence)
     - Parallel computation (independent files per epoch)
     - On-demand loading (load one epoch at a time for visualization)
+
+    Analyzers may optionally produce summary statistics (REQ_022) — small
+    per-epoch values accumulated in memory and saved as a single file:
+        artifacts/{analyzer_name}/summary.npz
     """
 
     def __init__(
@@ -111,6 +115,9 @@ class AnalysisPipeline:
         # Prepare analysis context from family (contains params + precomputed values)
         context = self.variant.family.prepare_analysis_context(self.variant.params, self._device)
 
+        # Build summary collectors for analyzers that produce summary stats
+        summary_collectors = self._build_summary_collectors(work_queue)
+
         total_epochs = len(all_epochs_needed)
         for i, epoch in enumerate(tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints")):
             if progress_callback:
@@ -119,7 +126,12 @@ class AnalysisPipeline:
                     f"Analyzing checkpoint {epoch} ({i + 1}/{total_epochs})",
                 )
 
-            self._run_single_epoch(epoch, work_queue, probe, context)
+            self._run_single_epoch(epoch, work_queue, probe, context, summary_collectors)
+
+        # Save summary statistics for analyzers that produced them
+        for analyzer_name, collector in summary_collectors.items():
+            if collector["epochs"]:
+                self._save_summary(analyzer_name, collector)
 
         # Save manifest with metadata at end of run
         self._update_manifest(work_queue)
@@ -177,10 +189,13 @@ class AnalysisPipeline:
         work_queue: list[tuple[Analyzer, list[int]]],
         probe: torch.Tensor,
         context: dict[str, Any],
+        summary_collectors: dict[str, dict[str, Any]] | None = None,
     ) -> None:
         """Run all relevant analyzers on a single checkpoint.
 
         Saves each result immediately to disk, then cleans up GPU memory.
+        If summary_collectors is provided, computes and accumulates summary
+        statistics for analyzers that support them.
         """
         state_dict = self.variant.load_checkpoint(epoch)
         model = self.variant.family.create_model(self.variant.params, device=self._device)
@@ -193,6 +208,13 @@ class AnalysisPipeline:
             if epoch in needed_epochs:
                 result = analyzer.analyze(model, probe, cache, context)
                 self._save_epoch_artifact(analyzer.name, epoch, result)
+
+                if summary_collectors and analyzer.name in summary_collectors:
+                    summary = analyzer.compute_summary(result, context)  # type: ignore[attr-defined]
+                    collector = summary_collectors[analyzer.name]
+                    collector["epochs"].append(epoch)
+                    for key, value in summary.items():
+                        collector["values"][key].append(value)
 
         # Explicit cleanup to prevent GPU memory accumulation
         del model, cache, state_dict
@@ -267,3 +289,62 @@ class AnalysisPipeline:
                 return json.load(f)
 
         return {}
+
+    def _build_summary_collectors(
+        self, work_queue: list[tuple[Analyzer, list[int]]]
+    ) -> dict[str, dict[str, Any]]:
+        """Build in-memory collectors for analyzers that produce summary stats."""
+        collectors: dict[str, dict[str, Any]] = {}
+        for analyzer, _ in work_queue:
+            if hasattr(analyzer, "get_summary_keys"):
+                keys = analyzer.get_summary_keys()  # type: ignore[attr-defined]
+                if keys:
+                    collectors[analyzer.name] = {
+                        "epochs": [],
+                        "values": {k: [] for k in keys},
+                    }
+        return collectors
+
+    def _save_summary(
+        self, analyzer_name: str, collector: dict[str, Any]
+    ) -> None:
+        """Save accumulated summary statistics to summary.npz.
+
+        Merges with any existing summary data for gap-filling support.
+        """
+        new_epochs = np.array(collector["epochs"])
+        new_values = {k: np.array(v) for k, v in collector["values"].items()}
+
+        existing = self._load_existing_summary(analyzer_name)
+        if existing is not None:
+            old_epochs = existing["epochs"]
+            # Find epochs not already present
+            old_set = set(old_epochs.tolist())
+            keep_mask = np.array([e not in old_set for e in new_epochs])
+
+            if keep_mask.any():
+                merged_epochs = np.concatenate([old_epochs, new_epochs[keep_mask]])
+                merged_values = {}
+                for k in new_values:
+                    merged_values[k] = np.concatenate([existing[k], new_values[k][keep_mask]])
+            else:
+                merged_epochs = old_epochs
+                merged_values = {k: existing[k] for k in new_values}
+
+            # Sort by epoch
+            sort_idx = np.argsort(merged_epochs)
+            new_epochs = merged_epochs[sort_idx]
+            new_values = {k: v[sort_idx] for k, v in merged_values.items()}
+
+        analyzer_dir = os.path.join(self.artifacts_dir, analyzer_name)
+        summary_path = os.path.join(analyzer_dir, "summary.npz")
+        temp_base = os.path.join(analyzer_dir, ".summary_tmp")
+        np.savez_compressed(temp_base, epochs=new_epochs, **new_values)  # type: ignore[arg-type]
+        os.replace(temp_base + ".npz", summary_path)
+
+    def _load_existing_summary(self, analyzer_name: str) -> dict[str, np.ndarray] | None:
+        """Load existing summary.npz if present, or return None."""
+        summary_path = os.path.join(self.artifacts_dir, analyzer_name, "summary.npz")
+        if not os.path.exists(summary_path):
+            return None
+        return dict(np.load(summary_path))
