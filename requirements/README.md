@@ -8,24 +8,31 @@ This directory contains requirements for the Training Dynamics Workbench.
 requirements/
 ├── README.md           # This file
 ├── active/             # Requirements currently being worked on
+├── drafts/             # Requirement ideas and research notes
 ├── future/             # Deferred/future requirements (not yet scheduled)
 └── archive/            # Completed requirements organized by milestone
-    └── v0.1.0-mvp/     # MVP milestone (released 2026-02-01)
+    ├── v0.1.0-mvp/     # MVP milestone
+    ├── v0.1.1-cuda/    # CUDA support
+    ├── v0.1.2-quality/ # Code quality (ruff, pyright, deps)
+    └── *.md            # v0.2.0 requirements (REQ_020, REQ_021*)
 ```
 
 ## Current Status
 
-**Latest Version:** 0.1.0 (MVP)
+**Latest Version:** 0.2.0 (First Foundational Release)
 
 ### Active Requirements
 
 | Requirement | Description |
 |-------------|-------------|
-| [REQ_011](active/REQ_011_ruff_pyright_enforcement.md) | Make ruff/pyright CI checks blocking |
-| [REQ_012](active/REQ_012_remove_neel_plotly.md) | Remove neel-plotly dependency |
-| [REQ_013](active/REQ_013_python_311_compatibility.md) | Support Python 3.11+ |
-| [REQ_016](active/REQ_016_cuda_compute.md) | CUDA support for analysis |
-| [REQ_018](active/REQ_018_cuda_training.md) | CUDA support for training |
+| [REQ_022](active/REQ_022_family_summary_statistics.md) | Family-specific summary statistics infrastructure |
+
+### Drafts
+
+| Document | Description |
+|----------|-------------|
+| [coarseness_analysis_recommendations](drafts/coarseness_analysis_recommendations.md) | Coarseness metric analyses for grokking research |
+| [general](drafts/general.md) | Assorted requirement ideas (summary stats, parallelization, attention heads, UI) |
 
 ### Future Requirements
 
@@ -42,6 +49,9 @@ Requirements that have been documented but are not yet scheduled for implementat
 
 | Version | Name | Date | Requirements |
 |---------|------|------|--------------|
+| [0.2.0](archive/) | First Foundational Release | 2026-02-06 | REQ_020, REQ_021 (a–f) |
+| [0.1.2](archive/v0.1.2-quality/) | Quality | — | REQ_011, REQ_012, REQ_013 |
+| [0.1.1](archive/v0.1.1-cuda/) | CUDA | — | REQ_016, REQ_018 |
 | [0.1.0](archive/v0.1.0-mvp/MILESTONE_SUMMARY.md) | MVP | 2026-02-01 | REQ_001 through REQ_010 |
 
 ## Working with Requirements
