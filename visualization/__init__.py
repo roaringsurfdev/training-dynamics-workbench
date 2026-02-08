@@ -18,6 +18,12 @@ Usage:
 """
 
 from visualization.line_plot import line
+from visualization.renderers.coarseness import (
+    render_blob_count_trajectory,
+    render_coarseness_by_neuron,
+    render_coarseness_distribution,
+    render_coarseness_trajectory,
+)
 from visualization.renderers.dominant_frequencies import (
     get_dominant_indices,
     get_fourier_basis_names,
@@ -55,4 +61,9 @@ __all__ = [
     "render_freq_clusters_comparison",
     "get_specialized_neurons",
     "get_neuron_specialization",
+    # REQ_024: Coarseness
+    "render_coarseness_trajectory",
+    "render_coarseness_distribution",
+    "render_blob_count_trajectory",
+    "render_coarseness_by_neuron",
 ]

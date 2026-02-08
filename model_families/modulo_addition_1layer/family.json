@@ -31,14 +31,17 @@
   "analyzers": [
     "dominant_frequencies",
     "neuron_activations",
-    "neuron_freq_norm"
+    "neuron_freq_norm",
+    "coarseness"
   ],
 
   "visualizations": [
     "dominant_frequencies_bar",
     "neuron_activation_heatmap",
     "neuron_activation_grid",
-    "frequency_clusters_heatmap"
+    "frequency_clusters_heatmap",
+    "coarseness_trajectory",
+    "coarseness_distribution"
   ],
 
   "analysis_dataset": {

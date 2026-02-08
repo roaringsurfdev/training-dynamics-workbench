@@ -8,20 +8,31 @@ This directory contains requirements for the Training Dynamics Workbench.
 requirements/
 ├── README.md           # This file
 ├── active/             # Requirements currently being worked on
+├── drafts/             # Requirement ideas and research notes
 ├── future/             # Deferred/future requirements (not yet scheduled)
 └── archive/            # Completed requirements organized by milestone
     ├── v0.1.0-mvp/     # MVP milestone
     ├── v0.1.1-cuda/    # CUDA support
-    └── v0.1.2-quality/ # Code quality and Python compatibility
+    ├── v0.1.2-quality/ # Code quality (ruff, pyright, deps)
+    └── *.md            # v0.2.0 requirements (REQ_020, REQ_021*)
 ```
 
 ## Current Status
 
-**Latest Version:** 0.1.2
+**Latest Version:** 0.2.0 (First Foundational Release)
 
 ### Active Requirements
 
-No active requirements. See [future/](future/) for planned work.
+| Requirement | Description |
+|-------------|-------------|
+| [REQ_022](active/REQ_022_family_summary_statistics.md) | Family-specific summary statistics infrastructure |
+
+### Drafts
+
+| Document | Description |
+|----------|-------------|
+| [coarseness_analysis_recommendations](drafts/coarseness_analysis_recommendations.md) | Coarseness metric analyses for grokking research |
+| [general](drafts/general.md) | Assorted requirement ideas (summary stats, parallelization, attention heads, UI) |
 
 ### Future Requirements
 
@@ -38,8 +49,9 @@ Requirements that have been documented but are not yet scheduled for implementat
 
 | Version | Name | Date | Requirements |
 |---------|------|------|--------------|
-| [0.1.2](archive/v0.1.2-quality/MILESTONE_SUMMARY.md) | Code Quality | 2026-02-01 | REQ_011, REQ_012, REQ_013 |
-| [0.1.1](archive/v0.1.1-cuda/MILESTONE_SUMMARY.md) | CUDA Support | 2026-02-01 | REQ_016, REQ_018 |
+| [0.2.0](archive/) | First Foundational Release | 2026-02-06 | REQ_020, REQ_021 (a–f) |
+| [0.1.2](archive/v0.1.2-quality/) | Quality | — | REQ_011, REQ_012, REQ_013 |
+| [0.1.1](archive/v0.1.1-cuda/) | CUDA | — | REQ_016, REQ_018 |
 | [0.1.0](archive/v0.1.0-mvp/MILESTONE_SUMMARY.md) | MVP | 2026-02-01 | REQ_001 through REQ_010 |
 
 ## Working with Requirements
