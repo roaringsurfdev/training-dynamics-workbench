@@ -206,9 +206,7 @@ class ArtifactLoader:
         summary_path = os.path.join(self.artifacts_dir, analyzer_name, "summary.npz")
 
         if not os.path.exists(summary_path):
-            raise FileNotFoundError(
-                f"No summary for '{analyzer_name}'. Expected: {summary_path}"
-            )
+            raise FileNotFoundError(f"No summary for '{analyzer_name}'. Expected: {summary_path}")
 
         return dict(np.load(summary_path))
 

@@ -305,9 +305,7 @@ class AnalysisPipeline:
                     }
         return collectors
 
-    def _save_summary(
-        self, analyzer_name: str, collector: dict[str, Any]
-    ) -> None:
+    def _save_summary(self, analyzer_name: str, collector: dict[str, Any]) -> None:
         """Save accumulated summary statistics to summary.npz.
 
         Merges with any existing summary data for gap-filling support.

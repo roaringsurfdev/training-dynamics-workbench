@@ -9,13 +9,14 @@ import plotly.express as px
 from analysis import AnalysisPipeline
 from analysis.analyzers import (
     CoarsenessAnalyzer,
-    #DominantFrequenciesAnalyzer,
-    #NeuronActivationsAnalyzer,
-    #NeuronFreqClustersAnalyzer,
+    # DominantFrequenciesAnalyzer,
+    # NeuronActivationsAnalyzer,
+    # NeuronFreqClustersAnalyzer,
 )
 from families import FamilyRegistry
 
 # %% Compute Ideal Fourier Spectrum
+
 
 def compute_ideal_fourier_spectrum(p):
     """
@@ -26,15 +27,16 @@ def compute_ideal_fourier_spectrum(p):
     for a in range(p):
         for b in range(p):
             addition_table[a, b] = (a + b) % p
-    
+
     # Compute 2D FFT
     fourier = np.fft.fft2(addition_table)
-    power_spectrum = np.abs(fourier)**2
-    
+    power_spectrum = np.abs(fourier) ** 2
+
     # Normalize
     power_spectrum = power_spectrum / power_spectrum.sum()
-    
+
     return power_spectrum
+
 
 # For your primes:
 for p in [97, 101, 109, 113]:
@@ -44,7 +46,7 @@ for p in [97, 101, 109, 113]:
     dominant_components = np.argwhere(spectrum > threshold * spectrum.max())
     print(f"Prime {p}: Dominant (k,ℓ) components:")
     for k, l in dominant_components[:10]:  # Show top 10  # noqa: E741
-        print(f"  ({k}, {l}): {spectrum[k,l]:.4f}")
+        print(f"  ({k}, {l}): {spectrum[k, l]:.4f}")
 # %% Analysis Pipeline Methods
 _registry: FamilyRegistry | None = None
 
@@ -58,6 +60,7 @@ def get_registry() -> FamilyRegistry:
             results_dir=Path("results"),
         )
     return _registry
+
 
 def run_analysis_for_variant(
     variant_name: str,
@@ -102,6 +105,7 @@ def run_analysis_for_variant(
 
         print(f"Analysis failed: {e}\n\n{traceback.format_exc()}")
 
+
 # %% Test CoarsenessAnalyzer
 model_family_name = "modulo_addition_1layer"
 model_variant_p_values = [97, 101, 109, 113]
@@ -115,23 +119,41 @@ for p in model_variant_p_values:
         if run_analysis:
             run_analysis_for_variant(family_name=model_family_name, variant_name=model_variant_name)
 
-        summary_data_path = os.path.join(os.getcwd(), f"results/{model_family_name}/{model_variant_name}/artifacts/{analyzer_name}/summary.npz")
+        summary_data_path = os.path.join(
+            os.getcwd(),
+            f"results/{model_family_name}/{model_variant_name}/artifacts/{analyzer_name}/summary.npz",
+        )
         with np.load(summary_data_path, allow_pickle=False) as data_from_file:
             data = {
-                'epoch': data_from_file['epochs'],
-                'mean_coarseness': data_from_file['mean_coarseness'],
-                'std_coarseness': data_from_file['std_coarseness'],
-                'p25_coarseness': data_from_file['p25_coarseness'],
+                "epoch": data_from_file["epochs"],
+                "mean_coarseness": data_from_file["mean_coarseness"],
+                "std_coarseness": data_from_file["std_coarseness"],
+                "p25_coarseness": data_from_file["p25_coarseness"],
             }
             df = pd.DataFrame(data)
 
-        fig = px.line(df, x='epoch', y='mean_coarseness', title=f"Mean Coarseness Across Epochs<br>{model_variant_name}")
+        fig = px.line(
+            df,
+            x="epoch",
+            y="mean_coarseness",
+            title=f"Mean Coarseness Across Epochs<br>{model_variant_name}",
+        )
         fig.show()
 
-        fig = px.line(df, x='epoch', y='std_coarseness', title=f"std Coarseness Across Epochs<br>{model_variant_name}")
+        fig = px.line(
+            df,
+            x="epoch",
+            y="std_coarseness",
+            title=f"std Coarseness Across Epochs<br>{model_variant_name}",
+        )
         fig.show()
 
-        fig = px.line(df, x='epoch', y='p25_coarseness', title=f"p25 Coarseness Across Epochs<br>{model_variant_name}")
+        fig = px.line(
+            df,
+            x="epoch",
+            y="p25_coarseness",
+            title=f"p25 Coarseness Across Epochs<br>{model_variant_name}",
+        )
         fig.show()
 
 # %%

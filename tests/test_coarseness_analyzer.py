@@ -138,8 +138,14 @@ class TestCoarsenessAnalyzerSummary:
         result = {"coarseness": np.random.rand(512).astype(np.float32)}
         summary = analyzer.compute_summary(result, {})
 
-        for key in ["mean_coarseness", "std_coarseness", "median_coarseness",
-                     "p25_coarseness", "p75_coarseness", "blob_count"]:
+        for key in [
+            "mean_coarseness",
+            "std_coarseness",
+            "median_coarseness",
+            "p25_coarseness",
+            "p75_coarseness",
+            "blob_count",
+        ]:
             assert isinstance(summary[key], float), f"{key} should be float"
 
     def test_summary_histogram_shape(self):
@@ -353,8 +359,14 @@ class TestCoarsenessAnalyzerIntegration:
         np.testing.assert_array_equal(summary["epochs"], [0, 25, 49])
 
         # Scalar stats: one value per epoch
-        for key in ["mean_coarseness", "std_coarseness", "median_coarseness",
-                     "p25_coarseness", "p75_coarseness", "blob_count"]:
+        for key in [
+            "mean_coarseness",
+            "std_coarseness",
+            "median_coarseness",
+            "p25_coarseness",
+            "p75_coarseness",
+            "blob_count",
+        ]:
             assert key in summary, f"Missing key: {key}"
             assert summary[key].shape == (3,), f"{key} wrong shape"
 

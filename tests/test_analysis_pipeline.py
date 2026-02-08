@@ -435,9 +435,7 @@ class TestPipelineSummaryStatistics:
         pipeline.register(SummaryMockAnalyzer())
         pipeline.run()
 
-        summary_path = os.path.join(
-            pipeline.artifacts_dir, "summary_mock", "summary.npz"
-        )
+        summary_path = os.path.join(pipeline.artifacts_dir, "summary_mock", "summary.npz")
         assert os.path.exists(summary_path)
 
     def test_summary_file_contents(self, trained_variant):
@@ -446,9 +444,7 @@ class TestPipelineSummaryStatistics:
         pipeline.register(SummaryMockAnalyzer())
         pipeline.run()
 
-        summary_path = os.path.join(
-            pipeline.artifacts_dir, "summary_mock", "summary.npz"
-        )
+        summary_path = os.path.join(pipeline.artifacts_dir, "summary_mock", "summary.npz")
         summary = dict(np.load(summary_path))
 
         assert "epochs" in summary
@@ -466,9 +462,7 @@ class TestPipelineSummaryStatistics:
         pipeline.register(MockAnalyzer())
         pipeline.run()
 
-        summary_path = os.path.join(
-            pipeline.artifacts_dir, "mock", "summary.npz"
-        )
+        summary_path = os.path.join(pipeline.artifacts_dir, "mock", "summary.npz")
         assert not os.path.exists(summary_path)
 
     def test_mixed_analyzers(self, trained_variant):
@@ -479,13 +473,9 @@ class TestPipelineSummaryStatistics:
         pipeline.run()
 
         # Regular analyzer: no summary file
-        assert not os.path.exists(
-            os.path.join(pipeline.artifacts_dir, "regular", "summary.npz")
-        )
+        assert not os.path.exists(os.path.join(pipeline.artifacts_dir, "regular", "summary.npz"))
         # Summary analyzer: has summary file
-        assert os.path.exists(
-            os.path.join(pipeline.artifacts_dir, "with_summary", "summary.npz")
-        )
+        assert os.path.exists(os.path.join(pipeline.artifacts_dir, "with_summary", "summary.npz"))
         # Both produce per-epoch artifacts
         assert len(os.listdir(os.path.join(pipeline.artifacts_dir, "regular"))) > 0
         assert any(
@@ -506,9 +496,7 @@ class TestPipelineSummaryStatistics:
         pipeline1.register(SummaryMockAnalyzer())
         pipeline1.run()
 
-        summary_path = os.path.join(
-            pipeline1.artifacts_dir, "summary_mock", "summary.npz"
-        )
+        summary_path = os.path.join(pipeline1.artifacts_dir, "summary_mock", "summary.npz")
         summary1 = dict(np.load(summary_path))
         np.testing.assert_array_equal(summary1["epochs"], [0, 25])
 
@@ -528,9 +516,7 @@ class TestPipelineSummaryStatistics:
         pipeline1.register(SummaryMockAnalyzer())
         pipeline1.run()
 
-        summary_path = os.path.join(
-            pipeline1.artifacts_dir, "summary_mock", "summary.npz"
-        )
+        summary_path = os.path.join(pipeline1.artifacts_dir, "summary_mock", "summary.npz")
         summary1 = dict(np.load(summary_path))
 
         # Force recompute (random data, so values will differ)
@@ -564,8 +550,6 @@ class TestPipelineSummaryStatistics:
         pipeline.register(SummaryMockAnalyzer())
         pipeline.run()
 
-        summary_path = os.path.join(
-            pipeline.artifacts_dir, "summary_mock", "summary.npz"
-        )
+        summary_path = os.path.join(pipeline.artifacts_dir, "summary_mock", "summary.npz")
         summary = dict(np.load(summary_path))
         np.testing.assert_array_equal(summary["epochs"], [0, 49])
