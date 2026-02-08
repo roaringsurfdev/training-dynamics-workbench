@@ -7,7 +7,6 @@ REQ_020: Checkpoint epoch-index display
 REQ_021d: Dashboard integration with Model Families
 REQ_021e: Training integration with Model Families
 REQ_021f: Per-epoch artifact loading
-REQ_024: Coarseness visualizations
 """
 
 import json
@@ -18,7 +17,6 @@ import plotly.graph_objects as go
 
 from analysis import AnalysisPipeline, ArtifactLoader
 from analysis.analyzers import (
-    CoarsenessAnalyzer,
     DominantFrequenciesAnalyzer,
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
@@ -33,8 +31,6 @@ from dashboard.utils import parse_checkpoint_epochs
 from dashboard.version import __version__
 from families import FamilyRegistry, TrainingResult
 from visualization import (
-    render_coarseness_distribution,
-    render_coarseness_trajectory,
     render_dominant_frequencies,
     render_freq_clusters,
     render_neuron_heatmap,
@@ -288,8 +284,6 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -314,8 +308,6 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
@@ -360,13 +352,6 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
                     state.available_epochs = epochs
                     break
 
-            # Load coarseness summary if available (small file, loaded once)
-            if "coarseness" in available and loader.has_summary("coarseness"):
-                try:
-                    state.coarseness_summary = loader.load_summary("coarseness")
-                except Exception:
-                    pass
-
         except Exception:
             pass  # Artifacts not available yet
 
@@ -395,8 +380,6 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[1],  # freq
         plots[2],  # activation
         plots[3],  # clusters
-        plots[4],  # coarseness trajectory
-        plots[5],  # coarseness distribution
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -444,7 +427,6 @@ def run_analysis_for_variant(
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.register(NeuronFreqClustersAnalyzer())
-        pipeline.register(CoarsenessAnalyzer())
         pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")
@@ -469,10 +451,9 @@ def refresh_variants(family_name: str | None) -> gr.Dropdown:
 
 
 def generate_all_plots(state: DashboardState):
-    """Generate all 6 visualization plots for current state.
+    """Generate all 4 visualization plots for current state.
 
     Loads per-epoch artifact data on demand via ArtifactLoader (REQ_021f).
-    Coarseness trajectory uses summary data cached in state (REQ_024).
     """
     epoch = state.get_current_epoch()
 
@@ -525,40 +506,12 @@ def generate_all_plots(state: DashboardState):
                 clusters_fig = create_empty_plot("No data for this epoch")
         else:
             clusters_fig = create_empty_plot("Run analysis first")
-
-        # Coarseness trajectory (REQ_024) — uses summary data from state
-        if state.coarseness_summary is not None:
-            coarseness_traj_fig = render_coarseness_trajectory(
-                state.coarseness_summary,
-                current_epoch=epoch,
-            )
-        else:
-            coarseness_traj_fig = create_empty_plot("No coarseness data")
-
-        # Coarseness distribution (REQ_024) — per-epoch loading
-        if "coarseness" in state.available_analyzers:
-            try:
-                epoch_data = loader.load_epoch("coarseness", epoch)
-                coarseness_dist_fig = render_coarseness_distribution(epoch_data, epoch=epoch)
-            except FileNotFoundError:
-                coarseness_dist_fig = create_empty_plot("No data for this epoch")
-        else:
-            coarseness_dist_fig = create_empty_plot("No coarseness data")
     else:
         freq_fig = create_empty_plot("Run analysis first")
         activation_fig = create_empty_plot("Run analysis first")
         clusters_fig = create_empty_plot("Run analysis first")
-        coarseness_traj_fig = create_empty_plot("No coarseness data")
-        coarseness_dist_fig = create_empty_plot("No coarseness data")
 
-    return (
-        loss_fig,
-        freq_fig,
-        activation_fig,
-        clusters_fig,
-        coarseness_traj_fig,
-        coarseness_dist_fig,
-    )
+    return loss_fig, freq_fig, activation_fig, clusters_fig
 
 
 def format_epoch_display(epoch: int, index: int) -> str:
@@ -580,16 +533,7 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
     epoch = state.get_current_epoch()
 
     epoch_display = format_epoch_display(epoch, int(epoch_idx))
-    return (
-        plots[0],
-        plots[1],
-        plots[2],
-        plots[3],
-        plots[4],
-        plots[5],
-        epoch_display,
-        state,
-    )
+    return plots[0], plots[1], plots[2], plots[3], epoch_display, state
 
 
 def update_activation_only(epoch_idx: int | None, neuron_idx: int | None, state: DashboardState):
@@ -802,9 +746,6 @@ def create_app() -> gr.Blocks:
                 gr.Markdown("### Loss Curves")
                 loss_plot = gr.Plot(label="Train/Test Loss")
 
-                gr.Markdown("### Coarseness Trajectory")
-                coarseness_traj_plot = gr.Plot(label="Coarseness Over Training")
-
                 gr.Markdown("### Analysis Visualizations")
                 with gr.Row():
                     with gr.Column(scale=1):
@@ -820,9 +761,6 @@ def create_app() -> gr.Blocks:
                         activation_plot = gr.Plot(label="Neuron Activation Heatmap")
 
                 clusters_plot = gr.Plot(label="Neuron Frequency Clusters")
-
-                gr.Markdown("### Coarseness Distribution")
-                coarseness_dist_plot = gr.Plot(label="Coarseness Distribution")
 
                 # ============================================================
                 # Event Handlers (REQ_021d)
@@ -846,8 +784,6 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
-                        coarseness_traj_plot,
-                        coarseness_dist_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -876,8 +812,6 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
-                        coarseness_traj_plot,
-                        coarseness_dist_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -893,8 +827,6 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
-                        coarseness_traj_plot,
-                        coarseness_dist_plot,
                         epoch_display,
                         state,
                     ],

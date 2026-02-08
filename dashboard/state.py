@@ -42,9 +42,6 @@ class DashboardState:
     # Model config
     model_config: dict[str, Any] | None = None
 
-    # Coarseness summary data (loaded once per variant, small file)
-    coarseness_summary: dict[str, Any] | None = None
-
     # UI parameters
     selected_neuron: int = 0
     n_neurons: int = 512
@@ -64,7 +61,6 @@ class DashboardState:
         self.available_epochs = []
         self.current_epoch_idx = 0
         self.model_config = None
-        self.coarseness_summary = None
 
     def clear_selection(self) -> None:
         """Clear family/variant selection and all artifacts."""
