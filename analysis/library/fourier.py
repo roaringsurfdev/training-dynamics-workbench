@@ -154,3 +154,27 @@ def compute_frequency_variance_fractions(fourier_activations: torch.Tensor, p: i
     neuron_freq_norm = neuron_freq_norm / total_variance[None, :]
 
     return neuron_freq_norm
+
+
+def compute_neuron_coarseness(
+    freq_fractions: torch.Tensor,
+    n_low_freqs: int = 3,
+) -> torch.Tensor:
+    """Compute coarseness (low-frequency energy ratio) per neuron.
+
+    Coarseness quantifies how much of a neuron's activation variance is
+    explained by low modular frequencies. High coarseness indicates "blob"
+    neurons (large coherent activation regions), while low coarseness
+    indicates "plaid" neurons (fine-grained checkerboard patterns).
+
+    Args:
+        freq_fractions: Per-neuron variance fractions from
+            compute_frequency_variance_fractions(), shape (n_frequencies, d_mlp).
+        n_low_freqs: Number of lowest frequencies to consider "low".
+            Default 3 captures frequencies k=1, 2, 3.
+
+    Returns:
+        Tensor of shape (d_mlp,) with coarseness values in [0, 1].
+    """
+    k = min(n_low_freqs, freq_fractions.shape[0])
+    return freq_fractions[:k].sum(dim=0)

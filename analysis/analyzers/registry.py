@@ -99,6 +99,7 @@ class AnalyzerRegistry:
 
 def register_default_analyzers() -> None:
     """Register the built-in analyzers."""
+    from analysis.analyzers.coarseness import CoarsenessAnalyzer
     from analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
     from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
     from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
@@ -106,6 +107,7 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register(DominantFrequenciesAnalyzer)
     AnalyzerRegistry.register(NeuronActivationsAnalyzer)
     AnalyzerRegistry.register(NeuronFreqClustersAnalyzer)
+    AnalyzerRegistry.register(CoarsenessAnalyzer)
 
 
 # Auto-register default analyzers on import

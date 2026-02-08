@@ -18,6 +18,7 @@ from analysis.library.activations import (
 from analysis.library.fourier import (
     compute_2d_fourier_transform,
     compute_frequency_variance_fractions,
+    compute_neuron_coarseness,
     get_dominant_frequency_indices,
     get_fourier_basis,
     project_onto_fourier_basis,
@@ -30,6 +31,7 @@ __all__ = [
     "compute_2d_fourier_transform",
     "get_dominant_frequency_indices",
     "compute_frequency_variance_fractions",
+    "compute_neuron_coarseness",
     # Activation functions
     "extract_mlp_activations",
     "reshape_to_grid",

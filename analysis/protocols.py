@@ -40,6 +40,20 @@ class Analyzer(Protocol):
     contains domain parameters and any precomputed values (e.g., fourier_basis).
     This allows the pipeline to be family-agnostic while analyzers can access
     the domain-specific values they need.
+
+    Optional Summary Statistics (REQ_022):
+        Analyzers may optionally implement two additional methods to produce
+        summary statistics — small per-epoch values (scalars or small arrays)
+        that are accumulated across checkpoints and saved as a single file.
+
+        - get_summary_keys() -> list[str]:
+            Declare the summary statistic keys this analyzer produces.
+        - compute_summary(result, context) -> dict[str, float | np.ndarray]:
+            Compute summary statistics from this epoch's analysis result.
+
+        These methods are NOT part of the required protocol. The pipeline
+        detects them via hasattr() to maintain backward compatibility with
+        analyzers that only produce per-epoch artifacts.
     """
 
     @property

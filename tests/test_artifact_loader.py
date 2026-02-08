@@ -1,4 +1,5 @@
-"""Tests for REQ_003_004: Artifact Loader (updated for REQ_021f per-epoch storage)."""
+"""Tests for REQ_003_004: Artifact Loader (updated for REQ_021f per-epoch storage
+and REQ_022 summary statistics)."""
 
 import json
 import os
@@ -247,3 +248,77 @@ class TestArtifactLoaderManifestCaching:
 
         # Should be the same object
         assert loader._manifest is not None
+
+
+class TestArtifactLoaderSummary:
+    """Tests for REQ_022: Summary statistics loading."""
+
+    @pytest.fixture
+    def artifacts_with_summary(self):
+        """Create artifacts directory with summary.npz file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analyzer_dir = os.path.join(tmpdir, "test_analyzer")
+            os.makedirs(analyzer_dir)
+
+            # Create per-epoch files
+            for epoch in [0, 100, 200]:
+                np.savez_compressed(
+                    os.path.join(analyzer_dir, f"epoch_{epoch:05d}.npz"),
+                    data=np.random.rand(10).astype(np.float32),
+                )
+
+            # Create summary file
+            epochs = np.array([0, 100, 200])
+            mean_val = np.array([0.5, 0.6, 0.7])
+            max_val = np.array([0.9, 0.95, 0.99])
+            np.savez_compressed(
+                os.path.join(analyzer_dir, "summary.npz"),
+                epochs=epochs,
+                mean_val=mean_val,
+                max_val=max_val,
+            )
+
+            yield tmpdir
+
+    def test_load_summary(self, artifacts_with_summary):
+        """Can load summary statistics."""
+        loader = ArtifactLoader(artifacts_with_summary)
+        summary = loader.load_summary("test_analyzer")
+
+        assert isinstance(summary, dict)
+        assert "epochs" in summary
+        assert "mean_val" in summary
+        assert "max_val" in summary
+        np.testing.assert_array_equal(summary["epochs"], [0, 100, 200])
+        assert summary["mean_val"].shape == (3,)
+
+    def test_has_summary_true(self, artifacts_with_summary):
+        """has_summary returns True when summary exists."""
+        loader = ArtifactLoader(artifacts_with_summary)
+        assert loader.has_summary("test_analyzer") is True
+
+    def test_has_summary_false(self, artifacts_with_summary):
+        """has_summary returns False when no summary exists."""
+        loader = ArtifactLoader(artifacts_with_summary)
+        assert loader.has_summary("nonexistent") is False
+
+    def test_has_summary_no_summary_file(self):
+        """has_summary returns False for analyzer dir without summary.npz."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analyzer_dir = os.path.join(tmpdir, "test_analyzer")
+            os.makedirs(analyzer_dir)
+            np.savez_compressed(
+                os.path.join(analyzer_dir, "epoch_00000.npz"),
+                data=np.ones(5),
+            )
+
+            loader = ArtifactLoader(tmpdir)
+            assert loader.has_summary("test_analyzer") is False
+
+    def test_load_summary_not_found(self):
+        """load_summary raises FileNotFoundError when no summary exists."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            loader = ArtifactLoader(tmpdir)
+            with pytest.raises(FileNotFoundError) as exc_info:
+                loader.load_summary("nonexistent")
+            assert "nonexistent" in str(exc_info.value)
