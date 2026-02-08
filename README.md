@@ -50,7 +50,7 @@ Define Family → Train Variants → Analyze Checkpoints → Explore Visualizati
 
 ## Technology Stack
 
-- **Python 3.13** - Core language
+- **Python 3.11+** - Supports 3.11, 3.12, and 3.13
 - **PyTorch + CUDA** - Training and model execution
 - **TransformerLens** - Model architecture (HookedTransformer)
 - **Safetensors** - Checkpoint persistence
