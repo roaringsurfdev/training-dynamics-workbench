@@ -16,3 +16,21 @@ For each epoch, how many neurons are above .9 frac explained for a given frequen
 It may also be useful to see how many neurons have locked into frequencies in low, middle, and high range.
 
 I would really love to see how many neurons change frequency (and maybe even which ones).
+
+REQ_???
+### Summary
+Add Attention Head visualization from original Nanda notebook.
+
+On lines 138-145 of ModuloAdditionRefactored.py, there is a visualization of all 4 heads of the Modulo Addition 1-Layer model. (The title on this visualization is misleading)
+
+I would like to add this to the analysis pipeline and dashboard visualization.
+
+REQ_???
+### Summary
+I would like to see the interplay between frequency specialization in the Attention Heads and grokking.
+
+**Hypothesis**:
+Attention Heads, like neurons, become frequency specialists over the course of training.
+
+### Add analysis for Attention Heads
+I would like to add visualization that would support analysis of frequency specialization for each of Attention Head over the course of training.
