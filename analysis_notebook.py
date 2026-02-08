@@ -1,19 +1,19 @@
 # %% Import
 import os
-import numpy as np
 from pathlib import Path
 
-from analysis import AnalysisPipeline, ArtifactLoader
-from analysis.analyzers import (
-    DominantFrequenciesAnalyzer,
-    NeuronActivationsAnalyzer,
-    NeuronFreqClustersAnalyzer,
-    CoarsenessAnalyzer,
-)
-from families import FamilyRegistry, TrainingResult
-
-import plotly.express as px
+import numpy as np
 import pandas as pd
+import plotly.express as px
+
+from analysis import AnalysisPipeline
+from analysis.analyzers import (
+    CoarsenessAnalyzer,
+    #DominantFrequenciesAnalyzer,
+    #NeuronActivationsAnalyzer,
+    #NeuronFreqClustersAnalyzer,
+)
+from families import FamilyRegistry
 
 # %% Compute Ideal Fourier Spectrum
 
@@ -43,7 +43,7 @@ for p in [97, 101, 109, 113]:
     threshold = 0.01  # 1% of total power
     dominant_components = np.argwhere(spectrum > threshold * spectrum.max())
     print(f"Prime {p}: Dominant (k,ℓ) components:")
-    for k, l in dominant_components[:10]:  # Show top 10
+    for k, l in dominant_components[:10]:  # Show top 10  # noqa: E741
         print(f"  ({k}, {l}): {spectrum[k,l]:.4f}")
 # %% Analysis Pipeline Methods
 _registry: FamilyRegistry | None = None
