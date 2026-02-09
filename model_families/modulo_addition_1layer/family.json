@@ -29,6 +29,7 @@
   },
 
   "analyzers": [
+    "attention_freq",
     "attention_patterns",
     "dominant_frequencies",
     "neuron_activations",
@@ -37,6 +38,8 @@
   ],
 
   "visualizations": [
+    "attention_freq_heatmap",
+    "attention_specialization_trajectory",
     "attention_heads_grid",
     "dominant_frequencies_bar",
     "neuron_activation_heatmap",

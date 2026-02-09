@@ -99,12 +99,14 @@ class AnalyzerRegistry:
 
 def register_default_analyzers() -> None:
     """Register the built-in analyzers."""
+    from analysis.analyzers.attention_freq import AttentionFreqAnalyzer
     from analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
     from analysis.analyzers.coarseness import CoarsenessAnalyzer
     from analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
     from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
     from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
 
+    AnalyzerRegistry.register(AttentionFreqAnalyzer)
     AnalyzerRegistry.register(AttentionPatternsAnalyzer)
     AnalyzerRegistry.register(DominantFrequenciesAnalyzer)
     AnalyzerRegistry.register(NeuronActivationsAnalyzer)
