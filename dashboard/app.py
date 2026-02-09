@@ -874,23 +874,20 @@ def create_app() -> gr.Blocks:
 
                 # Attention Patterns (REQ_025)
                 gr.Markdown("### Attention Patterns")
-                with gr.Row():
-                    with gr.Column(scale=1):
-                        position_pair_dropdown = gr.Dropdown(
-                            label="Attention Relationship",
-                            choices=[
-                                ("= attending to a", "2,0"),
-                                ("= attending to b", "2,1"),
-                                ("b attending to a", "1,0"),
-                                ("b attending to b", "1,1"),
-                                ("a attending to a", "0,0"),
-                                ("a attending to b", "0,1"),
-                            ],
-                            value="2,0",
-                            interactive=True,
-                        )
-                    with gr.Column(scale=3):
-                        attention_plot = gr.Plot(label="Attention Head Patterns")
+                position_pair_dropdown = gr.Dropdown(
+                    label="Attention Relationship",
+                    choices=[
+                        ("= attending to a", "2,0"),
+                        ("= attending to b", "2,1"),
+                        ("b attending to a", "1,0"),
+                        ("b attending to b", "1,1"),
+                        ("a attending to a", "0,0"),
+                        ("a attending to b", "0,1"),
+                    ],
+                    value="2,0",
+                    interactive=True,
+                )
+                attention_plot = gr.Plot(label="Attention Head Patterns")
 
                 # Attention Frequency Specialization (REQ_026)
                 gr.Markdown("### Attention Head Frequency Specialization")
