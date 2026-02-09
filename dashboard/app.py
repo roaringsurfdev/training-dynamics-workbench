@@ -10,6 +10,7 @@ REQ_021f: Per-epoch artifact loading
 REQ_025: Attention head pattern visualization
 REQ_026: Attention head frequency specialization
 REQ_027: Neuron frequency specialization summary statistics
+REQ_029: Parameter space trajectory projections
 """
 
 import json
@@ -25,7 +26,9 @@ from analysis.analyzers import (
     DominantFrequenciesAnalyzer,
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
+    ParameterSnapshotAnalyzer,
 )
+from analysis.library.weights import COMPONENT_GROUPS
 from dashboard.components import (
     get_family_choices,
     get_variant_choices,
@@ -39,9 +42,11 @@ from visualization import (
     render_attention_freq_heatmap,
     render_attention_heads,
     render_attention_specialization_trajectory,
+    render_component_velocity,
     render_dominant_frequencies,
     render_freq_clusters,
     render_neuron_heatmap,
+    render_parameter_trajectory,
     render_specialization_by_frequency,
     render_specialization_trajectory,
 )
@@ -299,6 +304,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -323,6 +330,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
@@ -405,6 +414,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[6],  # attention (REQ_025)
         plots[7],  # attention freq heatmap (REQ_026)
         plots[8],  # attention specialization trajectory (REQ_026)
+        plots[9],  # parameter trajectory (REQ_029)
+        plots[10],  # component velocity (REQ_029)
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -454,6 +465,7 @@ def run_analysis_for_variant(
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.register(NeuronFreqClustersAnalyzer())
+        pipeline.register(ParameterSnapshotAnalyzer())
         pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")
@@ -475,6 +487,13 @@ def refresh_variants(family_name: str | None) -> gr.Dropdown:
     registry = get_registry()
     variant_choices = get_variant_choices(registry, family_name)
     return gr.Dropdown(choices=variant_choices, value=None)
+
+
+def _resolve_trajectory_components(group: str) -> list[str] | None:
+    """Map trajectory group name to component list."""
+    if group == "all":
+        return None
+    return COMPONENT_GROUPS.get(group)
 
 
 def generate_all_plots(state: DashboardState):
@@ -597,6 +616,23 @@ def generate_all_plots(state: DashboardState):
         attn_freq_fig = create_empty_plot("Run analysis first")
         attn_spec_fig = create_empty_plot("Run analysis first")
 
+    # Parameter trajectory and velocity (REQ_029, cross-epoch)
+    trajectory_data = state.get_trajectory_data()
+    if trajectory_data is not None:
+        try:
+            snapshots, traj_epochs = trajectory_data
+            components = _resolve_trajectory_components(state.selected_trajectory_group)
+            trajectory_fig = render_parameter_trajectory(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            velocity_fig = render_component_velocity(snapshots, traj_epochs, epoch)
+        except Exception:
+            trajectory_fig = create_empty_plot("Error rendering trajectory")
+            velocity_fig = create_empty_plot("Error rendering velocity")
+    else:
+        trajectory_fig = create_empty_plot("Run analysis first")
+        velocity_fig = create_empty_plot("Run analysis first")
+
     return (
         loss_fig,
         freq_fig,
@@ -607,6 +643,8 @@ def generate_all_plots(state: DashboardState):
         attention_fig,
         attn_freq_fig,
         attn_spec_fig,
+        trajectory_fig,
+        velocity_fig,
     )
 
 
@@ -639,6 +677,8 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
         plots[6],
         plots[7],
         plots[8],
+        plots[9],
+        plots[10],
         epoch_display,
         state,
     )
@@ -670,6 +710,28 @@ def update_activation_only(epoch_idx: int | None, neuron_idx: int | None, state:
             )
         except FileNotFoundError:
             fig = create_empty_plot("No data for this epoch")
+    else:
+        fig = create_empty_plot("Run analysis first")
+
+    return fig, state
+
+
+def update_trajectory_only(group: str | None, state: DashboardState):
+    """Update only the trajectory plot when component group changes (REQ_029)."""
+    if group:
+        state.selected_trajectory_group = group.lower()
+
+    trajectory_data = state.get_trajectory_data()
+    if trajectory_data is not None:
+        try:
+            snapshots, traj_epochs = trajectory_data
+            epoch = state.get_current_epoch()
+            components = _resolve_trajectory_components(state.selected_trajectory_group)
+            fig = render_parameter_trajectory(
+                snapshots, traj_epochs, epoch, components=components
+            )
+        except Exception:
+            fig = create_empty_plot("Error rendering trajectory")
     else:
         fig = create_empty_plot("Run analysis first")
 
@@ -934,6 +996,18 @@ def create_app() -> gr.Blocks:
                     attn_freq_plot = gr.Plot(label="Attention Head Frequency Decomposition")
                     attn_spec_plot = gr.Plot(label="Head Specialization Trajectory")
 
+                # Parameter Trajectory (REQ_029)
+                gr.Markdown("### Parameter Space Trajectory")
+                trajectory_group_radio = gr.Radio(
+                    choices=["All", "Embedding", "Attention", "MLP"],
+                    value="All",
+                    label="Component Group",
+                    interactive=True,
+                )
+                with gr.Row():
+                    trajectory_plot = gr.Plot(label="Parameter Trajectory (PCA)")
+                    velocity_plot = gr.Plot(label="Component Velocity")
+
                 # ============================================================
                 # Event Handlers (REQ_021d)
                 # ============================================================
@@ -961,6 +1035,8 @@ def create_app() -> gr.Blocks:
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
+                        trajectory_plot,
+                        velocity_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -994,6 +1070,8 @@ def create_app() -> gr.Blocks:
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
+                        trajectory_plot,
+                        velocity_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -1014,6 +1092,8 @@ def create_app() -> gr.Blocks:
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
+                        trajectory_plot,
+                        velocity_plot,
                         epoch_display,
                         state,
                     ],
@@ -1031,6 +1111,13 @@ def create_app() -> gr.Blocks:
                     fn=update_attention_only,
                     inputs=[position_pair_dropdown, epoch_slider, state],
                     outputs=[attention_plot, state],
+                )
+
+                # Trajectory component group selector (REQ_029)
+                trajectory_group_radio.change(
+                    fn=update_trajectory_only,
+                    inputs=[trajectory_group_radio, state],
+                    outputs=[trajectory_plot, state],
                 )
 
         # Note: Variants are now initialized at creation time (fixes BUG_004)

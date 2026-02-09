@@ -11,6 +11,7 @@ from analysis.analyzers.coarseness import CoarsenessAnalyzer
 from analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
 from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
 from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
+from analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
 from analysis.analyzers.registry import AnalyzerRegistry
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "DominantFrequenciesAnalyzer",
     "NeuronActivationsAnalyzer",
     "NeuronFreqClustersAnalyzer",
+    "ParameterSnapshotAnalyzer",
 ]

@@ -53,6 +53,12 @@ from visualization.renderers.neuron_freq_clusters import (
     render_specialization_by_frequency,
     render_specialization_trajectory,
 )
+from visualization.renderers.parameter_trajectory import (
+    render_component_velocity,
+    render_explained_variance,
+    render_parameter_trajectory,
+    render_parameter_velocity,
+)
 
 __all__ = [
     # REQ_012: Line plot utility (replaces neel-plotly)
@@ -87,4 +93,9 @@ __all__ = [
     "render_coarseness_distribution",
     "render_blob_count_trajectory",
     "render_coarseness_by_neuron",
+    # REQ_029: Parameter trajectory
+    "render_parameter_trajectory",
+    "render_explained_variance",
+    "render_parameter_velocity",
+    "render_component_velocity",
 ]
