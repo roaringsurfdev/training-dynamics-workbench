@@ -18,6 +18,15 @@ Usage:
 """
 
 from visualization.line_plot import line
+from visualization.renderers.attention_freq import (
+    render_attention_dominant_frequencies,
+    render_attention_freq_heatmap,
+    render_attention_specialization_trajectory,
+)
+from visualization.renderers.attention_patterns import (
+    render_attention_heads,
+    render_attention_single_head,
+)
 from visualization.renderers.coarseness import (
     render_blob_count_trajectory,
     render_coarseness_by_neuron,
@@ -41,6 +50,8 @@ from visualization.renderers.neuron_freq_clusters import (
     get_specialized_neurons,
     render_freq_clusters,
     render_freq_clusters_comparison,
+    render_specialization_by_frequency,
+    render_specialization_trajectory,
 )
 
 __all__ = [
@@ -61,6 +72,16 @@ __all__ = [
     "render_freq_clusters_comparison",
     "get_specialized_neurons",
     "get_neuron_specialization",
+    # REQ_027: Neuron specialization summary
+    "render_specialization_trajectory",
+    "render_specialization_by_frequency",
+    # REQ_026: Attention frequency specialization
+    "render_attention_freq_heatmap",
+    "render_attention_specialization_trajectory",
+    "render_attention_dominant_frequencies",
+    # REQ_025: Attention patterns
+    "render_attention_heads",
+    "render_attention_single_head",
     # REQ_024: Coarseness
     "render_coarseness_trajectory",
     "render_coarseness_distribution",

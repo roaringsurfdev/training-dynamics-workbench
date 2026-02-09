@@ -46,6 +46,10 @@ class DashboardState:
     selected_neuron: int = 0
     n_neurons: int = 512
 
+    # Attention pattern position pair (REQ_025)
+    selected_to_position: int = 2  # = token
+    selected_from_position: int = 0  # a token
+
     def get_current_epoch(self) -> int:
         """Get actual epoch number at current index."""
         if self.available_epochs and 0 <= self.current_epoch_idx < len(self.available_epochs):

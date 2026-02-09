@@ -7,6 +7,9 @@ REQ_020: Checkpoint epoch-index display
 REQ_021d: Dashboard integration with Model Families
 REQ_021e: Training integration with Model Families
 REQ_021f: Per-epoch artifact loading
+REQ_025: Attention head pattern visualization
+REQ_026: Attention head frequency specialization
+REQ_027: Neuron frequency specialization summary statistics
 """
 
 import json
@@ -17,6 +20,8 @@ import plotly.graph_objects as go
 
 from analysis import AnalysisPipeline, ArtifactLoader
 from analysis.analyzers import (
+    AttentionFreqAnalyzer,
+    AttentionPatternsAnalyzer,
     DominantFrequenciesAnalyzer,
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
@@ -31,9 +36,14 @@ from dashboard.utils import parse_checkpoint_epochs
 from dashboard.version import __version__
 from families import FamilyRegistry, TrainingResult
 from visualization import (
+    render_attention_freq_heatmap,
+    render_attention_heads,
+    render_attention_specialization_trajectory,
     render_dominant_frequencies,
     render_freq_clusters,
     render_neuron_heatmap,
+    render_specialization_by_frequency,
+    render_specialization_trajectory,
 )
 
 
@@ -284,6 +294,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -308,6 +323,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
@@ -380,6 +400,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[1],  # freq
         plots[2],  # activation
         plots[3],  # clusters
+        plots[4],  # neuron specialization trajectory (REQ_027)
+        plots[5],  # specialization by frequency (REQ_027)
+        plots[6],  # attention (REQ_025)
+        plots[7],  # attention freq heatmap (REQ_026)
+        plots[8],  # attention specialization trajectory (REQ_026)
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -424,6 +449,8 @@ def run_analysis_for_variant(
 
         # Pipeline now takes Variant directly (no adapter needed)
         pipeline = AnalysisPipeline(variant)
+        pipeline.register(AttentionFreqAnalyzer())
+        pipeline.register(AttentionPatternsAnalyzer())
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.register(NeuronFreqClustersAnalyzer())
@@ -451,7 +478,7 @@ def refresh_variants(family_name: str | None) -> gr.Dropdown:
 
 
 def generate_all_plots(state: DashboardState):
-    """Generate all 4 visualization plots for current state.
+    """Generate all visualization plots for current state.
 
     Loads per-epoch artifact data on demand via ArtifactLoader (REQ_021f).
     """
@@ -506,12 +533,81 @@ def generate_all_plots(state: DashboardState):
                 clusters_fig = create_empty_plot("No data for this epoch")
         else:
             clusters_fig = create_empty_plot("Run analysis first")
+
+        # Neuron specialization trajectory (REQ_027, cross-epoch)
+        if "neuron_freq_norm" in state.available_analyzers and loader.has_summary(
+            "neuron_freq_norm"
+        ):
+            try:
+                summary_data = loader.load_summary("neuron_freq_norm")
+                spec_traj_fig = render_specialization_trajectory(summary_data, current_epoch=epoch)
+                spec_freq_fig = render_specialization_by_frequency(
+                    summary_data, current_epoch=epoch
+                )
+            except FileNotFoundError:
+                spec_traj_fig = create_empty_plot("No summary data")
+                spec_freq_fig = create_empty_plot("No summary data")
+        else:
+            spec_traj_fig = create_empty_plot("Run analysis first")
+            spec_freq_fig = create_empty_plot("Run analysis first")
+
+        # Attention patterns (REQ_025)
+        if "attention_patterns" in state.available_analyzers:
+            try:
+                epoch_data = loader.load_epoch("attention_patterns", epoch)
+                attention_fig = render_attention_heads(
+                    epoch_data,
+                    epoch=epoch,
+                    to_position=state.selected_to_position,
+                    from_position=state.selected_from_position,
+                )
+            except FileNotFoundError:
+                attention_fig = create_empty_plot("No data for this epoch")
+        else:
+            attention_fig = create_empty_plot("Run analysis first")
+
+        # Attention frequency heatmap (REQ_026, per-epoch)
+        if "attention_freq" in state.available_analyzers:
+            try:
+                epoch_data = loader.load_epoch("attention_freq", epoch)
+                attn_freq_fig = render_attention_freq_heatmap(epoch_data, epoch=epoch)
+            except FileNotFoundError:
+                attn_freq_fig = create_empty_plot("No data for this epoch")
+        else:
+            attn_freq_fig = create_empty_plot("Run analysis first")
+
+        # Attention specialization trajectory (REQ_026, cross-epoch)
+        if "attention_freq" in state.available_analyzers and loader.has_summary("attention_freq"):
+            try:
+                summary_data = loader.load_summary("attention_freq")
+                attn_spec_fig = render_attention_specialization_trajectory(
+                    summary_data, current_epoch=epoch
+                )
+            except FileNotFoundError:
+                attn_spec_fig = create_empty_plot("No summary data")
+        else:
+            attn_spec_fig = create_empty_plot("Run analysis first")
     else:
         freq_fig = create_empty_plot("Run analysis first")
         activation_fig = create_empty_plot("Run analysis first")
         clusters_fig = create_empty_plot("Run analysis first")
+        spec_traj_fig = create_empty_plot("Run analysis first")
+        spec_freq_fig = create_empty_plot("Run analysis first")
+        attention_fig = create_empty_plot("Run analysis first")
+        attn_freq_fig = create_empty_plot("Run analysis first")
+        attn_spec_fig = create_empty_plot("Run analysis first")
 
-    return loss_fig, freq_fig, activation_fig, clusters_fig
+    return (
+        loss_fig,
+        freq_fig,
+        activation_fig,
+        clusters_fig,
+        spec_traj_fig,
+        spec_freq_fig,
+        attention_fig,
+        attn_freq_fig,
+        attn_spec_fig,
+    )
 
 
 def format_epoch_display(epoch: int, index: int) -> str:
@@ -533,7 +629,19 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
     epoch = state.get_current_epoch()
 
     epoch_display = format_epoch_display(epoch, int(epoch_idx))
-    return plots[0], plots[1], plots[2], plots[3], epoch_display, state
+    return (
+        plots[0],
+        plots[1],
+        plots[2],
+        plots[3],
+        plots[4],
+        plots[5],
+        plots[6],
+        plots[7],
+        plots[8],
+        epoch_display,
+        state,
+    )
 
 
 def update_activation_only(epoch_idx: int | None, neuron_idx: int | None, state: DashboardState):
@@ -559,6 +667,40 @@ def update_activation_only(epoch_idx: int | None, neuron_idx: int | None, state:
                 epoch_data,
                 epoch=epoch,
                 neuron_idx=int(neuron_idx),
+            )
+        except FileNotFoundError:
+            fig = create_empty_plot("No data for this epoch")
+    else:
+        fig = create_empty_plot("Run analysis first")
+
+    return fig, state
+
+
+def update_attention_only(position_pair: str | None, epoch_idx: int | None, state: DashboardState):
+    """Update only the attention plot when position pair changes (REQ_025)."""
+    if epoch_idx is None:
+        epoch_idx = state.current_epoch_idx
+
+    if position_pair:
+        parts = position_pair.split(",")
+        if len(parts) == 2:
+            state.selected_to_position = int(parts[0])
+            state.selected_from_position = int(parts[1])
+
+    if (
+        state.artifacts_dir
+        and "attention_patterns" in state.available_analyzers
+        and state.available_epochs
+    ):
+        try:
+            epoch = state.get_current_epoch()
+            loader = ArtifactLoader(state.artifacts_dir)
+            epoch_data = loader.load_epoch("attention_patterns", epoch)
+            fig = render_attention_heads(
+                epoch_data,
+                epoch=epoch,
+                to_position=state.selected_to_position,
+                from_position=state.selected_from_position,
             )
         except FileNotFoundError:
             fig = create_empty_plot("No data for this epoch")
@@ -718,6 +860,7 @@ def create_app() -> gr.Blocks:
                         variant_dropdown = gr.Dropdown(
                             label="Select Variant",
                             choices=initial_variant_choices,
+                            value=None,
                             interactive=True,
                         )
                     with gr.Column(scale=1):
@@ -762,6 +905,35 @@ def create_app() -> gr.Blocks:
 
                 clusters_plot = gr.Plot(label="Neuron Frequency Clusters")
 
+                # Neuron Specialization (REQ_027)
+                gr.Markdown("### Neuron Frequency Specialization")
+                with gr.Row():
+                    spec_traj_plot = gr.Plot(label="Neuron Specialization Trajectory")
+                    spec_freq_plot = gr.Plot(label="Specialization by Frequency")
+
+                # Attention Patterns (REQ_025)
+                gr.Markdown("### Attention Patterns")
+                position_pair_dropdown = gr.Dropdown(
+                    label="Attention Relationship",
+                    choices=[
+                        ("= attending to a", "2,0"),
+                        ("= attending to b", "2,1"),
+                        ("b attending to a", "1,0"),
+                        ("b attending to b", "1,1"),
+                        ("a attending to a", "0,0"),
+                        ("a attending to b", "0,1"),
+                    ],
+                    value="2,0",
+                    interactive=True,
+                )
+                attention_plot = gr.Plot(label="Attention Head Patterns")
+
+                # Attention Frequency Specialization (REQ_026)
+                gr.Markdown("### Attention Head Frequency Specialization")
+                with gr.Row():
+                    attn_freq_plot = gr.Plot(label="Attention Head Frequency Decomposition")
+                    attn_spec_plot = gr.Plot(label="Head Specialization Trajectory")
+
                 # ============================================================
                 # Event Handlers (REQ_021d)
                 # ============================================================
@@ -784,6 +956,11 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
+                        spec_traj_plot,
+                        spec_freq_plot,
+                        attention_plot,
+                        attn_freq_plot,
+                        attn_spec_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -812,6 +989,11 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
+                        spec_traj_plot,
+                        spec_freq_plot,
+                        attention_plot,
+                        attn_freq_plot,
+                        attn_spec_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -827,6 +1009,11 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
+                        spec_traj_plot,
+                        spec_freq_plot,
+                        attention_plot,
+                        attn_freq_plot,
+                        attn_spec_plot,
                         epoch_display,
                         state,
                     ],
@@ -837,6 +1024,13 @@ def create_app() -> gr.Blocks:
                     fn=update_activation_only,
                     inputs=[epoch_slider, neuron_slider, state],
                     outputs=[activation_plot, state],
+                )
+
+                # Position pair selector (only updates attention plot, REQ_025)
+                position_pair_dropdown.change(
+                    fn=update_attention_only,
+                    inputs=[position_pair_dropdown, epoch_slider, state],
+                    outputs=[attention_plot, state],
                 )
 
         # Note: Variants are now initialized at creation time (fixes BUG_004)

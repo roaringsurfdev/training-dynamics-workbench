@@ -31,6 +31,23 @@ def extract_mlp_activations(
     return mlp_acts[:, position, :]
 
 
+def extract_attention_patterns(
+    cache: ActivationCache,
+    layer: int = 0,
+) -> torch.Tensor:
+    """Extract attention patterns from cache.
+
+    Args:
+        cache: Activation cache from model.run_with_cache()
+        layer: Which transformer layer to extract from (default: 0)
+
+    Returns:
+        Tensor of shape (batch, n_heads, seq_to, seq_from)
+        containing attention weights (softmax outputs).
+    """
+    return cache["pattern", layer]
+
+
 def reshape_to_grid(activations: torch.Tensor, grid_size: int) -> torch.Tensor:
     """Reshape flat batch of activations to 2D grid.
 
