@@ -226,7 +226,7 @@ class TestRenderSpecializationTrajectory:
         from visualization import render_specialization_trajectory
 
         fig = render_specialization_trajectory(summary_data, current_epoch=500)
-        names = {t.name for t in fig.data if isinstance(t, go.Scatter)}
+        names = [t.name for t in fig.data if isinstance(t, go.Scatter)]
         assert "Total" in names
         assert "Low freq" in names
         assert "Mid freq" in names

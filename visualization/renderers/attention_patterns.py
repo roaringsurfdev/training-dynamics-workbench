@@ -103,13 +103,8 @@ def render_attention_heads(
     for i in range(n_heads):
         row = i // cols + 1
         col = i % cols + 1
-        axis_suffix = "" if i == 0 else str(i + 1)
-        fig.update_layout(
-            **{
-                f"xaxis{axis_suffix}": dict(title="b" if row == rows else None),
-                f"yaxis{axis_suffix}": dict(title="a" if col == 1 else None),
-            }
-        )
+        fig.update_xaxes(title_text="b" if row == rows else None, row=row, col=col)
+        fig.update_yaxes(title_text="a" if col == 1 else None, row=row, col=col)
 
     return fig
 
