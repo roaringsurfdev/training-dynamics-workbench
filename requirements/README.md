@@ -14,25 +14,25 @@ requirements/
     ├── v0.1.0-mvp/     # MVP milestone
     ├── v0.1.1-cuda/    # CUDA support
     ├── v0.1.2-quality/ # Code quality (ruff, pyright, deps)
-    └── *.md            # v0.2.0 requirements (REQ_020, REQ_021*)
+    ├── v0.2.0-foundations/ # Model Family abstraction, per-epoch artifacts
+    └── v0.2.1-coarseness/  # Summary statistics, coarseness analysis & visualization
 ```
 
 ## Current Status
 
-**Latest Version:** 0.2.0 (First Foundational Release)
+**Latest Version:** 0.2.1 (Coarseness Analysis)
 
 ### Active Requirements
 
-| Requirement | Description |
-|-------------|-------------|
-| [REQ_022](active/REQ_022_family_summary_statistics.md) | Family-specific summary statistics infrastructure |
+None — all current requirements are complete.
 
 ### Drafts
 
 | Document | Description |
 |----------|-------------|
-| [coarseness_analysis_recommendations](drafts/coarseness_analysis_recommendations.md) | Coarseness metric analyses for grokking research |
-| [general](drafts/general.md) | Assorted requirement ideas (summary stats, parallelization, attention heads, UI) |
+| [analysis](drafts/analysis.md) | Attention head visualizations, neuron specialization statistics |
+| [general](drafts/general.md) | Parallelization |
+| [ui](drafts/ui.md) | Variant dropdown improvements |
 
 ### Future Requirements
 
@@ -49,7 +49,8 @@ Requirements that have been documented but are not yet scheduled for implementat
 
 | Version | Name | Date | Requirements |
 |---------|------|------|--------------|
-| [0.2.0](archive/) | First Foundational Release | 2026-02-06 | REQ_020, REQ_021 (a–f) |
+| [0.2.1](archive/v0.2.1-coarseness/) | Coarseness Analysis | 2026-02-08 | REQ_022, REQ_023, REQ_024 |
+| [0.2.0](archive/v0.2.0-foundations/) | First Foundational Release | 2026-02-06 | REQ_020, REQ_021 (a–f) |
 | [0.1.2](archive/v0.1.2-quality/) | Quality | — | REQ_011, REQ_012, REQ_013 |
 | [0.1.1](archive/v0.1.1-cuda/) | CUDA | — | REQ_016, REQ_018 |
 | [0.1.0](archive/v0.1.0-mvp/MILESTONE_SUMMARY.md) | MVP | 2026-02-01 | REQ_001 through REQ_010 |

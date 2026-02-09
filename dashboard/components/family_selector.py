@@ -47,6 +47,9 @@ def get_variant_choices(registry: FamilyRegistry, family_name: str | None) -> li
         display_name = f"{state_indicator} {params_str} [{variant.state.value}]"
         choices.append((display_name, variant.name))
 
+    # Sort alphabetically by variant name
+    choices.sort(key=lambda c: c[1])
+
     return choices
 
 
@@ -108,6 +111,9 @@ def get_variant_table_data(registry: FamilyRegistry, family_name: str | None) ->
         actions = get_available_actions(variant)
 
         rows.append([params_str, state_str, actions, variant.name])
+
+    # Sort alphabetically by variant name
+    rows.sort(key=lambda r: r[3])
 
     return rows
 

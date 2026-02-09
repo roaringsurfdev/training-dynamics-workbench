@@ -5,6 +5,114 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-08
+
+### Added
+
+- **Attention Head Pattern Visualization** (REQ_025)
+  - New `AttentionPatternsAnalyzer` extracts full attention pattern tensor per checkpoint
+  - 2x2 grid renderer showing all 4 attention heads as heatmaps
+  - Position pair dropdown: view different attention relationships (e.g., `= attending to a`)
+  - `extract_attention_patterns()` library function
+
+- **Attention Head Frequency Specialization** (REQ_026)
+  - New `AttentionFreqAnalyzer` computes Fourier frequency decomposition of attention patterns
+  - Per-epoch frequency heatmap (frequencies x heads)
+  - Cross-epoch specialization trajectory (one line per head)
+  - Cross-epoch dominant frequency step plot
+  - Summary statistics: dominant frequency, max fraction, mean specialization per head
+
+- **Neuron Frequency Specialization Summary Statistics** (REQ_027)
+  - Extended `NeuronFreqClustersAnalyzer` with `get_summary_keys()` and `compute_summary()`
+  - Tracks specialized neuron counts per frequency with configurable threshold (default 0.9)
+  - Low/mid/high frequency range bucket counts
+  - Cross-epoch specialization trajectory renderer (total + low/mid/high lines)
+  - Per-frequency specialization heatmap renderer (frequencies x epochs)
+
+### Fixed
+
+- **Variant dropdown UX** (REQ_028)
+  - Variants now sorted alphabetically in dropdown and table
+  - Default selection is `None` instead of first variant, so users can select the first item directly
+- **Attention plot clipping** — full-width layout for attention head visualization
+
+### References
+
+- Archived requirements: `requirements/archive/v0.3.0-attention-specialization/`
+- Milestone summary: `requirements/archive/v0.3.0-attention-specialization/MILESTONE_SUMMARY.md`
+
+## [0.2.1] - 2026-02-08
+
+### Added
+
+- **Family-Specific Summary Statistics** (REQ_022)
+  - Optional `get_summary_keys()` and `compute_summary()` methods on Analyzer protocol
+  - Pipeline collects summary statistics inline and writes single `summary.npz` per analyzer
+  - ArtifactLoader `load_summary()` and `has_summary()` for cross-epoch data access
+  - Gap-filling support for incremental summary updates
+
+- **Coarseness Analyzer** (REQ_023)
+  - New `CoarsenessAnalyzer` quantifies blob vs plaid neuron patterns
+  - Per-epoch artifact: per-neuron coarseness values `(d_mlp,)`
+  - Summary statistics: mean, std, median, percentiles, blob count, histogram
+  - Library function: `compute_neuron_coarseness()` in `analysis/library/fourier.py`
+  - Registered for Modulo Addition 1-Layer family
+
+- **Coarseness Visualizations** (REQ_024)
+  - Coarseness trajectory line plot with percentile band and epoch indicator
+  - Per-epoch coarseness distribution histogram with blob/plaid/transitional coloring
+  - Blob count trajectory renderer (notebook-focused)
+  - Per-neuron coarseness bar chart (notebook-focused)
+  - Conditional dashboard panels: appear only when coarseness artifacts exist
+  - All eight trained variants analyzed with coarseness data
+
+### References
+
+- Archived requirements: `requirements/archive/v0.2.1-coarseness/`
+- Milestone summary: `requirements/archive/v0.2.1-coarseness/MILESTONE_SUMMARY.md`
+
+## [0.2.0] - 2026-02-06
+
+### Added
+
+- **Model Family Abstraction** (REQ_021)
+  - `ModelFamily` protocol with `Variant`, `FamilyRegistry`, `ArchitectureSpec`
+  - JSON-driven family definitions in `model_families/`
+  - Generic analysis library (`analysis/library/`) + family-bound analyzers (`analysis/analyzers/`)
+  - Modulo Addition 1-Layer family implementation with five trained variants
+
+- **Per-Epoch Artifact Storage** (REQ_021f)
+  - Artifacts stored as `epoch_{NNNNN}.npz` per (analyzer, epoch) — eliminates memory exhaustion
+  - `ArtifactLoader` with on-demand `load_epoch()`, stacked `load_epochs()`, and discovery methods
+  - Dashboard loads single epochs per slider interaction
+
+- **Dashboard Integration** (REQ_021d, REQ_021e)
+  - Family-aware Analysis tab with variant selection
+  - Training tab with family selection and domain parameter inputs
+  - Dynamic visualization tabs generated from family configuration
+
+- **Checkpoint Epoch-Index Display** (REQ_020)
+  - Checkpoint markers on loss curve show "Epoch: X (Index: Y)" in tooltip
+  - Current Epoch display shows "Epoch X (Index Y)" near slider
+
+### Architecture
+
+```
+model_families/          # Family definitions (family.json)
+families/                # Protocols, registry, implementations
+analysis/
+  library/               # Generic analysis functions (Fourier, activations)
+  analyzers/             # Family-bound analyzers
+  pipeline.py            # Per-epoch artifact persistence
+  artifact_loader.py     # On-demand loading
+results/                 # Per-variant checkpoints + artifacts
+```
+
+### References
+
+- Archived requirements: `requirements/archive/v0.2.0-foundations/`
+- Milestone summary: `requirements/archive/v0.2.0-foundations/MILESTONE_SUMMARY.md`
+
 ## [0.1.3] - 2026-02-03
 
 ### Added
