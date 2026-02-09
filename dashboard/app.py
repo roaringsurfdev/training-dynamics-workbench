@@ -860,6 +860,7 @@ def create_app() -> gr.Blocks:
                         variant_dropdown = gr.Dropdown(
                             label="Select Variant",
                             choices=initial_variant_choices,
+                            value=None,
                             interactive=True,
                         )
                     with gr.Column(scale=1):
