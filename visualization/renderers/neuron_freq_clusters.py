@@ -241,3 +241,190 @@ def get_neuron_specialization(
     fraction = float(neuron_data[dominant_freq_idx])
 
     return (dominant_freq_idx + 1, fraction)  # 1-indexed frequency
+
+
+def render_specialization_trajectory(
+    summary_data: dict[str, np.ndarray],
+    current_epoch: int,
+    title: str | None = None,
+    height: int = 300,
+) -> go.Figure:
+    """Render specialized neuron counts over training.
+
+    Shows total, low-, mid-, and high-frequency specialized neuron counts
+    as separate lines, with a vertical indicator at the current epoch.
+
+    Args:
+        summary_data: Dict from ArtifactLoader.load_summary("neuron_freq_norm"),
+            containing 'epochs', 'specialized_count_total',
+            'specialized_count_low', 'specialized_count_mid',
+            'specialized_count_high' arrays.
+        current_epoch: Current epoch for vertical indicator line.
+        title: Custom title.
+        height: Figure height in pixels.
+
+    Returns:
+        Plotly Figure with line traces and epoch indicator.
+    """
+    epochs = summary_data["epochs"]
+    total = summary_data["specialized_count_total"]
+    low = summary_data["specialized_count_low"]
+    mid = summary_data["specialized_count_mid"]
+    high = summary_data["specialized_count_high"]
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=epochs,
+            y=total,
+            mode="lines",
+            name="Total",
+            line=dict(color="rgba(31, 119, 180, 1.0)", width=2.5),
+            hovertemplate="Epoch %{x}<br>Total Specialized: %{y:.0f}<extra></extra>",
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=epochs,
+            y=low,
+            mode="lines",
+            name="Low freq",
+            line=dict(color="rgba(44, 160, 44, 1.0)", width=1.5),
+            hovertemplate="Epoch %{x}<br>Low Freq: %{y:.0f}<extra></extra>",
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=epochs,
+            y=mid,
+            mode="lines",
+            name="Mid freq",
+            line=dict(color="rgba(255, 127, 14, 1.0)", width=1.5),
+            hovertemplate="Epoch %{x}<br>Mid Freq: %{y:.0f}<extra></extra>",
+        )
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=epochs,
+            y=high,
+            mode="lines",
+            name="High freq",
+            line=dict(color="rgba(214, 39, 40, 1.0)", width=1.5),
+            hovertemplate="Epoch %{x}<br>High Freq: %{y:.0f}<extra></extra>",
+        )
+    )
+
+    # Vertical epoch indicator
+    fig.add_vline(
+        x=current_epoch,
+        line_dash="solid",
+        line_color="red",
+        line_width=2,
+        annotation_text=f"Epoch {current_epoch}",
+        annotation_position="top right",
+        annotation_font_color="red",
+    )
+
+    if title is None:
+        title = "Neuron Specialization Over Training"
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Epoch",
+        yaxis_title="Specialized Neuron Count",
+        hovermode="x unified",
+        template="plotly_white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=height,
+        margin=dict(l=60, r=20, t=50, b=50),
+    )
+
+    return fig
+
+
+def render_specialization_by_frequency(
+    summary_data: dict[str, np.ndarray],
+    current_epoch: int | None = None,
+    title: str | None = None,
+    colorscale: str = "YlOrRd",
+    height: int = 400,
+    width: int = 900,
+) -> go.Figure:
+    """Render per-frequency specialized neuron counts over training as a heatmap.
+
+    Shows how many neurons are specialized in each frequency at each epoch,
+    revealing which frequencies gain specialists first during grokking.
+
+    Args:
+        summary_data: Dict from ArtifactLoader.load_summary("neuron_freq_norm"),
+            containing 'epochs' and 'specialized_count_per_freq' arrays.
+        current_epoch: Optional current epoch for vertical indicator.
+        title: Custom title.
+        colorscale: Plotly colorscale name.
+        height: Figure height in pixels.
+        width: Figure width in pixels.
+
+    Returns:
+        Plotly Figure with heatmap (frequencies × epochs).
+    """
+    epochs = summary_data["epochs"]
+    # Shape: (n_epochs, n_freq) — transpose to (n_freq, n_epochs) for Y=freq, X=epoch
+    per_freq = summary_data["specialized_count_per_freq"]
+    data = per_freq.T  # (n_freq, n_epochs)
+    n_freq = data.shape[0]
+
+    freq_labels = [str(i + 1) for i in range(n_freq)]
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Heatmap(
+            z=data,
+            x=epochs,
+            y=list(range(n_freq)),
+            colorscale=colorscale,
+            hovertemplate=(
+                "Epoch %{x}<br>Freq %{customdata}<br>Specialized: %{z:.0f}<extra></extra>"
+            ),
+            customdata=[[i + 1 for _ in range(len(epochs))] for i in range(n_freq)],
+            colorbar=dict(
+                title=dict(text="Count", side="right"),
+                thickness=15,
+                len=0.9,
+            ),
+        )
+    )
+
+    if current_epoch is not None:
+        fig.add_vline(
+            x=current_epoch,
+            line_dash="solid",
+            line_color="red",
+            line_width=2,
+            annotation_text=f"Epoch {current_epoch}",
+            annotation_position="top right",
+            annotation_font_color="red",
+        )
+
+    if title is None:
+        title = "Specialized Neurons by Frequency Over Training"
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Epoch",
+        yaxis_title="Frequency",
+        yaxis=dict(
+            tickvals=list(range(n_freq)),
+            ticktext=freq_labels,
+        ),
+        height=height,
+        width=width,
+        template="plotly_white",
+        margin=dict(l=60, r=80, t=50, b=50),
+    )
+
+    return fig

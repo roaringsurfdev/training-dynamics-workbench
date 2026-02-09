@@ -9,6 +9,7 @@ REQ_021e: Training integration with Model Families
 REQ_021f: Per-epoch artifact loading
 REQ_025: Attention head pattern visualization
 REQ_026: Attention head frequency specialization
+REQ_027: Neuron frequency specialization summary statistics
 """
 
 import json
@@ -41,6 +42,8 @@ from visualization import (
     render_dominant_frequencies,
     render_freq_clusters,
     render_neuron_heatmap,
+    render_specialization_by_frequency,
+    render_specialization_trajectory,
 )
 
 
@@ -294,6 +297,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -318,6 +323,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
@@ -393,9 +400,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[1],  # freq
         plots[2],  # activation
         plots[3],  # clusters
-        plots[4],  # attention (REQ_025)
-        plots[5],  # attention freq heatmap (REQ_026)
-        plots[6],  # attention specialization trajectory (REQ_026)
+        plots[4],  # neuron specialization trajectory (REQ_027)
+        plots[5],  # specialization by frequency (REQ_027)
+        plots[6],  # attention (REQ_025)
+        plots[7],  # attention freq heatmap (REQ_026)
+        plots[8],  # attention specialization trajectory (REQ_026)
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -525,6 +534,23 @@ def generate_all_plots(state: DashboardState):
         else:
             clusters_fig = create_empty_plot("Run analysis first")
 
+        # Neuron specialization trajectory (REQ_027, cross-epoch)
+        if "neuron_freq_norm" in state.available_analyzers and loader.has_summary(
+            "neuron_freq_norm"
+        ):
+            try:
+                summary_data = loader.load_summary("neuron_freq_norm")
+                spec_traj_fig = render_specialization_trajectory(summary_data, current_epoch=epoch)
+                spec_freq_fig = render_specialization_by_frequency(
+                    summary_data, current_epoch=epoch
+                )
+            except FileNotFoundError:
+                spec_traj_fig = create_empty_plot("No summary data")
+                spec_freq_fig = create_empty_plot("No summary data")
+        else:
+            spec_traj_fig = create_empty_plot("Run analysis first")
+            spec_freq_fig = create_empty_plot("Run analysis first")
+
         # Attention patterns (REQ_025)
         if "attention_patterns" in state.available_analyzers:
             try:
@@ -565,6 +591,8 @@ def generate_all_plots(state: DashboardState):
         freq_fig = create_empty_plot("Run analysis first")
         activation_fig = create_empty_plot("Run analysis first")
         clusters_fig = create_empty_plot("Run analysis first")
+        spec_traj_fig = create_empty_plot("Run analysis first")
+        spec_freq_fig = create_empty_plot("Run analysis first")
         attention_fig = create_empty_plot("Run analysis first")
         attn_freq_fig = create_empty_plot("Run analysis first")
         attn_spec_fig = create_empty_plot("Run analysis first")
@@ -574,6 +602,8 @@ def generate_all_plots(state: DashboardState):
         freq_fig,
         activation_fig,
         clusters_fig,
+        spec_traj_fig,
+        spec_freq_fig,
         attention_fig,
         attn_freq_fig,
         attn_spec_fig,
@@ -607,6 +637,8 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
         plots[4],
         plots[5],
         plots[6],
+        plots[7],
+        plots[8],
         epoch_display,
         state,
     )
@@ -872,6 +904,12 @@ def create_app() -> gr.Blocks:
 
                 clusters_plot = gr.Plot(label="Neuron Frequency Clusters")
 
+                # Neuron Specialization (REQ_027)
+                gr.Markdown("### Neuron Frequency Specialization")
+                with gr.Row():
+                    spec_traj_plot = gr.Plot(label="Neuron Specialization Trajectory")
+                    spec_freq_plot = gr.Plot(label="Specialization by Frequency")
+
                 # Attention Patterns (REQ_025)
                 gr.Markdown("### Attention Patterns")
                 position_pair_dropdown = gr.Dropdown(
@@ -917,6 +955,8 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
+                        spec_traj_plot,
+                        spec_freq_plot,
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
@@ -948,6 +988,8 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
+                        spec_traj_plot,
+                        spec_freq_plot,
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
@@ -966,6 +1008,8 @@ def create_app() -> gr.Blocks:
                         freq_plot,
                         activation_plot,
                         clusters_plot,
+                        spec_traj_plot,
+                        spec_freq_plot,
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,

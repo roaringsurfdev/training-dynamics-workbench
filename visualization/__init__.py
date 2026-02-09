@@ -50,6 +50,8 @@ from visualization.renderers.neuron_freq_clusters import (
     get_specialized_neurons,
     render_freq_clusters,
     render_freq_clusters_comparison,
+    render_specialization_by_frequency,
+    render_specialization_trajectory,
 )
 
 __all__ = [
@@ -70,6 +72,9 @@ __all__ = [
     "render_freq_clusters_comparison",
     "get_specialized_neurons",
     "get_neuron_specialization",
+    # REQ_027: Neuron specialization summary
+    "render_specialization_trajectory",
+    "render_specialization_by_frequency",
     # REQ_026: Attention frequency specialization
     "render_attention_freq_heatmap",
     "render_attention_specialization_trajectory",

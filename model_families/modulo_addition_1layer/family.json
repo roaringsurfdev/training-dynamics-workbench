@@ -45,6 +45,8 @@
     "neuron_activation_heatmap",
     "neuron_activation_grid",
     "frequency_clusters_heatmap",
+    "specialization_trajectory",
+    "specialization_by_frequency",
     "coarseness_trajectory",
     "coarseness_distribution"
   ],
