@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-08
+
+### Added
+
+- **Attention Head Pattern Visualization** (REQ_025)
+  - New `AttentionPatternsAnalyzer` extracts full attention pattern tensor per checkpoint
+  - 2x2 grid renderer showing all 4 attention heads as heatmaps
+  - Position pair dropdown: view different attention relationships (e.g., `= attending to a`)
+  - `extract_attention_patterns()` library function
+
+- **Attention Head Frequency Specialization** (REQ_026)
+  - New `AttentionFreqAnalyzer` computes Fourier frequency decomposition of attention patterns
+  - Per-epoch frequency heatmap (frequencies x heads)
+  - Cross-epoch specialization trajectory (one line per head)
+  - Cross-epoch dominant frequency step plot
+  - Summary statistics: dominant frequency, max fraction, mean specialization per head
+
+- **Neuron Frequency Specialization Summary Statistics** (REQ_027)
+  - Extended `NeuronFreqClustersAnalyzer` with `get_summary_keys()` and `compute_summary()`
+  - Tracks specialized neuron counts per frequency with configurable threshold (default 0.9)
+  - Low/mid/high frequency range bucket counts
+  - Cross-epoch specialization trajectory renderer (total + low/mid/high lines)
+  - Per-frequency specialization heatmap renderer (frequencies x epochs)
+
+### Fixed
+
+- **Variant dropdown UX** (REQ_028)
+  - Variants now sorted alphabetically in dropdown and table
+  - Default selection is `None` instead of first variant, so users can select the first item directly
+- **Attention plot clipping** — full-width layout for attention head visualization
+
+### References
+
+- Archived requirements: `requirements/archive/v0.3.0-attention-specialization/`
+- Milestone summary: `requirements/archive/v0.3.0-attention-specialization/MILESTONE_SUMMARY.md`
+
 ## [0.2.1] - 2026-02-08
 
 ### Added

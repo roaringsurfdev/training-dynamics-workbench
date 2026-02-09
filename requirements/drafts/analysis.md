@@ -18,6 +18,14 @@ It may also be useful to see how many neurons have locked into frequencies in lo
 I would really love to see how many neurons change frequency (and maybe even which ones).
 
 REQ_???
+### Summary: Recompute summary statistics from existing artifacts
+When an analyzer gains new `compute_summary()` / `get_summary_keys()` methods (e.g., REQ_027 added summary stats to `NeuronFreqClustersAnalyzer`), the pipeline skips epochs that already have artifact files. This means summary.npz is never generated for previously-analyzed variants.
+
+**Workaround**: Delete the analyzer's artifact directory and re-run analysis.
+
+**Desired behavior**: A "recompute summaries" mode that reads existing per-epoch `.npz` artifacts and calls `compute_summary()` on each, without re-running the full analysis (model loading, forward pass, etc.). This should be accessible from both the CLI and the dashboard "Run Analysis" button.
+
+REQ_???
 ### Summary
 Add Attention Head visualization from original Nanda notebook.
 
