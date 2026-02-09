@@ -18,6 +18,10 @@ Usage:
 """
 
 from visualization.line_plot import line
+from visualization.renderers.attention_patterns import (
+    render_attention_heads,
+    render_attention_single_head,
+)
 from visualization.renderers.coarseness import (
     render_blob_count_trajectory,
     render_coarseness_by_neuron,
@@ -61,6 +65,9 @@ __all__ = [
     "render_freq_clusters_comparison",
     "get_specialized_neurons",
     "get_neuron_specialization",
+    # REQ_025: Attention patterns
+    "render_attention_heads",
+    "render_attention_single_head",
     # REQ_024: Coarseness
     "render_coarseness_trajectory",
     "render_coarseness_distribution",

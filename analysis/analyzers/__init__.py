@@ -5,6 +5,7 @@ Each analyzer implements the Analyzer protocol and can be registered
 with the AnalyzerRegistry for discovery.
 """
 
+from analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
 from analysis.analyzers.coarseness import CoarsenessAnalyzer
 from analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
 from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
@@ -13,6 +14,7 @@ from analysis.analyzers.registry import AnalyzerRegistry
 
 __all__ = [
     "AnalyzerRegistry",
+    "AttentionPatternsAnalyzer",
     "CoarsenessAnalyzer",
     "DominantFrequenciesAnalyzer",
     "NeuronActivationsAnalyzer",

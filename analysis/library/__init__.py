@@ -10,6 +10,7 @@ Modules:
 
 from analysis.library.activations import (
     compute_grid_size_from_dataset,
+    extract_attention_patterns,
     extract_mlp_activations,
     get_embedding_weights,
     reshape_to_grid,
@@ -33,6 +34,7 @@ __all__ = [
     "compute_frequency_variance_fractions",
     "compute_neuron_coarseness",
     # Activation functions
+    "extract_attention_patterns",
     "extract_mlp_activations",
     "reshape_to_grid",
     "get_embedding_weights",
