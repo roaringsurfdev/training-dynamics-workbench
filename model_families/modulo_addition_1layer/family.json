@@ -36,7 +36,8 @@
     "neuron_freq_norm",
     "coarseness",
     "parameter_snapshot",
-    "effective_dimensionality"
+    "effective_dimensionality",
+    "landscape_flatness"
   ],
 
   "visualizations": [
@@ -54,7 +55,9 @@
     "parameter_trajectory",
     "component_velocity",
     "dimensionality_trajectory",
-    "singular_value_spectrum"
+    "singular_value_spectrum",
+    "flatness_trajectory",
+    "perturbation_distribution"
   ],
 
   "analysis_dataset": {

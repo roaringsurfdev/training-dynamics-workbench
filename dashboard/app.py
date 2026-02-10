@@ -12,6 +12,7 @@ REQ_026: Attention head frequency specialization
 REQ_027: Neuron frequency specialization summary statistics
 REQ_029: Parameter space trajectory projections
 REQ_030: Weight matrix effective dimensionality
+REQ_031: Loss landscape flatness
 """
 
 import json
@@ -26,6 +27,7 @@ from analysis.analyzers import (
     AttentionPatternsAnalyzer,
     DominantFrequenciesAnalyzer,
     EffectiveDimensionalityAnalyzer,
+    LandscapeFlatnessAnalyzer,
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
     ParameterSnapshotAnalyzer,
@@ -41,15 +43,18 @@ from dashboard.utils import parse_checkpoint_epochs
 from dashboard.version import __version__
 from families import FamilyRegistry, TrainingResult
 from visualization import (
+    FLATNESS_METRICS,
     render_attention_freq_heatmap,
     render_attention_heads,
     render_attention_specialization_trajectory,
     render_component_velocity,
     render_dimensionality_trajectory,
     render_dominant_frequencies,
+    render_flatness_trajectory,
     render_freq_clusters,
     render_neuron_heatmap,
     render_parameter_trajectory,
+    render_perturbation_distribution,
     render_singular_value_spectrum,
     render_specialization_by_frequency,
     render_specialization_trajectory,
@@ -312,6 +317,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -336,6 +343,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
@@ -426,6 +435,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[10],  # component velocity (REQ_029)
         plots[11],  # dimensionality trajectory (REQ_030)
         plots[12],  # singular value spectrum (REQ_030)
+        plots[13],  # flatness trajectory (REQ_031)
+        plots[14],  # perturbation distribution (REQ_031)
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -477,6 +488,7 @@ def run_analysis_for_variant(
         pipeline.register(NeuronFreqClustersAnalyzer())
         pipeline.register(ParameterSnapshotAnalyzer())
         pipeline.register(EffectiveDimensionalityAnalyzer())
+        pipeline.register(LandscapeFlatnessAnalyzer())
         pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")
@@ -680,6 +692,36 @@ def generate_all_plots(state: DashboardState):
         dim_traj_fig = create_empty_plot("Run analysis first")
         sv_spectrum_fig = create_empty_plot("Run analysis first")
 
+    # Landscape flatness (REQ_031, cross-epoch + per-epoch)
+    if state.artifacts_dir and "landscape_flatness" in state.available_analyzers:
+        loader = ArtifactLoader(state.artifacts_dir)
+
+        # Flatness trajectory (from summary)
+        if loader.has_summary("landscape_flatness"):
+            try:
+                summary_data = loader.load_summary("landscape_flatness")
+                flatness_traj_fig = render_flatness_trajectory(
+                    summary_data,
+                    current_epoch=epoch,
+                    metric=state.selected_flatness_metric,
+                )
+            except FileNotFoundError:
+                flatness_traj_fig = create_empty_plot("No summary data")
+        else:
+            flatness_traj_fig = create_empty_plot("Run analysis first")
+
+        # Perturbation distribution (per-epoch)
+        try:
+            epoch_data = loader.load_epoch("landscape_flatness", epoch)
+            perturbation_fig = render_perturbation_distribution(
+                epoch_data, epoch=epoch
+            )
+        except FileNotFoundError:
+            perturbation_fig = create_empty_plot("No data for this epoch")
+    else:
+        flatness_traj_fig = create_empty_plot("Run analysis first")
+        perturbation_fig = create_empty_plot("Run analysis first")
+
     return (
         loss_fig,
         freq_fig,
@@ -694,6 +736,8 @@ def generate_all_plots(state: DashboardState):
         velocity_fig,
         dim_traj_fig,
         sv_spectrum_fig,
+        flatness_traj_fig,
+        perturbation_fig,
     )
 
 
@@ -730,6 +774,8 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
         plots[10],
         plots[11],
         plots[12],
+        plots[13],
+        plots[14],
         epoch_display,
         state,
     )
@@ -823,6 +869,35 @@ def update_spectrum_only(
     # Show/hide head selector based on whether current matrix is attention
     head_visible = state.selected_sv_matrix in ATTENTION_MATRICES
     return fig, gr.Slider(visible=head_visible), state
+
+
+def update_flatness_metric_only(metric: str | None, state: DashboardState):
+    """Update only the flatness trajectory when metric dropdown changes (REQ_031)."""
+    if metric:
+        state.selected_flatness_metric = metric
+
+    if (
+        state.artifacts_dir
+        and "landscape_flatness" in state.available_analyzers
+    ):
+        loader = ArtifactLoader(state.artifacts_dir)
+        if loader.has_summary("landscape_flatness"):
+            try:
+                summary_data = loader.load_summary("landscape_flatness")
+                epoch = state.get_current_epoch()
+                fig = render_flatness_trajectory(
+                    summary_data,
+                    current_epoch=epoch,
+                    metric=state.selected_flatness_metric,
+                )
+            except FileNotFoundError:
+                fig = create_empty_plot("No summary data")
+        else:
+            fig = create_empty_plot("Run analysis first")
+    else:
+        fig = create_empty_plot("Run analysis first")
+
+    return fig, state
 
 
 def update_attention_only(position_pair: str | None, epoch_idx: int | None, state: DashboardState):
@@ -1116,6 +1191,17 @@ def create_app() -> gr.Blocks:
                     )
                 sv_spectrum_plot = gr.Plot(label="Singular Value Spectrum")
 
+                # Loss Landscape Flatness (REQ_031)
+                gr.Markdown("### Loss Landscape Flatness")
+                flatness_metric_dropdown = gr.Dropdown(
+                    label="Flatness Metric",
+                    choices=[(v, k) for k, v in FLATNESS_METRICS.items()],
+                    value="mean_delta_loss",
+                    interactive=True,
+                )
+                flatness_traj_plot = gr.Plot(label="Flatness Trajectory")
+                perturbation_dist_plot = gr.Plot(label="Perturbation Distribution")
+
                 # ============================================================
                 # Event Handlers (REQ_021d)
                 # ============================================================
@@ -1147,6 +1233,8 @@ def create_app() -> gr.Blocks:
                         velocity_plot,
                         dim_traj_plot,
                         sv_spectrum_plot,
+                        flatness_traj_plot,
+                        perturbation_dist_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -1184,6 +1272,8 @@ def create_app() -> gr.Blocks:
                         velocity_plot,
                         dim_traj_plot,
                         sv_spectrum_plot,
+                        flatness_traj_plot,
+                        perturbation_dist_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -1208,6 +1298,8 @@ def create_app() -> gr.Blocks:
                         velocity_plot,
                         dim_traj_plot,
                         sv_spectrum_plot,
+                        flatness_traj_plot,
+                        perturbation_dist_plot,
                         epoch_display,
                         state,
                     ],
@@ -1244,6 +1336,13 @@ def create_app() -> gr.Blocks:
                     fn=update_spectrum_only,
                     inputs=[sv_matrix_dropdown, sv_head_slider, state],
                     outputs=[sv_spectrum_plot, sv_head_slider, state],
+                )
+
+                # Flatness metric selector (REQ_031)
+                flatness_metric_dropdown.change(
+                    fn=update_flatness_metric_only,
+                    inputs=[flatness_metric_dropdown, state],
+                    outputs=[flatness_traj_plot, state],
                 )
 
         # Note: Variants are now initialized at creation time (fixes BUG_004)

@@ -56,6 +56,9 @@ class DashboardState:
     selected_sv_matrix: str = "W_in"
     selected_sv_head: int = 0
 
+    # Landscape flatness metric selector (REQ_031)
+    selected_flatness_metric: str = "mean_delta_loss"
+
     # Cached parameter snapshots for trajectory rendering (REQ_029)
     # Unlike per-epoch artifacts, trajectory needs all epochs loaded at once.
     # Cached on first access per variant to avoid reloading on every slider change.

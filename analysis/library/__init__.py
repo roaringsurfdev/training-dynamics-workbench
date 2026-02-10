@@ -26,6 +26,7 @@ from analysis.library.fourier import (
     get_fourier_basis,
     project_onto_fourier_basis,
 )
+from analysis.library.landscape import compute_landscape_flatness
 from analysis.library.trajectory import (
     compute_parameter_velocity,
     compute_pca_trajectory,
@@ -64,4 +65,6 @@ __all__ = [
     "flatten_snapshot",
     "compute_pca_trajectory",
     "compute_parameter_velocity",
+    # Landscape flatness functions
+    "compute_landscape_flatness",
 ]

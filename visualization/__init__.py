@@ -57,6 +57,11 @@ from visualization.renderers.effective_dimensionality import (
     render_dimensionality_trajectory,
     render_singular_value_spectrum,
 )
+from visualization.renderers.landscape_flatness import (
+    FLATNESS_METRICS,
+    render_flatness_trajectory,
+    render_perturbation_distribution,
+)
 from visualization.renderers.parameter_trajectory import (
     render_component_velocity,
     render_explained_variance,
@@ -100,6 +105,10 @@ __all__ = [
     # REQ_030: Effective dimensionality
     "render_dimensionality_trajectory",
     "render_singular_value_spectrum",
+    # REQ_031: Landscape flatness
+    "render_flatness_trajectory",
+    "render_perturbation_distribution",
+    "FLATNESS_METRICS",
     # REQ_029: Parameter trajectory
     "render_parameter_trajectory",
     "render_explained_variance",
