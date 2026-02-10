@@ -232,6 +232,22 @@ class TestComputeParameterVelocity:
         velocity = compute_parameter_velocity(snapshots)
         np.testing.assert_array_almost_equal(velocity, [0.0, 0.0])
 
+    def test_normalized_by_epoch_gap(self):
+        """Velocity is divided by epoch gap when epochs are provided."""
+        snapshots = _make_snapshot_sequence(3)
+        raw = compute_parameter_velocity(snapshots)
+        # Non-uniform epochs: gaps of 10 and 100
+        normalized = compute_parameter_velocity(snapshots, epochs=[0, 10, 110])
+        np.testing.assert_allclose(normalized[0], raw[0] / 10)
+        np.testing.assert_allclose(normalized[1], raw[1] / 100)
+
+    def test_uniform_epochs_scale_evenly(self):
+        """Uniform epoch spacing scales all velocities equally."""
+        snapshots = _make_snapshot_sequence(3)
+        raw = compute_parameter_velocity(snapshots)
+        normalized = compute_parameter_velocity(snapshots, epochs=[0, 500, 1000])
+        np.testing.assert_allclose(normalized, raw / 500)
+
     def test_component_filter(self):
         """Component filter restricts which weights are compared."""
         snapshots = _make_snapshot_sequence(3)

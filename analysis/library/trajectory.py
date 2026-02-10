@@ -64,21 +64,34 @@ def compute_pca_trajectory(
 def compute_parameter_velocity(
     snapshots: list[dict[str, np.ndarray]],
     components: list[str] | None = None,
+    epochs: list[int] | None = None,
 ) -> np.ndarray:
-    """Compute L2 norm of parameter change between consecutive epochs.
+    """Compute parameter velocity between consecutive checkpoints.
+
+    When epochs are provided, velocity is normalized by the epoch gap
+    to give displacement per epoch. Without epochs, returns raw L2
+    displacement (which is distorted by non-uniform checkpoint spacing).
 
     Args:
         snapshots: List of per-epoch snapshot dicts, ordered by epoch.
         components: Weight matrix names to include. None = all.
+        epochs: Epoch numbers for each snapshot. When provided,
+            velocity is divided by the epoch gap between checkpoints.
 
     Returns:
-        1D array of length (n_epochs - 1). velocity[i] = ||theta_{i+1} - theta_i||
+        1D array of length (n_epochs - 1).
+        With epochs: velocity[i] = ||delta theta|| / (epoch_{i+1} - epoch_i)
+        Without epochs: velocity[i] = ||delta theta||
     """
     vectors = [flatten_snapshot(s, components) for s in snapshots]
 
     velocities = []
     for i in range(len(vectors) - 1):
         delta = vectors[i + 1] - vectors[i]
-        velocities.append(float(np.linalg.norm(delta)))
+        displacement = float(np.linalg.norm(delta))
+        if epochs is not None:
+            gap = epochs[i + 1] - epochs[i]
+            displacement = displacement / gap if gap > 0 else 0.0
+        velocities.append(displacement)
 
     return np.array(velocities)

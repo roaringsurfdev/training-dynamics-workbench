@@ -212,8 +212,7 @@ def render_parameter_velocity(
     Returns:
         Plotly Figure with velocity line plot.
     """
-    velocity = compute_parameter_velocity(snapshots, components)
-    # Velocity is between consecutive epochs; plot at midpoint epochs
+    velocity = compute_parameter_velocity(snapshots, components, epochs=epochs)
     velocity_epochs = epochs[1:]
 
     fig = go.Figure()
@@ -247,7 +246,7 @@ def render_parameter_velocity(
     fig.update_layout(
         title=title,
         xaxis_title="Epoch",
-        yaxis_title="||delta theta|| (L2)",
+        yaxis_title="||delta theta|| / epoch",
         template="plotly_white",
         height=height,
         margin=dict(l=60, r=20, t=50, b=50),
@@ -288,7 +287,7 @@ def render_component_velocity(
     fig = go.Figure()
 
     for group_name, group_components in COMPONENT_GROUPS.items():
-        velocity = compute_parameter_velocity(snapshots, group_components)
+        velocity = compute_parameter_velocity(snapshots, group_components, epochs=epochs)
         fig.add_trace(
             go.Scatter(
                 x=velocity_epochs,
@@ -321,7 +320,7 @@ def render_component_velocity(
     fig.update_layout(
         title=title,
         xaxis_title="Epoch",
-        yaxis_title="||delta theta|| (L2)",
+        yaxis_title="||delta theta|| / epoch",
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         height=height,
