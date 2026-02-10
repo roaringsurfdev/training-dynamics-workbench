@@ -39,6 +39,15 @@ from visualization.renderers.dominant_frequencies import (
     render_dominant_frequencies,
     render_dominant_frequencies_over_time,
 )
+from visualization.renderers.effective_dimensionality import (
+    render_dimensionality_trajectory,
+    render_singular_value_spectrum,
+)
+from visualization.renderers.landscape_flatness import (
+    FLATNESS_METRICS,
+    render_flatness_trajectory,
+    render_perturbation_distribution,
+)
 from visualization.renderers.neuron_activations import (
     get_most_active_neurons,
     render_neuron_across_epochs,
@@ -52,15 +61,6 @@ from visualization.renderers.neuron_freq_clusters import (
     render_freq_clusters_comparison,
     render_specialization_by_frequency,
     render_specialization_trajectory,
-)
-from visualization.renderers.effective_dimensionality import (
-    render_dimensionality_trajectory,
-    render_singular_value_spectrum,
-)
-from visualization.renderers.landscape_flatness import (
-    FLATNESS_METRICS,
-    render_flatness_trajectory,
-    render_perturbation_distribution,
 )
 from visualization.renderers.parameter_trajectory import (
     render_component_velocity,

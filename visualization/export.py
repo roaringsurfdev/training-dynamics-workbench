@@ -311,9 +311,7 @@ def export_variant_visualization(
     """
     if visualization not in _VISUALIZATION_REGISTRY:
         available = sorted(_VISUALIZATION_REGISTRY.keys())
-        raise ValueError(
-            f"Unknown visualization '{visualization}'. Available: {available}"
-        )
+        raise ValueError(f"Unknown visualization '{visualization}'. Available: {available}")
 
     variant_dir = Path(variant_dir)
     artifacts_dir = variant_dir / "artifacts"

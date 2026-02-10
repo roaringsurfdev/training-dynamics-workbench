@@ -38,8 +38,13 @@ def render_parameter_trajectory(
     if title is None:
         title = f"Parameter Trajectory ({component_label})"
     return _render_trajectory_2d(
-        pca_result, col_x=0, col_y=1, epochs=epochs,
-        current_epoch=current_epoch, title=title, height=height,
+        pca_result,
+        col_x=0,
+        col_y=1,
+        epochs=epochs,
+        current_epoch=current_epoch,
+        title=title,
+        height=height,
     )
 
 
@@ -57,8 +62,13 @@ def render_trajectory_pc1_pc3(
     if title is None:
         title = f"Parameter Trajectory PC1 vs PC3 ({component_label})"
     return _render_trajectory_2d(
-        pca_result, col_x=0, col_y=2, epochs=epochs,
-        current_epoch=current_epoch, title=title, height=height,
+        pca_result,
+        col_x=0,
+        col_y=2,
+        epochs=epochs,
+        current_epoch=current_epoch,
+        title=title,
+        height=height,
     )
 
 
@@ -76,8 +86,13 @@ def render_trajectory_pc2_pc3(
     if title is None:
         title = f"Parameter Trajectory PC2 vs PC3 ({component_label})"
     return _render_trajectory_2d(
-        pca_result, col_x=1, col_y=2, epochs=epochs,
-        current_epoch=current_epoch, title=title, height=height,
+        pca_result,
+        col_x=1,
+        col_y=2,
+        epochs=epochs,
+        current_epoch=current_epoch,
+        title=title,
+        height=height,
     )
 
 
@@ -202,7 +217,7 @@ def render_explained_variance(
     var_ratio = pca_result["explained_variance_ratio"]
     cumulative = np.cumsum(var_ratio)
 
-    pc_labels = [f"PC{i+1}" for i in range(len(var_ratio))]
+    pc_labels = [f"PC{i + 1}" for i in range(len(var_ratio))]
 
     fig = go.Figure()
 

@@ -660,9 +660,7 @@ def generate_all_plots(state: DashboardState):
         if loader.has_summary("effective_dimensionality"):
             try:
                 summary_data = loader.load_summary("effective_dimensionality")
-                dim_traj_fig = render_dimensionality_trajectory(
-                    summary_data, current_epoch=epoch
-                )
+                dim_traj_fig = render_dimensionality_trajectory(summary_data, current_epoch=epoch)
             except FileNotFoundError:
                 dim_traj_fig = create_empty_plot("No summary data")
         else:
@@ -672,9 +670,7 @@ def generate_all_plots(state: DashboardState):
         try:
             epoch_data = loader.load_epoch("effective_dimensionality", epoch)
             head_idx = (
-                state.selected_sv_head
-                if state.selected_sv_matrix in ATTENTION_MATRICES
-                else None
+                state.selected_sv_head if state.selected_sv_matrix in ATTENTION_MATRICES else None
             )
             sv_spectrum_fig = render_singular_value_spectrum(
                 epoch_data,
@@ -709,9 +705,7 @@ def generate_all_plots(state: DashboardState):
         # Perturbation distribution (per-epoch)
         try:
             epoch_data = loader.load_epoch("landscape_flatness", epoch)
-            perturbation_fig = render_perturbation_distribution(
-                epoch_data, epoch=epoch
-            )
+            perturbation_fig = render_perturbation_distribution(epoch_data, epoch=epoch)
         except FileNotFoundError:
             perturbation_fig = create_empty_plot("No data for this epoch")
     else:
@@ -826,12 +820,8 @@ def update_trajectory_only(group: str | None, state: DashboardState):
             snapshots, traj_epochs = trajectory_data
             epoch = state.get_current_epoch()
             components = _resolve_trajectory_components(state.selected_trajectory_group)
-            fig = render_parameter_trajectory(
-                snapshots, traj_epochs, epoch, components=components
-            )
-            fig_3d = render_trajectory_3d(
-                snapshots, traj_epochs, epoch, components=components
-            )
+            fig = render_parameter_trajectory(snapshots, traj_epochs, epoch, components=components)
+            fig_3d = render_trajectory_3d(snapshots, traj_epochs, epoch, components=components)
             fig_pc1_pc3 = render_trajectory_pc1_pc3(
                 snapshots, traj_epochs, epoch, components=components
             )
@@ -852,9 +842,7 @@ def update_trajectory_only(group: str | None, state: DashboardState):
     return fig, fig_3d, fig_pc1_pc3, fig_pc2_pc3, state
 
 
-def update_spectrum_only(
-    matrix_name: str | None, head_idx: int | None, state: DashboardState
-):
+def update_spectrum_only(matrix_name: str | None, head_idx: int | None, state: DashboardState):
     """Update only the SV spectrum plot when matrix or head changes (REQ_030)."""
     if matrix_name:
         state.selected_sv_matrix = matrix_name
@@ -870,11 +858,7 @@ def update_spectrum_only(
             epoch = state.get_current_epoch()
             loader = ArtifactLoader(state.artifacts_dir)
             epoch_data = loader.load_epoch("effective_dimensionality", epoch)
-            h = (
-                state.selected_sv_head
-                if state.selected_sv_matrix in ATTENTION_MATRICES
-                else None
-            )
+            h = state.selected_sv_head if state.selected_sv_matrix in ATTENTION_MATRICES else None
             fig = render_singular_value_spectrum(
                 epoch_data, epoch=epoch, matrix_name=state.selected_sv_matrix, head_idx=h
             )
@@ -893,10 +877,7 @@ def update_flatness_metric_only(metric: str | None, state: DashboardState):
     if metric:
         state.selected_flatness_metric = metric
 
-    if (
-        state.artifacts_dir
-        and "landscape_flatness" in state.available_analyzers
-    ):
+    if state.artifacts_dir and "landscape_flatness" in state.available_analyzers:
         loader = ArtifactLoader(state.artifacts_dir)
         if loader.has_summary("landscape_flatness"):
             try:

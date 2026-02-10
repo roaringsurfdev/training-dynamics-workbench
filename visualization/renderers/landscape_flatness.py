@@ -54,9 +54,7 @@ def render_flatness_trajectory(
                 name=metric_label,
                 line=dict(color="rgba(31, 119, 180, 1.0)", width=2),
                 hovertemplate=(
-                    f"{metric_label}<br>"
-                    "Epoch %{x}<br>"
-                    "Value: %{y:.4f}<extra></extra>"
+                    f"{metric_label}<br>Epoch %{{x}}<br>Value: %{{y:.4f}}<extra></extra>"
                 ),
             )
         )
@@ -74,11 +72,7 @@ def render_flatness_trajectory(
                     dash="dash",
                 ),
                 yaxis="y2",
-                hovertemplate=(
-                    "Baseline Loss<br>"
-                    "Epoch %{x}<br>"
-                    "Loss: %{y:.4f}<extra></extra>"
-                ),
+                hovertemplate=("Baseline Loss<br>Epoch %{x}<br>Loss: %{y:.4f}<extra></extra>"),
             )
         )
 
@@ -184,10 +178,7 @@ def render_perturbation_distribution(
     )
 
     if title is None:
-        title = (
-            f"Perturbation Distribution — Epoch {epoch}"
-            f" (Flatness Ratio: {flatness_ratio:.2f})"
-        )
+        title = f"Perturbation Distribution — Epoch {epoch} (Flatness Ratio: {flatness_ratio:.2f})"
 
     fig.update_layout(
         title=title,

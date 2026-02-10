@@ -60,10 +60,12 @@ class TestComputeParticipationRatio:
 
     def test_2d_input_returns_per_row(self):
         """2D input returns per-row participation ratios."""
-        sv = np.array([
-            [5.0, 0.0, 0.0, 0.0],  # rank-1 → PR = 1
-            [1.0, 1.0, 1.0, 1.0],  # equal  → PR = 4
-        ])
+        sv = np.array(
+            [
+                [5.0, 0.0, 0.0, 0.0],  # rank-1 → PR = 1
+                [1.0, 1.0, 1.0, 1.0],  # equal  → PR = 4
+            ]
+        )
         pr = compute_participation_ratio(sv)
         assert pr.shape == (2,)
         assert pr[0] == pytest.approx(1.0)
@@ -71,10 +73,12 @@ class TestComputeParticipationRatio:
 
     def test_2d_with_zero_row(self):
         """2D input with an all-zero row returns 0 for that row."""
-        sv = np.array([
-            [0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0],
-        ])
+        sv = np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 1.0, 1.0],
+            ]
+        )
         pr = compute_participation_ratio(sv)
         assert pr[0] == 0.0
         assert pr[1] == pytest.approx(3.0)
@@ -140,9 +144,7 @@ class TestComputeWeightSingularValues:
                 assert np.all(sv[:-1] >= sv[1:] - 1e-6), f"{key} not sorted"
             else:
                 for h in range(sv.shape[0]):
-                    assert np.all(
-                        sv[h, :-1] >= sv[h, 1:] - 1e-6
-                    ), f"{key} head {h} not sorted"
+                    assert np.all(sv[h, :-1] >= sv[h, 1:] - 1e-6), f"{key} head {h} not sorted"
 
     def test_non_attention_sv_count(self, model):
         """Non-attention SVs have count = min(rows, cols)."""
@@ -216,9 +218,7 @@ class TestRenderDimensionalityTrajectory:
             key = f"pr_{name}"
             if name in ATTENTION_MATRICES:
                 # Per-head: (n_epochs, n_heads)
-                data[key] = np.random.default_rng(42).uniform(
-                    1.0, 8.0, size=(5, 4)
-                )
+                data[key] = np.random.default_rng(42).uniform(1.0, 8.0, size=(5, 4))
             else:
                 data[key] = np.random.default_rng(42).uniform(1.0, 20.0, size=5)
         return data
@@ -247,17 +247,13 @@ class TestRenderDimensionalityTrajectory:
 
     def test_attention_shows_mean(self, summary_data):
         """Attention matrices show '(mean)' in legend."""
-        fig = render_dimensionality_trajectory(
-            summary_data, current_epoch=200, matrices=["W_Q"]
-        )
+        fig = render_dimensionality_trajectory(summary_data, current_epoch=200, matrices=["W_Q"])
         trace_names = [t.name for t in fig.data if isinstance(t, go.Scatter)]
         assert any("mean" in n for n in trace_names if n)
 
     def test_custom_title(self, summary_data):
         """Custom title is applied."""
-        fig = render_dimensionality_trajectory(
-            summary_data, current_epoch=200, title="Custom"
-        )
+        fig = render_dimensionality_trajectory(summary_data, current_epoch=200, title="Custom")
         assert fig.layout.title.text == "Custom"
 
 
@@ -272,13 +268,11 @@ class TestRenderSingularValueSpectrum:
             key = f"sv_{name}"
             if name in ATTENTION_MATRICES:
                 # (n_heads, d_head) singular values
-                data[key] = np.sort(
-                    np.random.default_rng(42).uniform(0.0, 5.0, size=(4, 8))
-                )[:, ::-1]
+                data[key] = np.sort(np.random.default_rng(42).uniform(0.0, 5.0, size=(4, 8)))[
+                    :, ::-1
+                ]
             else:
-                data[key] = np.sort(
-                    np.random.default_rng(42).uniform(0.0, 5.0, size=16)
-                )[::-1]
+                data[key] = np.sort(np.random.default_rng(42).uniform(0.0, 5.0, size=16))[::-1]
         return data
 
     def test_returns_figure(self, epoch_data):
@@ -293,16 +287,12 @@ class TestRenderSingularValueSpectrum:
 
     def test_attention_matrix_default_head(self, epoch_data):
         """Attention matrix uses head 0 by default."""
-        fig = render_singular_value_spectrum(
-            epoch_data, epoch=100, matrix_name="W_Q"
-        )
+        fig = render_singular_value_spectrum(epoch_data, epoch=100, matrix_name="W_Q")
         assert "Head 0" in fig.layout.title.text
 
     def test_attention_matrix_specific_head(self, epoch_data):
         """Specific head can be selected for attention matrices."""
-        fig = render_singular_value_spectrum(
-            epoch_data, epoch=100, matrix_name="W_Q", head_idx=2
-        )
+        fig = render_singular_value_spectrum(epoch_data, epoch=100, matrix_name="W_Q", head_idx=2)
         assert "Head 2" in fig.layout.title.text
 
     def test_pr_in_title(self, epoch_data):
@@ -312,18 +302,14 @@ class TestRenderSingularValueSpectrum:
 
     def test_bar_count_matches_sv_length(self, epoch_data):
         """Number of bars matches singular value count."""
-        fig = render_singular_value_spectrum(
-            epoch_data, epoch=100, matrix_name="W_in"
-        )
+        fig = render_singular_value_spectrum(epoch_data, epoch=100, matrix_name="W_in")
         bar_traces = [t for t in fig.data if isinstance(t, go.Bar)]
         assert len(bar_traces) == 1
         assert len(bar_traces[0].y) == len(epoch_data["sv_W_in"])
 
     def test_custom_title(self, epoch_data):
         """Custom title is applied."""
-        fig = render_singular_value_spectrum(
-            epoch_data, epoch=100, title="Custom"
-        )
+        fig = render_singular_value_spectrum(epoch_data, epoch=100, title="Custom")
         assert fig.layout.title.text == "Custom"
 
 
@@ -407,9 +393,7 @@ class TestEffectiveDimensionalityIntegration:
         pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.run()
 
-        analyzer_dir = os.path.join(
-            pipeline.artifacts_dir, "effective_dimensionality"
-        )
+        analyzer_dir = os.path.join(pipeline.artifacts_dir, "effective_dimensionality")
         assert os.path.isdir(analyzer_dir)
 
     def test_artifact_has_correct_epochs(self, trained_variant):

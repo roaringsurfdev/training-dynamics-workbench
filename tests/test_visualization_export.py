@@ -1,9 +1,8 @@
 """Tests for REQ_033: Visualization Export (Static and Animated)."""
 
-import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import plotly.graph_objects as go
@@ -11,7 +10,6 @@ import pytest
 from PIL import Image
 
 from visualization.export import (
-    _VISUALIZATION_REGISTRY,
     export_animation,
     export_cross_epoch_animation,
     export_figure,
@@ -126,8 +124,7 @@ class TestExportAnimation:
         analyzer_dir = output_dir / "artifacts" / "test_analyzer"
         analyzer_dir.mkdir(parents=True)
         for epoch in [100, 200, 300, 400, 500]:
-            data = {"values": np.random.rand(10)}
-            np.savez(analyzer_dir / f"epoch_{epoch:05d}.npz", **data)
+            np.savez(analyzer_dir / f"epoch_{epoch:05d}.npz", values=np.random.rand(10))
         return output_dir / "artifacts"
 
     @staticmethod
@@ -353,15 +350,13 @@ class TestExportVariantVisualization:
         df_dir = artifacts / "dominant_frequencies"
         df_dir.mkdir(parents=True)
         for epoch in [100, 200, 300]:
-            data = {"coefficients": np.random.rand(50)}
-            np.savez(df_dir / f"epoch_{epoch:05d}.npz", **data)
+            np.savez(df_dir / f"epoch_{epoch:05d}.npz", coefficients=np.random.rand(50))
 
         # Create coarseness summary
         coarse_dir = artifacts / "coarseness"
         coarse_dir.mkdir(parents=True)
         for epoch in [100, 200, 300]:
-            data = {"coarseness_scores": np.random.rand(32)}
-            np.savez(coarse_dir / f"epoch_{epoch:05d}.npz", **data)
+            np.savez(coarse_dir / f"epoch_{epoch:05d}.npz", coarseness_scores=np.random.rand(32))
         np.savez(
             coarse_dir / "summary.npz",
             epochs=np.array([100, 200, 300]),

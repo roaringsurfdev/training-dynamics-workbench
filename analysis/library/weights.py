@@ -8,7 +8,6 @@ effective dimensionality analyzers.
 import numpy as np
 from transformer_lens import HookedTransformer
 
-
 # Weight matrices to extract, in consistent order
 WEIGHT_MATRIX_NAMES = [
     "W_E",

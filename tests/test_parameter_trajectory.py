@@ -362,6 +362,7 @@ class TestRenderers:
         fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
         # The points trace (second trace) should have x, y, and z data
         points_trace = fig.data[1]
+        assert isinstance(points_trace, go.Scatter3d)
         assert points_trace.x is not None
         assert points_trace.y is not None
         assert points_trace.z is not None
@@ -379,13 +380,13 @@ class TestRenderers:
         snapshots, epochs = trajectory_data
         fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
         # 3 traces: path, points, highlight
-        assert len(fig.data) == 3
+        assert len(fig.data) == 3  # type: ignore[arg-type]
 
     def test_render_trajectory_3d_axis_labels(self, trajectory_data):
         """3D renderer labels all three axes with PC number and variance."""
         snapshots, epochs = trajectory_data
         fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
-        scene = fig.layout.scene
+        scene = fig.layout.scene  # type: ignore[union-attr]
         assert "PC1" in scene.xaxis.title.text
         assert "PC2" in scene.yaxis.title.text
         assert "PC3" in scene.zaxis.title.text
@@ -435,18 +436,26 @@ class TestRenderers:
     def test_new_renderers_highlight_current_epoch(self, trajectory_data):
         """All new renderers include highlight when epoch exists."""
         snapshots, epochs = trajectory_data
-        for renderer in [render_trajectory_3d, render_trajectory_pc1_pc3, render_trajectory_pc2_pc3]:
+        for renderer in [
+            render_trajectory_3d,
+            render_trajectory_pc1_pc3,
+            render_trajectory_pc2_pc3,
+        ]:
             fig = renderer(snapshots, epochs, current_epoch=50)
             # 3 traces: path, points, highlight
-            assert len(fig.data) == 3, f"{renderer.__name__} missing highlight"
+            assert len(fig.data) == 3, f"{renderer.__name__} missing highlight"  # type: ignore[arg-type]
 
     def test_new_renderers_no_highlight_for_missing_epoch(self, trajectory_data):
         """New renderers skip highlight when epoch not in list."""
         snapshots, epochs = trajectory_data
-        for renderer in [render_trajectory_3d, render_trajectory_pc1_pc3, render_trajectory_pc2_pc3]:
+        for renderer in [
+            render_trajectory_3d,
+            render_trajectory_pc1_pc3,
+            render_trajectory_pc2_pc3,
+        ]:
             fig = renderer(snapshots, epochs, current_epoch=999)
             # 2 traces: path, points only
-            assert len(fig.data) == 2, f"{renderer.__name__} unexpected highlight"
+            assert len(fig.data) == 2, f"{renderer.__name__} unexpected highlight"  # type: ignore[arg-type]
 
     def test_get_component_label_all(self):
         """None components gives 'All Parameters' label."""

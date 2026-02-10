@@ -62,9 +62,7 @@ class DashboardState:
     # Cached parameter snapshots for trajectory rendering (REQ_029)
     # Unlike per-epoch artifacts, trajectory needs all epochs loaded at once.
     # Cached on first access per variant to avoid reloading on every slider change.
-    _trajectory_snapshots: list[dict[str, Any]] | None = field(
-        default=None, repr=False
-    )
+    _trajectory_snapshots: list[dict[str, Any]] | None = field(default=None, repr=False)
     _trajectory_epochs: list[int] | None = field(default=None, repr=False)
 
     def get_current_epoch(self) -> int:
@@ -96,10 +94,7 @@ class DashboardState:
         if self._trajectory_snapshots is not None:
             return self._trajectory_snapshots, self._trajectory_epochs  # type: ignore[return-value]
 
-        if (
-            not self.artifacts_dir
-            or "parameter_snapshot" not in self.available_analyzers
-        ):
+        if not self.artifacts_dir or "parameter_snapshot" not in self.available_analyzers:
             return None
 
         from analysis import ArtifactLoader

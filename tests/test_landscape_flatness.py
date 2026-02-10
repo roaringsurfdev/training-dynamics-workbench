@@ -49,10 +49,12 @@ def dummy_probe():
 
 def make_loss_fn():
     """Create a simple loss function for testing."""
+
     def loss_fn(model, probe):
         with torch.no_grad():
             logits = model(probe)
         return float(logits[:, -1].mean())
+
     return loss_fn
 
 
@@ -86,8 +88,12 @@ class TestComputeLandscapeFlatness:
     def test_epsilon_stored_correctly(self, small_model, dummy_probe):
         """Stored epsilon matches the input value."""
         result = compute_landscape_flatness(
-            small_model, dummy_probe, make_loss_fn(),
-            n_directions=3, epsilon=0.05, seed=42,
+            small_model,
+            dummy_probe,
+            make_loss_fn(),
+            n_directions=3,
+            epsilon=0.05,
+            seed=42,
         )
         assert float(result["epsilon"]) == pytest.approx(0.05)
 
@@ -145,9 +151,7 @@ class TestLandscapeFlatnessAnalyzerProtocol:
 
     def test_configurable_constructor(self):
         """Constructor accepts n_directions, epsilon, seed."""
-        analyzer = LandscapeFlatnessAnalyzer(
-            n_directions=100, epsilon=0.05, seed=42
-        )
+        analyzer = LandscapeFlatnessAnalyzer(n_directions=100, epsilon=0.05, seed=42)
         assert analyzer.n_directions == 100
         assert analyzer.epsilon == 0.05
         assert analyzer.seed == 42
@@ -234,9 +238,7 @@ class TestRenderFlatnessTrajectory:
 
     def test_title_reflects_metric(self, summary_data):
         """Title includes the metric display name."""
-        fig = render_flatness_trajectory(
-            summary_data, current_epoch=200, metric="p90_delta_loss"
-        )
+        fig = render_flatness_trajectory(summary_data, current_epoch=200, metric="p90_delta_loss")
         assert "P90" in fig.layout.title.text
 
     def test_has_secondary_axis(self, summary_data):
@@ -246,17 +248,13 @@ class TestRenderFlatnessTrajectory:
 
     def test_custom_title(self, summary_data):
         """Custom title is applied."""
-        fig = render_flatness_trajectory(
-            summary_data, current_epoch=200, title="Custom Title"
-        )
+        fig = render_flatness_trajectory(summary_data, current_epoch=200, title="Custom Title")
         assert fig.layout.title.text == "Custom Title"
 
     def test_all_metrics_render(self, summary_data):
         """All FLATNESS_METRICS render without error."""
         for metric in FLATNESS_METRICS:
-            fig = render_flatness_trajectory(
-                summary_data, current_epoch=200, metric=metric
-            )
+            fig = render_flatness_trajectory(summary_data, current_epoch=200, metric=metric)
             assert isinstance(fig, go.Figure)
 
 
@@ -296,9 +294,7 @@ class TestRenderPerturbationDistribution:
 
     def test_custom_title(self, epoch_data):
         """Custom title is applied."""
-        fig = render_perturbation_distribution(
-            epoch_data, epoch=100, title="Custom"
-        )
+        fig = render_perturbation_distribution(epoch_data, epoch=100, title="Custom")
         assert fig.layout.title.text == "Custom"
 
 
@@ -382,9 +378,7 @@ class TestLandscapeFlatnessIntegration:
         pipeline.register(LandscapeFlatnessAnalyzer(n_directions=5, seed=42))
         pipeline.run()
 
-        analyzer_dir = os.path.join(
-            pipeline.artifacts_dir, "landscape_flatness"
-        )
+        analyzer_dir = os.path.join(pipeline.artifacts_dir, "landscape_flatness")
         assert os.path.isdir(analyzer_dir)
 
     def test_artifact_has_correct_epochs(self, trained_variant):

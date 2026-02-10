@@ -9,7 +9,6 @@ import plotly.graph_objects as go
 
 from analysis.library.weights import (
     ATTENTION_MATRICES,
-    COMPONENT_GROUPS,
     WEIGHT_MATRIX_NAMES,
     compute_participation_ratio,
 )
@@ -83,11 +82,7 @@ def render_dimensionality_trajectory(
                     color=_MATRIX_COLORS.get(name, "gray"),
                     width=2,
                 ),
-                hovertemplate=(
-                    f"{display_name}<br>"
-                    "Epoch %{x}<br>"
-                    "PR: %{y:.1f}<extra></extra>"
-                ),
+                hovertemplate=(f"{display_name}<br>Epoch %{{x}}<br>PR: %{{y:.1f}}<extra></extra>"),
             )
         )
 
@@ -168,10 +163,7 @@ def render_singular_value_spectrum(
     )
 
     if title is None:
-        title = (
-            f"{matrix_name}{head_label} Singular Values — Epoch {epoch}"
-            f" (PR = {pr:.1f})"
-        )
+        title = f"{matrix_name}{head_label} Singular Values — Epoch {epoch} (PR = {pr:.1f})"
 
     fig.update_layout(
         title=title,
