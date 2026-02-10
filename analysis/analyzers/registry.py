@@ -105,6 +105,7 @@ def register_default_analyzers() -> None:
     from analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
     from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
     from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
+    from analysis.analyzers.effective_dimensionality import EffectiveDimensionalityAnalyzer
     from analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
 
     AnalyzerRegistry.register(AttentionFreqAnalyzer)
@@ -114,6 +115,7 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register(NeuronFreqClustersAnalyzer)
     AnalyzerRegistry.register(CoarsenessAnalyzer)
     AnalyzerRegistry.register(ParameterSnapshotAnalyzer)
+    AnalyzerRegistry.register(EffectiveDimensionalityAnalyzer)
 
 
 # Auto-register default analyzers on import

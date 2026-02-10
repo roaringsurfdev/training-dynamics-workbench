@@ -11,6 +11,7 @@ REQ_025: Attention head pattern visualization
 REQ_026: Attention head frequency specialization
 REQ_027: Neuron frequency specialization summary statistics
 REQ_029: Parameter space trajectory projections
+REQ_030: Weight matrix effective dimensionality
 """
 
 import json
@@ -24,11 +25,12 @@ from analysis.analyzers import (
     AttentionFreqAnalyzer,
     AttentionPatternsAnalyzer,
     DominantFrequenciesAnalyzer,
+    EffectiveDimensionalityAnalyzer,
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
     ParameterSnapshotAnalyzer,
 )
-from analysis.library.weights import COMPONENT_GROUPS
+from analysis.library.weights import ATTENTION_MATRICES, COMPONENT_GROUPS, WEIGHT_MATRIX_NAMES
 from dashboard.components import (
     get_family_choices,
     get_variant_choices,
@@ -43,10 +45,12 @@ from visualization import (
     render_attention_heads,
     render_attention_specialization_trajectory,
     render_component_velocity,
+    render_dimensionality_trajectory,
     render_dominant_frequencies,
     render_freq_clusters,
     render_neuron_heatmap,
     render_parameter_trajectory,
+    render_singular_value_spectrum,
     render_specialization_by_frequency,
     render_specialization_trajectory,
 )
@@ -306,6 +310,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
             create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
+            create_empty_plot("Select a variant"),
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -330,6 +336,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
+            create_empty_plot("Variant not found"),
+            create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
             create_empty_plot("Variant not found"),
@@ -416,6 +424,8 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[8],  # attention specialization trajectory (REQ_026)
         plots[9],  # parameter trajectory (REQ_029)
         plots[10],  # component velocity (REQ_029)
+        plots[11],  # dimensionality trajectory (REQ_030)
+        plots[12],  # singular value spectrum (REQ_030)
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -466,6 +476,7 @@ def run_analysis_for_variant(
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.register(NeuronFreqClustersAnalyzer())
         pipeline.register(ParameterSnapshotAnalyzer())
+        pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")
@@ -633,6 +644,42 @@ def generate_all_plots(state: DashboardState):
         trajectory_fig = create_empty_plot("Run analysis first")
         velocity_fig = create_empty_plot("Run analysis first")
 
+    # Effective dimensionality (REQ_030, cross-epoch + per-epoch)
+    if state.artifacts_dir and "effective_dimensionality" in state.available_analyzers:
+        loader = ArtifactLoader(state.artifacts_dir)
+
+        # Dimensionality trajectory (from summary)
+        if loader.has_summary("effective_dimensionality"):
+            try:
+                summary_data = loader.load_summary("effective_dimensionality")
+                dim_traj_fig = render_dimensionality_trajectory(
+                    summary_data, current_epoch=epoch
+                )
+            except FileNotFoundError:
+                dim_traj_fig = create_empty_plot("No summary data")
+        else:
+            dim_traj_fig = create_empty_plot("Run analysis first")
+
+        # Singular value spectrum (per-epoch)
+        try:
+            epoch_data = loader.load_epoch("effective_dimensionality", epoch)
+            head_idx = (
+                state.selected_sv_head
+                if state.selected_sv_matrix in ATTENTION_MATRICES
+                else None
+            )
+            sv_spectrum_fig = render_singular_value_spectrum(
+                epoch_data,
+                epoch=epoch,
+                matrix_name=state.selected_sv_matrix,
+                head_idx=head_idx,
+            )
+        except FileNotFoundError:
+            sv_spectrum_fig = create_empty_plot("No data for this epoch")
+    else:
+        dim_traj_fig = create_empty_plot("Run analysis first")
+        sv_spectrum_fig = create_empty_plot("Run analysis first")
+
     return (
         loss_fig,
         freq_fig,
@@ -645,6 +692,8 @@ def generate_all_plots(state: DashboardState):
         attn_spec_fig,
         trajectory_fig,
         velocity_fig,
+        dim_traj_fig,
+        sv_spectrum_fig,
     )
 
 
@@ -679,6 +728,8 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
         plots[8],
         plots[9],
         plots[10],
+        plots[11],
+        plots[12],
         epoch_display,
         state,
     )
@@ -736,6 +787,42 @@ def update_trajectory_only(group: str | None, state: DashboardState):
         fig = create_empty_plot("Run analysis first")
 
     return fig, state
+
+
+def update_spectrum_only(
+    matrix_name: str | None, head_idx: int | None, state: DashboardState
+):
+    """Update only the SV spectrum plot when matrix or head changes (REQ_030)."""
+    if matrix_name:
+        state.selected_sv_matrix = matrix_name
+    if head_idx is not None:
+        state.selected_sv_head = int(head_idx)
+
+    if (
+        state.artifacts_dir
+        and "effective_dimensionality" in state.available_analyzers
+        and state.available_epochs
+    ):
+        try:
+            epoch = state.get_current_epoch()
+            loader = ArtifactLoader(state.artifacts_dir)
+            epoch_data = loader.load_epoch("effective_dimensionality", epoch)
+            h = (
+                state.selected_sv_head
+                if state.selected_sv_matrix in ATTENTION_MATRICES
+                else None
+            )
+            fig = render_singular_value_spectrum(
+                epoch_data, epoch=epoch, matrix_name=state.selected_sv_matrix, head_idx=h
+            )
+        except FileNotFoundError:
+            fig = create_empty_plot("No data for this epoch")
+    else:
+        fig = create_empty_plot("Run analysis first")
+
+    # Show/hide head selector based on whether current matrix is attention
+    head_visible = state.selected_sv_matrix in ATTENTION_MATRICES
+    return fig, gr.Slider(visible=head_visible), state
 
 
 def update_attention_only(position_pair: str | None, epoch_idx: int | None, state: DashboardState):
@@ -1008,6 +1095,27 @@ def create_app() -> gr.Blocks:
                     trajectory_plot = gr.Plot(label="Parameter Trajectory (PCA)")
                     velocity_plot = gr.Plot(label="Component Velocity")
 
+                # Effective Dimensionality (REQ_030)
+                gr.Markdown("### Weight Matrix Effective Dimensionality")
+                dim_traj_plot = gr.Plot(label="Dimensionality Trajectory")
+                with gr.Row():
+                    sv_matrix_dropdown = gr.Dropdown(
+                        label="Weight Matrix",
+                        choices=WEIGHT_MATRIX_NAMES,
+                        value="W_in",
+                        interactive=True,
+                    )
+                    sv_head_slider = gr.Slider(
+                        minimum=0,
+                        maximum=3,
+                        step=1,
+                        value=0,
+                        label="Attention Head",
+                        interactive=True,
+                        visible=False,
+                    )
+                sv_spectrum_plot = gr.Plot(label="Singular Value Spectrum")
+
                 # ============================================================
                 # Event Handlers (REQ_021d)
                 # ============================================================
@@ -1037,6 +1145,8 @@ def create_app() -> gr.Blocks:
                         attn_spec_plot,
                         trajectory_plot,
                         velocity_plot,
+                        dim_traj_plot,
+                        sv_spectrum_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -1072,6 +1182,8 @@ def create_app() -> gr.Blocks:
                         attn_spec_plot,
                         trajectory_plot,
                         velocity_plot,
+                        dim_traj_plot,
+                        sv_spectrum_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -1094,6 +1206,8 @@ def create_app() -> gr.Blocks:
                         attn_spec_plot,
                         trajectory_plot,
                         velocity_plot,
+                        dim_traj_plot,
+                        sv_spectrum_plot,
                         epoch_display,
                         state,
                     ],
@@ -1118,6 +1232,18 @@ def create_app() -> gr.Blocks:
                     fn=update_trajectory_only,
                     inputs=[trajectory_group_radio, state],
                     outputs=[trajectory_plot, state],
+                )
+
+                # Singular value matrix/head selectors (REQ_030)
+                sv_matrix_dropdown.change(
+                    fn=update_spectrum_only,
+                    inputs=[sv_matrix_dropdown, sv_head_slider, state],
+                    outputs=[sv_spectrum_plot, sv_head_slider, state],
+                )
+                sv_head_slider.change(
+                    fn=update_spectrum_only,
+                    inputs=[sv_matrix_dropdown, sv_head_slider, state],
+                    outputs=[sv_spectrum_plot, sv_head_slider, state],
                 )
 
         # Note: Variants are now initialized at creation time (fixes BUG_004)

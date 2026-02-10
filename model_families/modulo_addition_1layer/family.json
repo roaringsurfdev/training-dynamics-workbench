@@ -35,7 +35,8 @@
     "neuron_activations",
     "neuron_freq_norm",
     "coarseness",
-    "parameter_snapshot"
+    "parameter_snapshot",
+    "effective_dimensionality"
   ],
 
   "visualizations": [
@@ -51,7 +52,9 @@
     "coarseness_trajectory",
     "coarseness_distribution",
     "parameter_trajectory",
-    "component_velocity"
+    "component_velocity",
+    "dimensionality_trajectory",
+    "singular_value_spectrum"
   ],
 
   "analysis_dataset": {

@@ -63,6 +63,78 @@ def extract_parameter_snapshot(
     return snapshot
 
 
+ATTENTION_MATRICES = {"W_Q", "W_K", "W_V", "W_O"}
+
+
+def compute_participation_ratio(
+    singular_values: np.ndarray,
+) -> float | np.ndarray:
+    """Compute participation ratio from singular values.
+
+    PR = (sum(s))^2 / sum(s^2)
+
+    Equals 1.0 when one singular value dominates (rank-1),
+    equals n when all n singular values are equal (full rank).
+
+    Args:
+        singular_values: 1D array → scalar result, or 2D array
+            (e.g., n_heads x d_head) → 1D array of per-row PRs.
+
+    Returns:
+        Scalar float for 1D input, 1D numpy array for 2D input.
+    """
+    if singular_values.ndim == 1:
+        s = singular_values
+        sum_s = s.sum()
+        sum_s2 = (s**2).sum()
+        return float(sum_s**2 / sum_s2) if sum_s2 > 0 else 0.0
+
+    # 2D: compute per-row
+    sum_s = singular_values.sum(axis=1)
+    sum_s2 = (singular_values**2).sum(axis=1)
+    mask = sum_s2 > 0
+    result = np.zeros(singular_values.shape[0])
+    result[mask] = sum_s[mask] ** 2 / sum_s2[mask]
+    return result
+
+
+def compute_weight_singular_values(
+    model: HookedTransformer,
+) -> dict[str, np.ndarray]:
+    """Compute singular values of all trainable weight matrices.
+
+    For attention matrices (W_Q, W_K, W_V, W_O), SVD is computed
+    per head. Each head's matrix is an independent subspace.
+
+    Args:
+        model: HookedTransformer model at a specific checkpoint.
+
+    Returns:
+        Dict mapping "sv_{name}" to numpy arrays of singular values.
+        Attention matrices: shape (n_heads, d_head).
+        Other matrices: shape (min(rows, cols),).
+    """
+    snapshot = extract_parameter_snapshot(model)
+    result = {}
+
+    for name in WEIGHT_MATRIX_NAMES:
+        matrix = snapshot[name]
+        key = f"sv_{name}"
+
+        if name in ATTENTION_MATRICES:
+            # Shape: (n_heads, d_model, d_head) or (n_heads, d_head, d_model)
+            n_heads = matrix.shape[0]
+            head_svs = []
+            for h in range(n_heads):
+                sv = np.linalg.svd(matrix[h], compute_uv=False)
+                head_svs.append(sv)
+            result[key] = np.array(head_svs)
+        else:
+            result[key] = np.linalg.svd(matrix, compute_uv=False)
+
+    return result
+
+
 def _to_numpy(tensor) -> np.ndarray:
     """Convert a parameter tensor to numpy, detaching from graph."""
     return tensor.detach().cpu().numpy()

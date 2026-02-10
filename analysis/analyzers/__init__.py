@@ -9,6 +9,7 @@ from analysis.analyzers.attention_freq import AttentionFreqAnalyzer
 from analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
 from analysis.analyzers.coarseness import CoarsenessAnalyzer
 from analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
+from analysis.analyzers.effective_dimensionality import EffectiveDimensionalityAnalyzer
 from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
 from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
 from analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
@@ -20,6 +21,7 @@ __all__ = [
     "AttentionPatternsAnalyzer",
     "CoarsenessAnalyzer",
     "DominantFrequenciesAnalyzer",
+    "EffectiveDimensionalityAnalyzer",
     "NeuronActivationsAnalyzer",
     "NeuronFreqClustersAnalyzer",
     "ParameterSnapshotAnalyzer",

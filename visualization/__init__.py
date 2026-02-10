@@ -53,6 +53,10 @@ from visualization.renderers.neuron_freq_clusters import (
     render_specialization_by_frequency,
     render_specialization_trajectory,
 )
+from visualization.renderers.effective_dimensionality import (
+    render_dimensionality_trajectory,
+    render_singular_value_spectrum,
+)
 from visualization.renderers.parameter_trajectory import (
     render_component_velocity,
     render_explained_variance,
@@ -93,6 +97,9 @@ __all__ = [
     "render_coarseness_distribution",
     "render_blob_count_trajectory",
     "render_coarseness_by_neuron",
+    # REQ_030: Effective dimensionality
+    "render_dimensionality_trajectory",
+    "render_singular_value_spectrum",
     # REQ_029: Parameter trajectory
     "render_parameter_trajectory",
     "render_explained_variance",

@@ -52,6 +52,10 @@ class DashboardState:
     # Parameter trajectory component group (REQ_029)
     selected_trajectory_group: str = "all"
 
+    # Effective dimensionality (REQ_030)
+    selected_sv_matrix: str = "W_in"
+    selected_sv_head: int = 0
+
     # Cached parameter snapshots for trajectory rendering (REQ_029)
     # Unlike per-epoch artifacts, trajectory needs all epochs loaded at once.
     # Cached on first access per variant to avoid reloading on every slider change.

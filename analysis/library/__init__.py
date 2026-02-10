@@ -34,6 +34,8 @@ from analysis.library.trajectory import (
 from analysis.library.weights import (
     COMPONENT_GROUPS,
     WEIGHT_MATRIX_NAMES,
+    compute_participation_ratio,
+    compute_weight_singular_values,
     extract_parameter_snapshot,
 )
 
@@ -54,6 +56,8 @@ __all__ = [
     "compute_grid_size_from_dataset",
     # Weight matrix functions
     "extract_parameter_snapshot",
+    "compute_weight_singular_values",
+    "compute_participation_ratio",
     "WEIGHT_MATRIX_NAMES",
     "COMPONENT_GROUPS",
     # Trajectory functions
