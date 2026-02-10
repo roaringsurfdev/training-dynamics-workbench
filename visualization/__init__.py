@@ -67,6 +67,9 @@ from visualization.renderers.parameter_trajectory import (
     render_explained_variance,
     render_parameter_trajectory,
     render_parameter_velocity,
+    render_trajectory_3d,
+    render_trajectory_pc1_pc3,
+    render_trajectory_pc2_pc3,
 )
 
 __all__ = [
@@ -114,4 +117,8 @@ __all__ = [
     "render_explained_variance",
     "render_parameter_velocity",
     "render_component_velocity",
+    # REQ_032: Trajectory PC3 projections
+    "render_trajectory_3d",
+    "render_trajectory_pc1_pc3",
+    "render_trajectory_pc2_pc3",
 ]

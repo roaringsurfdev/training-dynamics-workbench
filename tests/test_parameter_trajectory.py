@@ -1,4 +1,4 @@
-"""Tests for REQ_029: Parameter Space Trajectory Projections."""
+"""Tests for REQ_029/REQ_032: Parameter Space Trajectory Projections."""
 
 import json
 import os
@@ -28,6 +28,9 @@ from visualization.renderers.parameter_trajectory import (
     render_explained_variance,
     render_parameter_trajectory,
     render_parameter_velocity,
+    render_trajectory_3d,
+    render_trajectory_pc1_pc3,
+    render_trajectory_pc2_pc3,
 )
 
 # ── Helpers ───────────────────────────────────────────────────────────
@@ -337,6 +340,113 @@ class TestRenderers:
         # 3 component groups (embedding, attention, mlp) as line traces
         line_traces = [t for t in fig.data if isinstance(t, go.Scatter)]
         assert len(line_traces) == 3
+
+    # ── REQ_032: 3D and additional 2D projections ──────────────────
+
+    def test_render_trajectory_3d_returns_figure(self, trajectory_data):
+        """render_trajectory_3d returns a Plotly Figure."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        assert isinstance(fig, go.Figure)
+
+    def test_render_trajectory_3d_uses_scatter3d(self, trajectory_data):
+        """3D renderer uses Scatter3d traces (not Scatter)."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        scatter3d_traces = [t for t in fig.data if isinstance(t, go.Scatter3d)]
+        assert len(scatter3d_traces) >= 2  # path + points (+ optional highlight)
+
+    def test_render_trajectory_3d_projects_3_dimensions(self, trajectory_data):
+        """3D renderer data spans 3 coordinate axes."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        # The points trace (second trace) should have x, y, and z data
+        points_trace = fig.data[1]
+        assert points_trace.x is not None
+        assert points_trace.y is not None
+        assert points_trace.z is not None
+
+    def test_render_trajectory_3d_with_components(self, trajectory_data):
+        """3D renderer respects component group filter."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_3d(
+            snapshots, epochs, current_epoch=50, components=COMPONENT_GROUPS["mlp"]
+        )
+        assert isinstance(fig, go.Figure)
+
+    def test_render_trajectory_3d_highlights_epoch(self, trajectory_data):
+        """3D renderer includes highlight marker for current epoch."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        # 3 traces: path, points, highlight
+        assert len(fig.data) == 3
+
+    def test_render_trajectory_3d_axis_labels(self, trajectory_data):
+        """3D renderer labels all three axes with PC number and variance."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        scene = fig.layout.scene
+        assert "PC1" in scene.xaxis.title.text
+        assert "PC2" in scene.yaxis.title.text
+        assert "PC3" in scene.zaxis.title.text
+
+    def test_render_trajectory_pc1_pc3_returns_figure(self, trajectory_data):
+        """render_trajectory_pc1_pc3 returns a Plotly Figure."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_pc1_pc3(snapshots, epochs, current_epoch=50)
+        assert isinstance(fig, go.Figure)
+
+    def test_render_trajectory_pc1_pc3_axis_labels(self, trajectory_data):
+        """PC1 vs PC3 renderer uses correct axis labels."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_pc1_pc3(snapshots, epochs, current_epoch=50)
+        assert "PC1" in fig.layout.xaxis.title.text
+        assert "PC3" in fig.layout.yaxis.title.text
+
+    def test_render_trajectory_pc2_pc3_returns_figure(self, trajectory_data):
+        """render_trajectory_pc2_pc3 returns a Plotly Figure."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_pc2_pc3(snapshots, epochs, current_epoch=50)
+        assert isinstance(fig, go.Figure)
+
+    def test_render_trajectory_pc2_pc3_axis_labels(self, trajectory_data):
+        """PC2 vs PC3 renderer uses correct axis labels."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_pc2_pc3(snapshots, epochs, current_epoch=50)
+        assert "PC2" in fig.layout.xaxis.title.text
+        assert "PC3" in fig.layout.yaxis.title.text
+
+    def test_render_trajectory_pc1_pc3_with_components(self, trajectory_data):
+        """PC1 vs PC3 renderer respects component filter."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_pc1_pc3(
+            snapshots, epochs, current_epoch=50, components=COMPONENT_GROUPS["mlp"]
+        )
+        assert isinstance(fig, go.Figure)
+
+    def test_render_trajectory_pc2_pc3_with_components(self, trajectory_data):
+        """PC2 vs PC3 renderer respects component filter."""
+        snapshots, epochs = trajectory_data
+        fig = render_trajectory_pc2_pc3(
+            snapshots, epochs, current_epoch=50, components=COMPONENT_GROUPS["mlp"]
+        )
+        assert isinstance(fig, go.Figure)
+
+    def test_new_renderers_highlight_current_epoch(self, trajectory_data):
+        """All new renderers include highlight when epoch exists."""
+        snapshots, epochs = trajectory_data
+        for renderer in [render_trajectory_3d, render_trajectory_pc1_pc3, render_trajectory_pc2_pc3]:
+            fig = renderer(snapshots, epochs, current_epoch=50)
+            # 3 traces: path, points, highlight
+            assert len(fig.data) == 3, f"{renderer.__name__} missing highlight"
+
+    def test_new_renderers_no_highlight_for_missing_epoch(self, trajectory_data):
+        """New renderers skip highlight when epoch not in list."""
+        snapshots, epochs = trajectory_data
+        for renderer in [render_trajectory_3d, render_trajectory_pc1_pc3, render_trajectory_pc2_pc3]:
+            fig = renderer(snapshots, epochs, current_epoch=999)
+            # 2 traces: path, points only
+            assert len(fig.data) == 2, f"{renderer.__name__} unexpected highlight"
 
     def test_get_component_label_all(self):
         """None components gives 'All Parameters' label."""

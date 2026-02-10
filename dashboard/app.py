@@ -13,6 +13,7 @@ REQ_027: Neuron frequency specialization summary statistics
 REQ_029: Parameter space trajectory projections
 REQ_030: Weight matrix effective dimensionality
 REQ_031: Loss landscape flatness
+REQ_032: Trajectory PC3 visualization
 """
 
 import json
@@ -58,6 +59,9 @@ from visualization import (
     render_singular_value_spectrum,
     render_specialization_by_frequency,
     render_specialization_trajectory,
+    render_trajectory_3d,
+    render_trajectory_pc1_pc3,
+    render_trajectory_pc2_pc3,
 )
 
 
@@ -301,24 +305,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
 
     if not variant_name or not effective_family_name:
         state.clear_artifacts()
+        empty = create_empty_plot("Select a variant")
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
+            *[empty] * 18,
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -340,24 +331,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
 
     if variant is None:
         state.clear_artifacts()
+        empty = create_empty_plot("Variant not found")
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
+            *[empty] * 18,
             "Variant not found",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -432,11 +410,14 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[7],  # attention freq heatmap (REQ_026)
         plots[8],  # attention specialization trajectory (REQ_026)
         plots[9],  # parameter trajectory (REQ_029)
-        plots[10],  # component velocity (REQ_029)
-        plots[11],  # dimensionality trajectory (REQ_030)
-        plots[12],  # singular value spectrum (REQ_030)
-        plots[13],  # flatness trajectory (REQ_031)
-        plots[14],  # perturbation distribution (REQ_031)
+        plots[10],  # trajectory 3D (REQ_032)
+        plots[11],  # trajectory PC1 vs PC3 (REQ_032)
+        plots[12],  # trajectory PC2 vs PC3 (REQ_032)
+        plots[13],  # component velocity (REQ_029)
+        plots[14],  # dimensionality trajectory (REQ_030)
+        plots[15],  # singular value spectrum (REQ_030)
+        plots[16],  # flatness trajectory (REQ_031)
+        plots[17],  # perturbation distribution (REQ_031)
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -639,7 +620,7 @@ def generate_all_plots(state: DashboardState):
         attn_freq_fig = create_empty_plot("Run analysis first")
         attn_spec_fig = create_empty_plot("Run analysis first")
 
-    # Parameter trajectory and velocity (REQ_029, cross-epoch)
+    # Parameter trajectory and velocity (REQ_029, REQ_032, cross-epoch)
     trajectory_data = state.get_trajectory_data()
     if trajectory_data is not None:
         try:
@@ -648,12 +629,27 @@ def generate_all_plots(state: DashboardState):
             trajectory_fig = render_parameter_trajectory(
                 snapshots, traj_epochs, epoch, components=components
             )
+            trajectory_3d_fig = render_trajectory_3d(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            trajectory_pc1_pc3_fig = render_trajectory_pc1_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            trajectory_pc2_pc3_fig = render_trajectory_pc2_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
             velocity_fig = render_component_velocity(snapshots, traj_epochs, epoch)
         except Exception:
             trajectory_fig = create_empty_plot("Error rendering trajectory")
+            trajectory_3d_fig = create_empty_plot("Error rendering trajectory")
+            trajectory_pc1_pc3_fig = create_empty_plot("Error rendering trajectory")
+            trajectory_pc2_pc3_fig = create_empty_plot("Error rendering trajectory")
             velocity_fig = create_empty_plot("Error rendering velocity")
     else:
         trajectory_fig = create_empty_plot("Run analysis first")
+        trajectory_3d_fig = create_empty_plot("Run analysis first")
+        trajectory_pc1_pc3_fig = create_empty_plot("Run analysis first")
+        trajectory_pc2_pc3_fig = create_empty_plot("Run analysis first")
         velocity_fig = create_empty_plot("Run analysis first")
 
     # Effective dimensionality (REQ_030, cross-epoch + per-epoch)
@@ -733,6 +729,9 @@ def generate_all_plots(state: DashboardState):
         attn_freq_fig,
         attn_spec_fig,
         trajectory_fig,
+        trajectory_3d_fig,
+        trajectory_pc1_pc3_fig,
+        trajectory_pc2_pc3_fig,
         velocity_fig,
         dim_traj_fig,
         sv_spectrum_fig,
@@ -776,6 +775,9 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
         plots[12],
         plots[13],
         plots[14],
+        plots[15],
+        plots[16],
+        plots[17],
         epoch_display,
         state,
     )
@@ -814,7 +816,7 @@ def update_activation_only(epoch_idx: int | None, neuron_idx: int | None, state:
 
 
 def update_trajectory_only(group: str | None, state: DashboardState):
-    """Update only the trajectory plot when component group changes (REQ_029)."""
+    """Update trajectory plots when component group changes (REQ_029, REQ_032)."""
     if group:
         state.selected_trajectory_group = group.lower()
 
@@ -827,12 +829,27 @@ def update_trajectory_only(group: str | None, state: DashboardState):
             fig = render_parameter_trajectory(
                 snapshots, traj_epochs, epoch, components=components
             )
+            fig_3d = render_trajectory_3d(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            fig_pc1_pc3 = render_trajectory_pc1_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            fig_pc2_pc3 = render_trajectory_pc2_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
         except Exception:
             fig = create_empty_plot("Error rendering trajectory")
+            fig_3d = create_empty_plot("Error rendering trajectory")
+            fig_pc1_pc3 = create_empty_plot("Error rendering trajectory")
+            fig_pc2_pc3 = create_empty_plot("Error rendering trajectory")
     else:
         fig = create_empty_plot("Run analysis first")
+        fig_3d = create_empty_plot("Run analysis first")
+        fig_pc1_pc3 = create_empty_plot("Run analysis first")
+        fig_pc2_pc3 = create_empty_plot("Run analysis first")
 
-    return fig, state
+    return fig, fig_3d, fig_pc1_pc3, fig_pc2_pc3, state
 
 
 def update_spectrum_only(
@@ -1131,9 +1148,8 @@ def create_app() -> gr.Blocks:
 
                 # Neuron Specialization (REQ_027)
                 gr.Markdown("### Neuron Frequency Specialization")
-                with gr.Row():
-                    spec_traj_plot = gr.Plot(label="Neuron Specialization Trajectory")
-                    spec_freq_plot = gr.Plot(label="Specialization by Frequency")
+                spec_traj_plot = gr.Plot(label="Neuron Specialization Trajectory")
+                spec_freq_plot = gr.Plot(label="Specialization by Frequency")
 
                 # Attention Patterns (REQ_025)
                 gr.Markdown("### Attention Patterns")
@@ -1158,7 +1174,7 @@ def create_app() -> gr.Blocks:
                     attn_freq_plot = gr.Plot(label="Attention Head Frequency Decomposition")
                     attn_spec_plot = gr.Plot(label="Head Specialization Trajectory")
 
-                # Parameter Trajectory (REQ_029)
+                # Parameter Trajectory (REQ_029, REQ_032)
                 gr.Markdown("### Parameter Space Trajectory")
                 trajectory_group_radio = gr.Radio(
                     choices=["All", "Embedding", "Attention", "MLP"],
@@ -1168,7 +1184,11 @@ def create_app() -> gr.Blocks:
                 )
                 with gr.Row():
                     trajectory_plot = gr.Plot(label="Parameter Trajectory (PCA)")
-                    velocity_plot = gr.Plot(label="Component Velocity")
+                    trajectory_3d_plot = gr.Plot(label="Parameter Trajectory 3D")
+                with gr.Row():
+                    trajectory_pc1_pc3_plot = gr.Plot(label="Parameter Trajectory PC1 vs PC3")
+                    trajectory_pc2_pc3_plot = gr.Plot(label="Parameter Trajectory PC2 vs PC3")
+                velocity_plot = gr.Plot(label="Component Velocity")
 
                 # Effective Dimensionality (REQ_030)
                 gr.Markdown("### Weight Matrix Effective Dimensionality")
@@ -1230,6 +1250,9 @@ def create_app() -> gr.Blocks:
                         attn_freq_plot,
                         attn_spec_plot,
                         trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
                         velocity_plot,
                         dim_traj_plot,
                         sv_spectrum_plot,
@@ -1269,6 +1292,9 @@ def create_app() -> gr.Blocks:
                         attn_freq_plot,
                         attn_spec_plot,
                         trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
                         velocity_plot,
                         dim_traj_plot,
                         sv_spectrum_plot,
@@ -1295,6 +1321,9 @@ def create_app() -> gr.Blocks:
                         attn_freq_plot,
                         attn_spec_plot,
                         trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
                         velocity_plot,
                         dim_traj_plot,
                         sv_spectrum_plot,
@@ -1319,11 +1348,17 @@ def create_app() -> gr.Blocks:
                     outputs=[attention_plot, state],
                 )
 
-                # Trajectory component group selector (REQ_029)
+                # Trajectory component group selector (REQ_029, REQ_032)
                 trajectory_group_radio.change(
                     fn=update_trajectory_only,
                     inputs=[trajectory_group_radio, state],
-                    outputs=[trajectory_plot, state],
+                    outputs=[
+                        trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
+                        state,
+                    ],
                 )
 
                 # Singular value matrix/head selectors (REQ_030)

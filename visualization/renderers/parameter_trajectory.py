@@ -1,4 +1,4 @@
-"""REQ_029: Parameter Space Trajectory Visualizations.
+"""REQ_029, REQ_032: Parameter Space Trajectory Visualizations.
 
 Renders PCA trajectory projections, explained variance, and
 parameter velocity from weight matrix snapshots across training.
@@ -6,6 +6,8 @@ parameter velocity from weight matrix snapshots across training.
 All cross-epoch renderers accept a list of per-epoch snapshot dicts
 loaded via ArtifactLoader.load_epochs("parameter_snapshot"). PCA and
 velocity are computed at render time from the raw weight matrices.
+
+REQ_032 adds 3D trajectory and additional 2D projections (PC1vPC3, PC2vPC3).
 """
 
 import numpy as np
@@ -26,35 +28,85 @@ def render_parameter_trajectory(
     title: str | None = None,
     height: int = 450,
 ) -> go.Figure:
-    """2D PCA trajectory of parameters across training.
+    """2D PCA trajectory: PC1 vs PC2.
 
     Points colored by epoch (blue=early, red=late), connected by path.
     Current epoch highlighted with a larger marker.
-
-    Args:
-        snapshots: List of per-epoch snapshot dicts, ordered by epoch.
-        epochs: Epoch numbers corresponding to each snapshot.
-        current_epoch: Current epoch for highlight marker.
-        components: Weight matrix names to include. None = all.
-        title: Custom title.
-        height: Figure height in pixels.
-
-    Returns:
-        Plotly Figure with 2D trajectory scatter plot.
     """
     pca_result = compute_pca_trajectory(snapshots, components, n_components=2)
+    component_label = _get_component_label(components)
+    if title is None:
+        title = f"Parameter Trajectory ({component_label})"
+    return _render_trajectory_2d(
+        pca_result, col_x=0, col_y=1, epochs=epochs,
+        current_epoch=current_epoch, title=title, height=height,
+    )
+
+
+def render_trajectory_pc1_pc3(
+    snapshots: list[dict[str, np.ndarray]],
+    epochs: list[int],
+    current_epoch: int,
+    components: list[str] | None = None,
+    title: str | None = None,
+    height: int = 450,
+) -> go.Figure:
+    """2D PCA trajectory: PC1 vs PC3 (REQ_032)."""
+    pca_result = compute_pca_trajectory(snapshots, components, n_components=3)
+    component_label = _get_component_label(components)
+    if title is None:
+        title = f"Parameter Trajectory PC1 vs PC3 ({component_label})"
+    return _render_trajectory_2d(
+        pca_result, col_x=0, col_y=2, epochs=epochs,
+        current_epoch=current_epoch, title=title, height=height,
+    )
+
+
+def render_trajectory_pc2_pc3(
+    snapshots: list[dict[str, np.ndarray]],
+    epochs: list[int],
+    current_epoch: int,
+    components: list[str] | None = None,
+    title: str | None = None,
+    height: int = 450,
+) -> go.Figure:
+    """2D PCA trajectory: PC2 vs PC3 (REQ_032)."""
+    pca_result = compute_pca_trajectory(snapshots, components, n_components=3)
+    component_label = _get_component_label(components)
+    if title is None:
+        title = f"Parameter Trajectory PC2 vs PC3 ({component_label})"
+    return _render_trajectory_2d(
+        pca_result, col_x=1, col_y=2, epochs=epochs,
+        current_epoch=current_epoch, title=title, height=height,
+    )
+
+
+def render_trajectory_3d(
+    snapshots: list[dict[str, np.ndarray]],
+    epochs: list[int],
+    current_epoch: int,
+    components: list[str] | None = None,
+    title: str | None = None,
+    height: int = 550,
+) -> go.Figure:
+    """3D interactive PCA trajectory: PC1 vs PC2 vs PC3 (REQ_032).
+
+    Supports rotation, zoom, and pan for exploratory analysis.
+    """
+    pca_result = compute_pca_trajectory(snapshots, components, n_components=3)
     projections = pca_result["projections"]
     var_ratio = pca_result["explained_variance_ratio"]
 
     fig = go.Figure()
 
-    # Trajectory path (thin line connecting points)
+    # Trajectory path
     fig.add_trace(
-        go.Scatter(
+        go.Scatter3d(
             x=projections[:, 0],
             y=projections[:, 1],
+            z=projections[:, 2],
             mode="lines",
-            line=dict(color="rgba(150, 150, 150, 0.4)", width=1),
+            line=dict(color="rgba(150, 150, 150, 0.4)", width=2),
             showlegend=False,
             hoverinfo="skip",
         )
@@ -62,12 +114,13 @@ def render_parameter_trajectory(
 
     # Trajectory points colored by epoch
     fig.add_trace(
-        go.Scatter(
+        go.Scatter3d(
             x=projections[:, 0],
             y=projections[:, 1],
+            z=projections[:, 2],
             mode="markers",
             marker=dict(
-                size=5,
+                size=3,
                 color=epochs,
                 colorscale="Bluered",
                 showscale=True,
@@ -77,7 +130,8 @@ def render_parameter_trajectory(
             hovertemplate=(
                 "Epoch %{customdata}<br>"
                 "PC1: %{x:.4f}<br>"
-                "PC2: %{y:.4f}<extra></extra>"
+                "PC2: %{y:.4f}<br>"
+                "PC3: %{z:.4f}<extra></extra>"
             ),
             customdata=epochs,
         )
@@ -87,14 +141,15 @@ def render_parameter_trajectory(
     if current_epoch in epochs:
         idx = epochs.index(current_epoch)
         fig.add_trace(
-            go.Scatter(
+            go.Scatter3d(
                 x=[projections[idx, 0]],
                 y=[projections[idx, 1]],
+                z=[projections[idx, 2]],
                 mode="markers",
                 marker=dict(
-                    size=14,
+                    size=7,
                     color="red",
-                    symbol="star",
+                    symbol="diamond",
                     line=dict(width=1, color="black"),
                 ),
                 name=f"Epoch {current_epoch}",
@@ -104,18 +159,20 @@ def render_parameter_trajectory(
 
     component_label = _get_component_label(components)
     if title is None:
-        title = f"Parameter Trajectory ({component_label})"
+        title = f"Parameter Trajectory 3D ({component_label})"
 
-    pct1 = var_ratio[0] * 100
-    pct2 = var_ratio[1] * 100
+    pct = [v * 100 for v in var_ratio[:3]]
 
     fig.update_layout(
         title=title,
-        xaxis_title=f"PC1 ({pct1:.1f}% var)",
-        yaxis_title=f"PC2 ({pct2:.1f}% var)",
+        scene=dict(
+            xaxis_title=f"PC1 ({pct[0]:.1f}% var)",
+            yaxis_title=f"PC2 ({pct[1]:.1f}% var)",
+            zaxis_title=f"PC3 ({pct[2]:.1f}% var)",
+        ),
         template="plotly_white",
         height=height,
-        margin=dict(l=60, r=20, t=50, b=50),
+        margin=dict(l=20, r=20, t=50, b=20),
     )
 
     return fig
@@ -323,6 +380,102 @@ def render_component_velocity(
         yaxis_title="||delta theta|| / epoch",
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=height,
+        margin=dict(l=60, r=20, t=50, b=50),
+    )
+
+    return fig
+
+
+def _render_trajectory_2d(
+    pca_result: dict[str, np.ndarray],
+    col_x: int,
+    col_y: int,
+    epochs: list[int],
+    current_epoch: int,
+    title: str,
+    height: int = 450,
+) -> go.Figure:
+    """Shared 2D trajectory scatter with path and epoch highlight.
+
+    Args:
+        pca_result: Output from compute_pca_trajectory.
+        col_x: Column index for x-axis (0=PC1, 1=PC2, 2=PC3).
+        col_y: Column index for y-axis.
+        epochs: Epoch numbers corresponding to each snapshot.
+        current_epoch: Current epoch for highlight marker.
+        title: Plot title.
+        height: Figure height in pixels.
+    """
+    projections = pca_result["projections"]
+    var_ratio = pca_result["explained_variance_ratio"]
+    pc_x = col_x + 1
+    pc_y = col_y + 1
+
+    fig = go.Figure()
+
+    # Trajectory path
+    fig.add_trace(
+        go.Scatter(
+            x=projections[:, col_x],
+            y=projections[:, col_y],
+            mode="lines",
+            line=dict(color="rgba(150, 150, 150, 0.4)", width=1),
+            showlegend=False,
+            hoverinfo="skip",
+        )
+    )
+
+    # Trajectory points colored by epoch
+    fig.add_trace(
+        go.Scatter(
+            x=projections[:, col_x],
+            y=projections[:, col_y],
+            mode="markers",
+            marker=dict(
+                size=5,
+                color=epochs,
+                colorscale="Bluered",
+                showscale=True,
+                colorbar=dict(title="Epoch", thickness=15),
+            ),
+            name="Checkpoints",
+            hovertemplate=(
+                "Epoch %{customdata}<br>"
+                f"PC{pc_x}: %{{x:.4f}}<br>"
+                f"PC{pc_y}: %{{y:.4f}}<extra></extra>"
+            ),
+            customdata=epochs,
+        )
+    )
+
+    # Highlight current epoch
+    if current_epoch in epochs:
+        idx = epochs.index(current_epoch)
+        fig.add_trace(
+            go.Scatter(
+                x=[projections[idx, col_x]],
+                y=[projections[idx, col_y]],
+                mode="markers",
+                marker=dict(
+                    size=14,
+                    color="red",
+                    symbol="star",
+                    line=dict(width=1, color="black"),
+                ),
+                name=f"Epoch {current_epoch}",
+                hovertemplate=f"Epoch {current_epoch}<extra></extra>",
+            )
+        )
+
+    pct_x = var_ratio[col_x] * 100
+    pct_y = var_ratio[col_y] * 100
+
+    fig.update_layout(
+        title=title,
+        xaxis_title=f"PC{pc_x} ({pct_x:.1f}% var)",
+        yaxis_title=f"PC{pc_y} ({pct_y:.1f}% var)",
+        template="plotly_white",
         height=height,
         margin=dict(l=60, r=20, t=50, b=50),
     )
