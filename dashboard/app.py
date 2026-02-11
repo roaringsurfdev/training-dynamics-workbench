@@ -10,6 +10,10 @@ REQ_021f: Per-epoch artifact loading
 REQ_025: Attention head pattern visualization
 REQ_026: Attention head frequency specialization
 REQ_027: Neuron frequency specialization summary statistics
+REQ_029: Parameter space trajectory projections
+REQ_030: Weight matrix effective dimensionality
+REQ_031: Loss landscape flatness
+REQ_032: Trajectory PC3 visualization
 """
 
 import json
@@ -23,9 +27,13 @@ from analysis.analyzers import (
     AttentionFreqAnalyzer,
     AttentionPatternsAnalyzer,
     DominantFrequenciesAnalyzer,
+    EffectiveDimensionalityAnalyzer,
+    LandscapeFlatnessAnalyzer,
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
+    ParameterSnapshotAnalyzer,
 )
+from analysis.library.weights import ATTENTION_MATRICES, COMPONENT_GROUPS, WEIGHT_MATRIX_NAMES
 from dashboard.components import (
     get_family_choices,
     get_variant_choices,
@@ -36,14 +44,24 @@ from dashboard.utils import parse_checkpoint_epochs
 from dashboard.version import __version__
 from families import FamilyRegistry, TrainingResult
 from visualization import (
+    FLATNESS_METRICS,
     render_attention_freq_heatmap,
     render_attention_heads,
     render_attention_specialization_trajectory,
+    render_component_velocity,
+    render_dimensionality_trajectory,
     render_dominant_frequencies,
+    render_flatness_trajectory,
     render_freq_clusters,
     render_neuron_heatmap,
+    render_parameter_trajectory,
+    render_perturbation_distribution,
+    render_singular_value_spectrum,
     render_specialization_by_frequency,
     render_specialization_trajectory,
+    render_trajectory_3d,
+    render_trajectory_pc1_pc3,
+    render_trajectory_pc2_pc3,
 )
 
 
@@ -287,18 +305,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
 
     if not variant_name or not effective_family_name:
         state.clear_artifacts()
+        empty = create_empty_plot("Select a variant")
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
-            create_empty_plot("Select a variant"),
+            *[empty] * 18,
             "No variant selected",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -320,18 +331,11 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
 
     if variant is None:
         state.clear_artifacts()
+        empty = create_empty_plot("Variant not found")
         return (
             state,
             gr.Slider(minimum=0, maximum=1, value=0),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
-            create_empty_plot("Variant not found"),
+            *[empty] * 18,
             "Variant not found",
             "Epoch 0 (Index 0)",
             gr.Slider(minimum=0, maximum=511, value=0, step=1),
@@ -405,6 +409,15 @@ def on_variant_change(variant_name: str | None, family_name: str | None, state: 
         plots[6],  # attention (REQ_025)
         plots[7],  # attention freq heatmap (REQ_026)
         plots[8],  # attention specialization trajectory (REQ_026)
+        plots[9],  # parameter trajectory (REQ_029)
+        plots[10],  # trajectory 3D (REQ_032)
+        plots[11],  # trajectory PC1 vs PC3 (REQ_032)
+        plots[12],  # trajectory PC2 vs PC3 (REQ_032)
+        plots[13],  # component velocity (REQ_029)
+        plots[14],  # dimensionality trajectory (REQ_030)
+        plots[15],  # singular value spectrum (REQ_030)
+        plots[16],  # flatness trajectory (REQ_031)
+        plots[17],  # perturbation distribution (REQ_031)
         status,
         epoch_display_text,
         gr.Slider(minimum=0, maximum=state.n_neurons - 1, value=0, step=1),
@@ -454,6 +467,9 @@ def run_analysis_for_variant(
         pipeline.register(DominantFrequenciesAnalyzer())
         pipeline.register(NeuronActivationsAnalyzer())
         pipeline.register(NeuronFreqClustersAnalyzer())
+        pipeline.register(ParameterSnapshotAnalyzer())
+        pipeline.register(EffectiveDimensionalityAnalyzer())
+        pipeline.register(LandscapeFlatnessAnalyzer())
         pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")
@@ -475,6 +491,13 @@ def refresh_variants(family_name: str | None) -> gr.Dropdown:
     registry = get_registry()
     variant_choices = get_variant_choices(registry, family_name)
     return gr.Dropdown(choices=variant_choices, value=None)
+
+
+def _resolve_trajectory_components(group: str) -> list[str] | None:
+    """Map trajectory group name to component list."""
+    if group == "all":
+        return None
+    return COMPONENT_GROUPS.get(group)
 
 
 def generate_all_plots(state: DashboardState):
@@ -597,6 +620,98 @@ def generate_all_plots(state: DashboardState):
         attn_freq_fig = create_empty_plot("Run analysis first")
         attn_spec_fig = create_empty_plot("Run analysis first")
 
+    # Parameter trajectory and velocity (REQ_029, REQ_032, cross-epoch)
+    trajectory_data = state.get_trajectory_data()
+    if trajectory_data is not None:
+        try:
+            snapshots, traj_epochs = trajectory_data
+            components = _resolve_trajectory_components(state.selected_trajectory_group)
+            trajectory_fig = render_parameter_trajectory(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            trajectory_3d_fig = render_trajectory_3d(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            trajectory_pc1_pc3_fig = render_trajectory_pc1_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            trajectory_pc2_pc3_fig = render_trajectory_pc2_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            velocity_fig = render_component_velocity(snapshots, traj_epochs, epoch)
+        except Exception:
+            trajectory_fig = create_empty_plot("Error rendering trajectory")
+            trajectory_3d_fig = create_empty_plot("Error rendering trajectory")
+            trajectory_pc1_pc3_fig = create_empty_plot("Error rendering trajectory")
+            trajectory_pc2_pc3_fig = create_empty_plot("Error rendering trajectory")
+            velocity_fig = create_empty_plot("Error rendering velocity")
+    else:
+        trajectory_fig = create_empty_plot("Run analysis first")
+        trajectory_3d_fig = create_empty_plot("Run analysis first")
+        trajectory_pc1_pc3_fig = create_empty_plot("Run analysis first")
+        trajectory_pc2_pc3_fig = create_empty_plot("Run analysis first")
+        velocity_fig = create_empty_plot("Run analysis first")
+
+    # Effective dimensionality (REQ_030, cross-epoch + per-epoch)
+    if state.artifacts_dir and "effective_dimensionality" in state.available_analyzers:
+        loader = ArtifactLoader(state.artifacts_dir)
+
+        # Dimensionality trajectory (from summary)
+        if loader.has_summary("effective_dimensionality"):
+            try:
+                summary_data = loader.load_summary("effective_dimensionality")
+                dim_traj_fig = render_dimensionality_trajectory(summary_data, current_epoch=epoch)
+            except FileNotFoundError:
+                dim_traj_fig = create_empty_plot("No summary data")
+        else:
+            dim_traj_fig = create_empty_plot("Run analysis first")
+
+        # Singular value spectrum (per-epoch)
+        try:
+            epoch_data = loader.load_epoch("effective_dimensionality", epoch)
+            head_idx = (
+                state.selected_sv_head if state.selected_sv_matrix in ATTENTION_MATRICES else None
+            )
+            sv_spectrum_fig = render_singular_value_spectrum(
+                epoch_data,
+                epoch=epoch,
+                matrix_name=state.selected_sv_matrix,
+                head_idx=head_idx,
+            )
+        except FileNotFoundError:
+            sv_spectrum_fig = create_empty_plot("No data for this epoch")
+    else:
+        dim_traj_fig = create_empty_plot("Run analysis first")
+        sv_spectrum_fig = create_empty_plot("Run analysis first")
+
+    # Landscape flatness (REQ_031, cross-epoch + per-epoch)
+    if state.artifacts_dir and "landscape_flatness" in state.available_analyzers:
+        loader = ArtifactLoader(state.artifacts_dir)
+
+        # Flatness trajectory (from summary)
+        if loader.has_summary("landscape_flatness"):
+            try:
+                summary_data = loader.load_summary("landscape_flatness")
+                flatness_traj_fig = render_flatness_trajectory(
+                    summary_data,
+                    current_epoch=epoch,
+                    metric=state.selected_flatness_metric,
+                )
+            except FileNotFoundError:
+                flatness_traj_fig = create_empty_plot("No summary data")
+        else:
+            flatness_traj_fig = create_empty_plot("Run analysis first")
+
+        # Perturbation distribution (per-epoch)
+        try:
+            epoch_data = loader.load_epoch("landscape_flatness", epoch)
+            perturbation_fig = render_perturbation_distribution(epoch_data, epoch=epoch)
+        except FileNotFoundError:
+            perturbation_fig = create_empty_plot("No data for this epoch")
+    else:
+        flatness_traj_fig = create_empty_plot("Run analysis first")
+        perturbation_fig = create_empty_plot("Run analysis first")
+
     return (
         loss_fig,
         freq_fig,
@@ -607,6 +722,15 @@ def generate_all_plots(state: DashboardState):
         attention_fig,
         attn_freq_fig,
         attn_spec_fig,
+        trajectory_fig,
+        trajectory_3d_fig,
+        trajectory_pc1_pc3_fig,
+        trajectory_pc2_pc3_fig,
+        velocity_fig,
+        dim_traj_fig,
+        sv_spectrum_fig,
+        flatness_traj_fig,
+        perturbation_fig,
     )
 
 
@@ -639,6 +763,15 @@ def update_visualizations(epoch_idx: int | None, neuron_idx: int | None, state: 
         plots[6],
         plots[7],
         plots[8],
+        plots[9],
+        plots[10],
+        plots[11],
+        plots[12],
+        plots[13],
+        plots[14],
+        plots[15],
+        plots[16],
+        plots[17],
         epoch_display,
         state,
     )
@@ -670,6 +803,95 @@ def update_activation_only(epoch_idx: int | None, neuron_idx: int | None, state:
             )
         except FileNotFoundError:
             fig = create_empty_plot("No data for this epoch")
+    else:
+        fig = create_empty_plot("Run analysis first")
+
+    return fig, state
+
+
+def update_trajectory_only(group: str | None, state: DashboardState):
+    """Update trajectory plots when component group changes (REQ_029, REQ_032)."""
+    if group:
+        state.selected_trajectory_group = group.lower()
+
+    trajectory_data = state.get_trajectory_data()
+    if trajectory_data is not None:
+        try:
+            snapshots, traj_epochs = trajectory_data
+            epoch = state.get_current_epoch()
+            components = _resolve_trajectory_components(state.selected_trajectory_group)
+            fig = render_parameter_trajectory(snapshots, traj_epochs, epoch, components=components)
+            fig_3d = render_trajectory_3d(snapshots, traj_epochs, epoch, components=components)
+            fig_pc1_pc3 = render_trajectory_pc1_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
+            fig_pc2_pc3 = render_trajectory_pc2_pc3(
+                snapshots, traj_epochs, epoch, components=components
+            )
+        except Exception:
+            fig = create_empty_plot("Error rendering trajectory")
+            fig_3d = create_empty_plot("Error rendering trajectory")
+            fig_pc1_pc3 = create_empty_plot("Error rendering trajectory")
+            fig_pc2_pc3 = create_empty_plot("Error rendering trajectory")
+    else:
+        fig = create_empty_plot("Run analysis first")
+        fig_3d = create_empty_plot("Run analysis first")
+        fig_pc1_pc3 = create_empty_plot("Run analysis first")
+        fig_pc2_pc3 = create_empty_plot("Run analysis first")
+
+    return fig, fig_3d, fig_pc1_pc3, fig_pc2_pc3, state
+
+
+def update_spectrum_only(matrix_name: str | None, head_idx: int | None, state: DashboardState):
+    """Update only the SV spectrum plot when matrix or head changes (REQ_030)."""
+    if matrix_name:
+        state.selected_sv_matrix = matrix_name
+    if head_idx is not None:
+        state.selected_sv_head = int(head_idx)
+
+    if (
+        state.artifacts_dir
+        and "effective_dimensionality" in state.available_analyzers
+        and state.available_epochs
+    ):
+        try:
+            epoch = state.get_current_epoch()
+            loader = ArtifactLoader(state.artifacts_dir)
+            epoch_data = loader.load_epoch("effective_dimensionality", epoch)
+            h = state.selected_sv_head if state.selected_sv_matrix in ATTENTION_MATRICES else None
+            fig = render_singular_value_spectrum(
+                epoch_data, epoch=epoch, matrix_name=state.selected_sv_matrix, head_idx=h
+            )
+        except FileNotFoundError:
+            fig = create_empty_plot("No data for this epoch")
+    else:
+        fig = create_empty_plot("Run analysis first")
+
+    # Show/hide head selector based on whether current matrix is attention
+    head_visible = state.selected_sv_matrix in ATTENTION_MATRICES
+    return fig, gr.Slider(visible=head_visible), state
+
+
+def update_flatness_metric_only(metric: str | None, state: DashboardState):
+    """Update only the flatness trajectory when metric dropdown changes (REQ_031)."""
+    if metric:
+        state.selected_flatness_metric = metric
+
+    if state.artifacts_dir and "landscape_flatness" in state.available_analyzers:
+        loader = ArtifactLoader(state.artifacts_dir)
+        if loader.has_summary("landscape_flatness"):
+            try:
+                summary_data = loader.load_summary("landscape_flatness")
+                epoch = state.get_current_epoch()
+                fig = render_flatness_trajectory(
+                    summary_data,
+                    current_epoch=epoch,
+                    metric=state.selected_flatness_metric,
+                )
+            except FileNotFoundError:
+                fig = create_empty_plot("No summary data")
+        else:
+            fig = create_empty_plot("Run analysis first")
     else:
         fig = create_empty_plot("Run analysis first")
 
@@ -907,9 +1129,8 @@ def create_app() -> gr.Blocks:
 
                 # Neuron Specialization (REQ_027)
                 gr.Markdown("### Neuron Frequency Specialization")
-                with gr.Row():
-                    spec_traj_plot = gr.Plot(label="Neuron Specialization Trajectory")
-                    spec_freq_plot = gr.Plot(label="Specialization by Frequency")
+                spec_traj_plot = gr.Plot(label="Neuron Specialization Trajectory")
+                spec_freq_plot = gr.Plot(label="Specialization by Frequency")
 
                 # Attention Patterns (REQ_025)
                 gr.Markdown("### Attention Patterns")
@@ -933,6 +1154,54 @@ def create_app() -> gr.Blocks:
                 with gr.Row():
                     attn_freq_plot = gr.Plot(label="Attention Head Frequency Decomposition")
                     attn_spec_plot = gr.Plot(label="Head Specialization Trajectory")
+
+                # Parameter Trajectory (REQ_029, REQ_032)
+                gr.Markdown("### Parameter Space Trajectory")
+                trajectory_group_radio = gr.Radio(
+                    choices=["All", "Embedding", "Attention", "MLP"],
+                    value="All",
+                    label="Component Group",
+                    interactive=True,
+                )
+                with gr.Row():
+                    trajectory_plot = gr.Plot(label="Parameter Trajectory (PCA)")
+                    trajectory_3d_plot = gr.Plot(label="Parameter Trajectory 3D")
+                with gr.Row():
+                    trajectory_pc1_pc3_plot = gr.Plot(label="Parameter Trajectory PC1 vs PC3")
+                    trajectory_pc2_pc3_plot = gr.Plot(label="Parameter Trajectory PC2 vs PC3")
+                velocity_plot = gr.Plot(label="Component Velocity")
+
+                # Effective Dimensionality (REQ_030)
+                gr.Markdown("### Weight Matrix Effective Dimensionality")
+                dim_traj_plot = gr.Plot(label="Dimensionality Trajectory")
+                with gr.Row():
+                    sv_matrix_dropdown = gr.Dropdown(
+                        label="Weight Matrix",
+                        choices=WEIGHT_MATRIX_NAMES,
+                        value="W_in",
+                        interactive=True,
+                    )
+                    sv_head_slider = gr.Slider(
+                        minimum=0,
+                        maximum=3,
+                        step=1,
+                        value=0,
+                        label="Attention Head",
+                        interactive=True,
+                        visible=False,
+                    )
+                sv_spectrum_plot = gr.Plot(label="Singular Value Spectrum")
+
+                # Loss Landscape Flatness (REQ_031)
+                gr.Markdown("### Loss Landscape Flatness")
+                flatness_metric_dropdown = gr.Dropdown(
+                    label="Flatness Metric",
+                    choices=[(v, k) for k, v in FLATNESS_METRICS.items()],
+                    value="mean_delta_loss",
+                    interactive=True,
+                )
+                flatness_traj_plot = gr.Plot(label="Flatness Trajectory")
+                perturbation_dist_plot = gr.Plot(label="Perturbation Distribution")
 
                 # ============================================================
                 # Event Handlers (REQ_021d)
@@ -961,6 +1230,15 @@ def create_app() -> gr.Blocks:
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
+                        trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
+                        velocity_plot,
+                        dim_traj_plot,
+                        sv_spectrum_plot,
+                        flatness_traj_plot,
+                        perturbation_dist_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -994,6 +1272,15 @@ def create_app() -> gr.Blocks:
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
+                        trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
+                        velocity_plot,
+                        dim_traj_plot,
+                        sv_spectrum_plot,
+                        flatness_traj_plot,
+                        perturbation_dist_plot,
                         analysis_status,
                         epoch_display,
                         neuron_slider,
@@ -1014,6 +1301,15 @@ def create_app() -> gr.Blocks:
                         attention_plot,
                         attn_freq_plot,
                         attn_spec_plot,
+                        trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
+                        velocity_plot,
+                        dim_traj_plot,
+                        sv_spectrum_plot,
+                        flatness_traj_plot,
+                        perturbation_dist_plot,
                         epoch_display,
                         state,
                     ],
@@ -1031,6 +1327,38 @@ def create_app() -> gr.Blocks:
                     fn=update_attention_only,
                     inputs=[position_pair_dropdown, epoch_slider, state],
                     outputs=[attention_plot, state],
+                )
+
+                # Trajectory component group selector (REQ_029, REQ_032)
+                trajectory_group_radio.change(
+                    fn=update_trajectory_only,
+                    inputs=[trajectory_group_radio, state],
+                    outputs=[
+                        trajectory_plot,
+                        trajectory_3d_plot,
+                        trajectory_pc1_pc3_plot,
+                        trajectory_pc2_pc3_plot,
+                        state,
+                    ],
+                )
+
+                # Singular value matrix/head selectors (REQ_030)
+                sv_matrix_dropdown.change(
+                    fn=update_spectrum_only,
+                    inputs=[sv_matrix_dropdown, sv_head_slider, state],
+                    outputs=[sv_spectrum_plot, sv_head_slider, state],
+                )
+                sv_head_slider.change(
+                    fn=update_spectrum_only,
+                    inputs=[sv_matrix_dropdown, sv_head_slider, state],
+                    outputs=[sv_spectrum_plot, sv_head_slider, state],
+                )
+
+                # Flatness metric selector (REQ_031)
+                flatness_metric_dropdown.change(
+                    fn=update_flatness_metric_only,
+                    inputs=[flatness_metric_dropdown, state],
+                    outputs=[flatness_traj_plot, state],
                 )
 
         # Note: Variants are now initialized at creation time (fixes BUG_004)

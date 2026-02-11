@@ -205,14 +205,28 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
             device: Device for tensor computations
 
         Returns:
-            Dict with 'params' and 'fourier_basis'
+            Dict with 'params', 'fourier_basis', and 'loss_fn'
         """
         p = params["prime"]
         fourier_basis, _ = get_fourier_basis(p, device)
 
+        def loss_fn(model, probe):
+            """Cross-entropy loss on modular addition probe dataset.
+
+            Derives labels from probe inputs: (a + b) mod p.
+            Uses last-position logits matching training loss.
+            """
+            labels = (probe[:, 0] + probe[:, 1]) % p
+            with torch.no_grad():
+                logits = model(probe)
+            log_probs = logits[:, -1].log_softmax(dim=-1)
+            loss = -log_probs.gather(1, labels.unsqueeze(1)).squeeze(1).mean()
+            return loss.item()
+
         return {
             "params": params,
             "fourier_basis": fourier_basis,
+            "loss_fn": loss_fn,
         }
 
 

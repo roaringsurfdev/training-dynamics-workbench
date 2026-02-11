@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-02-10
+
+### Added
+
+- **Parameter Space Trajectory Projections** (REQ_029)
+  - PCA-based trajectory visualization of model weight evolution through training
+  - 2D trajectory (PC1 vs PC2) with epoch-colored points and current epoch highlight
+  - Explained variance scree plot (individual + cumulative)
+  - Parameter velocity plot (L2 norm of change per epoch, normalized by epoch gap)
+  - Per-component group velocity comparison (Embedding, Attention, MLP)
+  - `compute_pca_trajectory()` and `compute_parameter_velocity()` library functions
+
+- **Weight Matrix Effective Dimensionality** (REQ_030)
+  - New `EffectiveDimensionalityAnalyzer` computes SVD-based participation ratio per checkpoint
+  - Dimensionality trajectory renderer (one line per weight matrix across epochs)
+  - Singular value spectrum renderer (per-epoch bar chart)
+  - Summary statistics: participation ratio per matrix
+
+- **Loss Landscape Flatness** (REQ_031)
+  - New `LandscapeFlatnessAnalyzer` measures sensitivity to random perturbations
+  - `compute_landscape_flatness()` library function with configurable perturbation scale/samples
+  - Flatness trajectory renderer (selectable metric: mean/max/std delta loss)
+  - Perturbation distribution renderer (per-epoch histogram of delta losses)
+  - Summary statistics: mean, max, std delta loss per epoch
+
+- **Parameter Trajectory PC3 Visualization** (REQ_032)
+  - 3D interactive PCA trajectory (PC1 vs PC2 vs PC3) with rotation/zoom/pan
+  - PC1 vs PC3 and PC2 vs PC3 2D projection panels
+  - Shared `_render_trajectory_2d()` helper eliminates rendering code duplication
+  - All projections respond to component group selector and epoch slider
+  - Confirms trajectory "dip" structure is genuine 3D geometry, not a projection artifact
+
+- **Visualization Export** (REQ_033)
+  - `export_figure()`: Static export of any Plotly Figure to PNG, SVG, PDF, or HTML
+  - `export_animation()`: Animated GIF from per-epoch renderers
+  - `export_cross_epoch_animation()`: Animated GIF sweeping current_epoch across cross-epoch renderers
+  - `export_variant_visualization()`: Name-based convenience function (25 visualizations mapped)
+  - Works without a running dashboard — designed for notebook/CLI/Claude programmatic use
+  - Dependencies added: kaleido, Pillow
+
+### Changed
+
+- Parameter velocity now normalized by epoch gap for non-uniform checkpoint schedules
+
+### References
+
+- Archived requirements: `requirements/archive/v0.3.1-trajectory-export/`
+- Milestone summary: `requirements/archive/v0.3.1-trajectory-export/MILESTONE_SUMMARY.md`
+
 ## [0.3.0] - 2026-02-08
 
 ### Added

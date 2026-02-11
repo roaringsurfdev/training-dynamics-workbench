@@ -34,7 +34,10 @@
     "dominant_frequencies",
     "neuron_activations",
     "neuron_freq_norm",
-    "coarseness"
+    "coarseness",
+    "parameter_snapshot",
+    "effective_dimensionality",
+    "landscape_flatness"
   ],
 
   "visualizations": [
@@ -48,7 +51,13 @@
     "specialization_trajectory",
     "specialization_by_frequency",
     "coarseness_trajectory",
-    "coarseness_distribution"
+    "coarseness_distribution",
+    "parameter_trajectory",
+    "component_velocity",
+    "dimensionality_trajectory",
+    "singular_value_spectrum",
+    "flatness_trajectory",
+    "perturbation_distribution"
   ],
 
   "analysis_dataset": {

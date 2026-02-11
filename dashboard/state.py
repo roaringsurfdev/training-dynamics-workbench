@@ -1,10 +1,9 @@
 """State management for the dashboard."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    pass
+import numpy as np
 
 
 @dataclass
@@ -50,6 +49,22 @@ class DashboardState:
     selected_to_position: int = 2  # = token
     selected_from_position: int = 0  # a token
 
+    # Parameter trajectory component group (REQ_029)
+    selected_trajectory_group: str = "all"
+
+    # Effective dimensionality (REQ_030)
+    selected_sv_matrix: str = "W_in"
+    selected_sv_head: int = 0
+
+    # Landscape flatness metric selector (REQ_031)
+    selected_flatness_metric: str = "mean_delta_loss"
+
+    # Cached parameter snapshots for trajectory rendering (REQ_029)
+    # Unlike per-epoch artifacts, trajectory needs all epochs loaded at once.
+    # Cached on first access per variant to avoid reloading on every slider change.
+    _trajectory_snapshots: list[dict[str, Any]] | None = field(default=None, repr=False)
+    _trajectory_epochs: list[int] | None = field(default=None, repr=False)
+
     def get_current_epoch(self) -> int:
         """Get actual epoch number at current index."""
         if self.available_epochs and 0 <= self.current_epoch_idx < len(self.available_epochs):
@@ -65,6 +80,34 @@ class DashboardState:
         self.available_epochs = []
         self.current_epoch_idx = 0
         self.model_config = None
+        self._trajectory_snapshots = None
+        self._trajectory_epochs = None
+
+    def get_trajectory_data(
+        self,
+    ) -> tuple[list[dict[str, np.ndarray]], list[int]] | None:
+        """Get cached trajectory snapshots, loading on first access.
+
+        Returns:
+            Tuple of (snapshots, epochs) or None if not available.
+        """
+        if self._trajectory_snapshots is not None:
+            return self._trajectory_snapshots, self._trajectory_epochs  # type: ignore[return-value]
+
+        if not self.artifacts_dir or "parameter_snapshot" not in self.available_analyzers:
+            return None
+
+        from analysis import ArtifactLoader
+
+        loader = ArtifactLoader(self.artifacts_dir)
+        epochs = loader.get_epochs("parameter_snapshot")
+        if not epochs:
+            return None
+
+        snapshots = [loader.load_epoch("parameter_snapshot", e) for e in epochs]
+        self._trajectory_snapshots = snapshots
+        self._trajectory_epochs = epochs
+        return snapshots, epochs
 
     def clear_selection(self) -> None:
         """Clear family/variant selection and all artifacts."""

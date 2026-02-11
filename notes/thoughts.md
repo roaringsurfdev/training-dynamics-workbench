@@ -185,3 +185,128 @@ Packaging analysis artifacts in shareable formats:
 ---
 
 *These ideas emerged from discussion about analysis report requirements.*
+
+---
+
+## 2026-02-10: Post-v0.3.1 Discussion — Future Directions
+
+Three threads emerged from discussion after the v0.3.1 release. Ordered by estimated readiness.
+
+### 1. Turn Detection (Near Requirement-Ready)
+
+**Problem**: Grokking onset ("the turn") is currently identified by visual inspection. Quantitative detection would enable:
+- Automated identification of when grokking begins
+- Dynamic checkpoint scheduling (uniform spacing by default, then retroactively densify around the turn)
+- Downstream analytics that key off the turn epoch
+
+**Observations**:
+- The turn appears to precede all other meaningful structural events (frequency specialization, attention head differentiation, trajectory curvature)
+- The existing system already handles non-uniform checkpoint schedules gracefully — adding dense checkpoints to a variant and re-running analysis "just worked"
+- Candidate signals: test loss inflection, parameter velocity spike, trajectory curvature change
+
+**Scoping notes**:
+- User suggests keeping initial scope isolated: detect the turn, report the epoch, done
+- Dynamic checkpoint scheduling and downstream analytics would be separate follow-on requirements
+- Could start with test loss curvature (simplest signal, doesn't require new analyzers)
+
+### 2. Dashboard UI Redesign — Observed Friction Points
+
+**Context**: Dashboard was designed for 4-5 visualizations, now has 18. User is not frustrated but recognizes cognitive load is growing and the UI is approaching its limits. "I get *lost* in analysis. I love it."
+
+#### Observed Workflows
+
+**A. Epoch discovery loop** (high friction):
+1. Scroll down to a summary visualization
+2. Mouse over an interesting area to find a good epoch
+3. Scroll back to the top
+4. Mouse over train/test curves to find the right slider index
+5. Type in the index
+6. Scroll back down to see the result
+
+User has memorized some indices but can't always remember which variant they belong to (e.g., is index 71 important for 101/999 or 113/999?).
+
+**B. Neuron discovery** (moderate friction):
+1. Look at Neuron Frequency Specialization (clusters) plot
+2. Mouse over a yellow block to find the neuron ID
+3. Navigate to Neuron Index slider input box
+4. Enter the neuron ID
+5. Scroll to neuron heatmap
+
+**C. Two modes of use**:
+- **Summary mode**: Scrolling the full page to find and compare summary information across visualizations
+- **Deep dive mode**: Focused on one visualization (especially neuron heatmaps), using frequency clusters to identify neurons of interest
+
+#### Specific Pain Points
+
+1. **Top controls steal vertical space**: Variant selector, epoch slider, neuron index, and other inputs at the top push all content down, requiring constant scrolling
+2. **Epoch cross-referencing**: Summary plots show the interesting epoch but don't connect to the epoch selector
+3. **Neuron cross-referencing**: Cluster plots show the interesting neuron but don't connect to the neuron selector
+4. **Mixed layout**: Summary and detail visualizations interleaved in one long scroll — serves neither mode well
+
+#### Design Patterns Implied
+
+- **Click-to-navigate**: Click a point on any summary plot → epoch slider updates. Click a neuron in clusters → neuron index updates. Eliminates the discovery-to-input indirection.
+- **Collapsible left sidebar**: Global controls (variant, epoch, neuron index) in a toggleable left nav instead of top controls. Always accessible without stealing plot space.
+- **Summary vs detail modes**: Summary dashboard (compact, all trajectories) vs detail view (one visualization large with controls). Match the two actual usage patterns.
+- **Drill from summary** as general principle: Every summary view supports drilling into detail. This is the unifying interaction model.
+
+#### Key Constraints (from user feedback on initial design ideas)
+
+1. **No category tabs for summary scanning.** Dividing visualizations into category tabs and requiring click-through would feel like regression. The current "everything on one page" has value for summary scanning — tabs would fragment that workflow. Any solution must preserve the ability to scan summaries without tab-switching.
+
+2. **Click-to-navigate has dual intent.** Sometimes a click means "navigate to this epoch" (temporal navigation). Sometimes it means "navigate to a deep dive" (structural navigation — e.g., go to neuron heatmap). The interaction model must handle both, and it won't always be obvious which the user wants. This may resolve naturally by visualization type (trajectory click = epoch; cluster click = neuron), but it's a real design tension to watch.
+
+3. **Some summary plots are navigation elements for their adjacent details.** Example: Neuron Frequency Specialization clusters is used to find interesting neurons, then the user clicks through several neurons from the same band to compare their heatmaps. Separating the cluster plot from the heatmap would break this workflow. Summary and detail are sometimes *paired*, not separate modes. This argues against a clean summary/detail split and toward *groups* where each group has its own summary-to-detail drill-down.
+
+#### Performance
+
+- All 18 plots re-render on every epoch slider change
+- Lazy rendering (only render visible/active plots) would address this
+- Tabbed or collapsible sections would naturally limit what renders
+
+#### Framework Decision: Gradio → Dash
+
+Assessed Gradio's ceiling against emerging requirements:
+- **No sidebar layout**: Linear rows/columns, no fixed-position panels during scroll
+- **No figure patching**: Every update serializes entire figure to browser
+- **Limited click data**: `.select()` returns basic coords, no trace/point identity
+- **No client-side callbacks**: Every interaction round-trips to server
+
+Dash provides native solutions for all four. Migration cost is bounded — only `dashboard/app.py` and `dashboard/state.py` are framework-specific. Renderers return `go.Figure` objects that work identically in both.
+
+**Strategy**: Freeze Gradio dashboard (stays available for ongoing analysis), build Dash app in `dashboard_v2/` incrementally. Spike first (5-6 visualizations to prove patterns), then full migration. Training tab stays in Gradio (no interaction problems there).
+
+### 3. Cross-Variant Comparison (Biggest Gap)
+
+**Problem**: The workbench currently shows one variant at a time. Comparing variants requires:
+- Manually switching between variants in the dashboard
+- Holding differences in memory
+- Or exporting images and comparing side by side
+
+**Why it matters**:
+- Core scientific question is "how do different parameters affect training dynamics?"
+- 10 model variants exist (different primes, seeds) and comparing them is the whole point
+- The p=101/seed=999 anomaly was identified through laborious manual comparison
+
+**User's preferred approach**: Start with summary statistics comparison across variants, then drill into details from there. The "drill from summary" pattern applies here too — it's how they'd want to work generally.
+
+**Potential approaches** (not yet scoped):
+- Side-by-side dashboard panels (two variants, same visualization)
+- Overlay mode for trajectory plots (multiple variants on same axes)
+- Diff/delta views showing quantitative differences between variants
+- Summary tables aggregating key metrics across all variants
+
+**Dependencies**: May benefit from turn detection first (align comparisons to training phase rather than raw epoch number).
+
+### 4. Notebook Prototyping Workflow
+
+**Observation**: The `export_variant_visualization()` function and renderer library enable a new workflow:
+- Prototype new visualizations in notebooks
+- User reviews rendered output
+- Iterate on design before committing to dashboard integration
+
+This is a useful side effect of REQ_033, not a separate requirement. Worth noting as a development pattern.
+
+---
+
+*These threads are candidates for future requirements. Turn detection is closest to ready.*

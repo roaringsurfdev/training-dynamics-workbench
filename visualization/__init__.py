@@ -39,6 +39,15 @@ from visualization.renderers.dominant_frequencies import (
     render_dominant_frequencies,
     render_dominant_frequencies_over_time,
 )
+from visualization.renderers.effective_dimensionality import (
+    render_dimensionality_trajectory,
+    render_singular_value_spectrum,
+)
+from visualization.renderers.landscape_flatness import (
+    FLATNESS_METRICS,
+    render_flatness_trajectory,
+    render_perturbation_distribution,
+)
 from visualization.renderers.neuron_activations import (
     get_most_active_neurons,
     render_neuron_across_epochs,
@@ -52,6 +61,15 @@ from visualization.renderers.neuron_freq_clusters import (
     render_freq_clusters_comparison,
     render_specialization_by_frequency,
     render_specialization_trajectory,
+)
+from visualization.renderers.parameter_trajectory import (
+    render_component_velocity,
+    render_explained_variance,
+    render_parameter_trajectory,
+    render_parameter_velocity,
+    render_trajectory_3d,
+    render_trajectory_pc1_pc3,
+    render_trajectory_pc2_pc3,
 )
 
 __all__ = [
@@ -87,4 +105,20 @@ __all__ = [
     "render_coarseness_distribution",
     "render_blob_count_trajectory",
     "render_coarseness_by_neuron",
+    # REQ_030: Effective dimensionality
+    "render_dimensionality_trajectory",
+    "render_singular_value_spectrum",
+    # REQ_031: Landscape flatness
+    "render_flatness_trajectory",
+    "render_perturbation_distribution",
+    "FLATNESS_METRICS",
+    # REQ_029: Parameter trajectory
+    "render_parameter_trajectory",
+    "render_explained_variance",
+    "render_parameter_velocity",
+    "render_component_velocity",
+    # REQ_032: Trajectory PC3 projections
+    "render_trajectory_3d",
+    "render_trajectory_pc1_pc3",
+    "render_trajectory_pc2_pc3",
 ]
