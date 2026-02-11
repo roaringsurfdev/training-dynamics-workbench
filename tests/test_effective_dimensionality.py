@@ -67,6 +67,7 @@ class TestComputeParticipationRatio:
             ]
         )
         pr = compute_participation_ratio(sv)
+        assert isinstance(pr, np.ndarray)
         assert pr.shape == (2,)
         assert pr[0] == pytest.approx(1.0)
         assert pr[1] == pytest.approx(4.0)
@@ -80,6 +81,7 @@ class TestComputeParticipationRatio:
             ]
         )
         pr = compute_participation_ratio(sv)
+        assert isinstance(pr, np.ndarray)
         assert pr[0] == 0.0
         assert pr[1] == pytest.approx(3.0)
 
@@ -305,7 +307,7 @@ class TestRenderSingularValueSpectrum:
         fig = render_singular_value_spectrum(epoch_data, epoch=100, matrix_name="W_in")
         bar_traces = [t for t in fig.data if isinstance(t, go.Bar)]
         assert len(bar_traces) == 1
-        assert len(bar_traces[0].y) == len(epoch_data["sv_W_in"])
+        assert len(bar_traces[0].y) == len(epoch_data["sv_W_in"])  # type: ignore[arg-type]
 
     def test_custom_title(self, epoch_data):
         """Custom title is applied."""

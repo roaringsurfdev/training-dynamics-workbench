@@ -50,12 +50,12 @@ def extract_parameter_snapshot(
     snapshot["W_pos"] = _to_numpy(model.pos_embed.W_pos)
 
     block = model.blocks[0]
-    snapshot["W_Q"] = _to_numpy(block.attn.W_Q)
-    snapshot["W_K"] = _to_numpy(block.attn.W_K)
-    snapshot["W_V"] = _to_numpy(block.attn.W_V)
-    snapshot["W_O"] = _to_numpy(block.attn.W_O)
-    snapshot["W_in"] = _to_numpy(block.mlp.W_in)
-    snapshot["W_out"] = _to_numpy(block.mlp.W_out)
+    snapshot["W_Q"] = _to_numpy(block.attn.W_Q)  # type: ignore[attr-defined]
+    snapshot["W_K"] = _to_numpy(block.attn.W_K)  # type: ignore[attr-defined]
+    snapshot["W_V"] = _to_numpy(block.attn.W_V)  # type: ignore[attr-defined]
+    snapshot["W_O"] = _to_numpy(block.attn.W_O)  # type: ignore[attr-defined]
+    snapshot["W_in"] = _to_numpy(block.mlp.W_in)  # type: ignore[attr-defined]
+    snapshot["W_out"] = _to_numpy(block.mlp.W_out)  # type: ignore[attr-defined]
 
     snapshot["W_U"] = _to_numpy(model.unembed.W_U)
 
