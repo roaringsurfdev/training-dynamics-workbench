@@ -38,6 +38,9 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [
+    "notebooks/*"
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
@@ -46,3 +49,6 @@ ignore = ["E501"]  # Line length handled separately
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
+exclude = [
+    "notebooks"
+]
