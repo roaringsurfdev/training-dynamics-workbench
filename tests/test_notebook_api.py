@@ -4,6 +4,7 @@
 
 import json
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import numpy as np
@@ -42,7 +43,7 @@ def sample_family_config() -> dict:
 
 
 @pytest.fixture
-def temp_project(sample_family_config) -> Path:
+def temp_project(sample_family_config) -> Generator[Path, None, None]:
     """Create a temporary project with family config, trained variant, and metadata."""
     with tempfile.TemporaryDirectory() as tmpdir:
         root = Path(tmpdir)
