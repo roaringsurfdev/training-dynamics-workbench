@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-13
+
+### Added
+
+- **Application Configuration** (REQ_036)
+  - `tdw.config` module with `get_config()` for project path resolution
+  - Environment variable overrides: `TDW_RESULTS_DIR`, `TDW_MODEL_FAMILIES_DIR`, `TDW_PROJECT_ROOT`
+  - Frozen `AppConfig` dataclass — single source of truth for project paths
+
+- **Notebook Research API** (REQ_037)
+  - `tdw` package with `load_family()` entry point for notebook-based research
+  - `LoadedFamily` with variant lookup by domain parameters (`family.get_variant(prime=113, seed=999)`)
+  - Variant discovery: `list_variants()`, `list_variant_parameters()`
+  - Variant convenience properties: `artifacts`, `metadata`, `model_config`, `train_losses`, `test_losses`
+  - Forward pass helpers: `run_with_cache(probe, epoch)`, `make_probe(inputs)`, `analysis_dataset()`, `analysis_context()`
+  - `make_probe()` added to `ModelFamily` protocol with Modulo Addition implementation
+  - Build system (hatchling) for proper package installation from notebooks
+
+### Architecture
+
+```
+tdw/                    # Notebook research API
+  __init__.py           # load_family(), list_families()
+  config.py             # AppConfig, get_config()
+  loaded_family.py      # LoadedFamily (variant access by params)
+families/variant.py     # +convenience properties (artifacts, metadata, etc.)
+families/protocols.py   # +make_probe() on ModelFamily protocol
+```
+
+### References
+
+- Archived requirements: `requirements/archive/v0.4.0-notebook-api/`
+- Milestone summary: `requirements/archive/v0.4.0-notebook-api/MILESTONE_SUMMARY.md`
+
 ## [0.3.1] - 2026-02-10
 
 ### Added
