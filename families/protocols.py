@@ -150,6 +150,28 @@ class ModelFamily(Protocol):
         """
         ...
 
+    def make_probe(
+        self,
+        params: dict[str, Any],
+        inputs: list[list[int]],
+        device: str | torch.device | None = None,
+    ) -> torch.Tensor:
+        """Construct a probe tensor from raw input values.
+
+        Formats inputs according to the family's expected probe structure.
+        For example, modular addition takes [a, b] pairs and appends
+        the equals token to produce [a, b, p].
+
+        Args:
+            params: Domain parameter values (e.g., {"prime": 113})
+            inputs: List of input sequences (e.g., [[3, 29], [5, 7]])
+            device: Device to place the tensor on
+
+        Returns:
+            Probe tensor ready for model.run_with_cache()
+        """
+        ...
+
     def prepare_analysis_context(
         self,
         params: dict[str, Any],

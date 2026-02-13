@@ -237,5 +237,28 @@ class JsonModelFamily:
             if "default" in spec
         }
 
+    def make_probe(
+        self,
+        params: dict[str, Any],
+        inputs: list[list[int]],
+        device: str | torch.device | None = None,
+    ) -> torch.Tensor:
+        """Construct a probe tensor from raw input values.
+
+        Note: This base implementation raises NotImplementedError.
+        Family-specific subclasses should override this method.
+
+        Args:
+            params: Domain parameter values
+            inputs: List of input sequences
+            device: Device to place the tensor on
+
+        Raises:
+            NotImplementedError: Must be implemented by subclass
+        """
+        raise NotImplementedError(
+            f"make_probe() not implemented for {self.name}. Use a family-specific implementation."
+        )
+
     def __repr__(self) -> str:
         return f"JsonModelFamily(name={self.name!r})"
