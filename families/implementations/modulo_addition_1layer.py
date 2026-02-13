@@ -229,6 +229,32 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
             "loss_fn": loss_fn,
         }
 
+    def make_probe(
+        self,
+        params: dict[str, Any],
+        inputs: list[list[int]],
+        device: str | torch.device | None = None,
+    ) -> torch.Tensor:
+        """Construct a probe tensor from (a, b) input pairs.
+
+        Appends the equals token (value = prime) to each pair,
+        matching the model's expected input format [a, b, =].
+
+        Args:
+            params: Domain parameters containing 'prime'
+            inputs: List of [a, b] pairs (e.g., [[3, 29], [5, 7]])
+            device: Device to place the tensor on
+
+        Returns:
+            Tensor of shape (n, 3) with [a, b, equals_token] rows
+        """
+        p = params["prime"]
+        rows = [[a, b, p] for a, b in inputs]
+        tensor = torch.tensor(rows, dtype=torch.long)
+        if device is not None:
+            tensor = tensor.to(device)
+        return tensor
+
 
 def load_modulo_addition_1layer_family(
     model_families_dir: Path | str = "model_families",

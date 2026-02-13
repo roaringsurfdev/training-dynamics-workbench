@@ -15,8 +15,9 @@ from safetensors.torch import load_file, save_file
 from families.types import VariantState
 
 if TYPE_CHECKING:
-    from transformer_lens import HookedTransformer
+    from transformer_lens import ActivationCache, HookedTransformer
 
+    from analysis.artifact_loader import ArtifactLoader
     from families.protocols import ModelFamily
 
 
@@ -178,6 +179,130 @@ class Variant:
         state_dict = self.load_checkpoint(epoch)
         model.load_state_dict(state_dict)
         return model
+
+    # --- Notebook convenience properties (REQ_037) ---
+
+    @property
+    def artifacts(self) -> ArtifactLoader:
+        """ArtifactLoader for this variant's analysis artifacts.
+
+        Returns a new loader each call (no caching). Assign to a variable
+        if loading multiple artifacts in sequence.
+        """
+        from analysis.artifact_loader import ArtifactLoader
+
+        return ArtifactLoader(str(self.artifacts_dir))
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Training metadata (losses, checkpoint epochs, indices).
+
+        Reads from metadata.json on each access. Assign to a variable
+        to avoid repeated disk reads.
+        """
+        if not self.metadata_path.exists():
+            raise FileNotFoundError(f"No metadata found at {self.metadata_path}")
+        with open(self.metadata_path) as f:
+            return json.load(f)
+
+    @property
+    def model_config(self) -> dict[str, Any]:
+        """Model configuration (architecture, domain params, training params).
+
+        Reads from config.json on each access.
+        """
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"No config found at {self.config_path}")
+        with open(self.config_path) as f:
+            return json.load(f)
+
+    @property
+    def train_losses(self) -> list[float]:
+        """Per-epoch training losses. Shortcut for metadata['train_losses']."""
+        return self.metadata["train_losses"]
+
+    @property
+    def test_losses(self) -> list[float]:
+        """Per-epoch test losses. Shortcut for metadata['test_losses']."""
+        return self.metadata["test_losses"]
+
+    def run_with_cache(
+        self,
+        probe: torch.Tensor,
+        epoch: int,
+        device: str | torch.device | None = None,
+    ) -> tuple[torch.Tensor, ActivationCache]:
+        """Load model at checkpoint and run a forward pass with activation cache.
+
+        Args:
+            probe: Input tensor for the forward pass
+            epoch: Checkpoint epoch to load
+            device: Device for the model (default: auto-detect)
+
+        Returns:
+            Tuple of (logits, cache) from transformer_lens run_with_cache
+        """
+        model = self.load_model_at_checkpoint(epoch)
+        if device is not None:
+            model.to(device)  # in-place device move
+        logits, cache = model.run_with_cache(probe)
+        return logits, cache  # type: ignore[return-value]
+
+    def make_probe(
+        self,
+        inputs: list[list[int]],
+        device: str | torch.device | None = None,
+    ) -> torch.Tensor:
+        """Construct a probe tensor from input values.
+
+        Delegates to the family's make_probe implementation for
+        family-specific input formatting.
+
+        Args:
+            inputs: List of input sequences (e.g., [[3, 29]] for modular addition)
+            device: Device for the tensor
+
+        Returns:
+            Properly formatted probe tensor
+        """
+        return self._family.make_probe(self._params, inputs, device=device)
+
+    def analysis_dataset(
+        self,
+        device: str | torch.device | None = None,
+    ) -> torch.Tensor:
+        """Generate the full analysis dataset (probe) for this variant.
+
+        For modular addition, this is the full p x p grid of all input pairs.
+
+        Args:
+            device: Device for the tensor
+
+        Returns:
+            Analysis probe tensor
+        """
+        return self._family.generate_analysis_dataset(self._params, device=device)
+
+    def analysis_context(
+        self,
+        device: str | torch.device | None = None,
+    ) -> dict[str, Any]:
+        """Prepare family-specific analysis context.
+
+        Returns precomputed values needed for custom analysis (e.g.,
+        fourier_basis for modular addition).
+
+        Args:
+            device: Device for tensor computations (default: auto-detect)
+
+        Returns:
+            Dict with family-specific context (params, fourier_basis, etc.)
+        """
+        if device is None:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        return self._family.prepare_analysis_context(self._params, device=device)
+
+    # --- End notebook convenience properties ---
 
     def ensure_directories(self) -> None:
         """Create variant directories if they don't exist."""

@@ -30,9 +30,8 @@ None — all current requirements are complete.
 
 | Document | Description |
 |----------|-------------|
-| [analysis](drafts/analysis.md) | Attention head visualizations, neuron specialization statistics |
+| [analysis](drafts/analysis.md) | App config, notebook access API, large cross-epoch summaries |
 | [general](drafts/general.md) | Parallelization |
-| [ui](drafts/ui.md) | Variant dropdown improvements |
 
 ### Future Requirements
 
@@ -44,6 +43,8 @@ Requirements that have been documented but are not yet scheduled for implementat
 | [REQ_015](future/REQ_015_checkpoint_editor.md) | Checkpoint editor using Train/Test loss curve | Medium | High |
 | [REQ_017](future/REQ_017_multi_model_support.md) | Support for multiple toy models | High | High |
 | [REQ_019](future/REQ_019_multiscale_activation_visualization.md) | Multi-scale activation visualization (downsampled) | Medium | Medium |
+| [REQ_034](future/REQ_034_turn_detection.md) | Grokking turn detection | High | Medium |
+| [REQ_035](future/REQ_035_dashboard_interaction.md) | Dashboard interaction + Dash migration | High | High |
 
 ### Completed Milestones
 
