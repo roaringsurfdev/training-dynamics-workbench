@@ -1,18 +1,5 @@
-REQ_???
-Priority: LOW. As the project grows, this might become more of a real issue, but for now, this is easy to address.
+REQ_??? - Support for large cross-epoch summary results
 
-### Summary: Recompute summary statistics from existing artifacts
-When an analyzer gains new `compute_summary()` / `get_summary_keys()` methods (e.g., REQ_027 added summary stats to `NeuronFreqClustersAnalyzer`), the pipeline skips epochs that already have artifact files. This means summary.npz is never generated for previously-analyzed variants.
+As a researcher, I may want to analyze models across epochs and that analysis might create artifacts that are large. An example of this is the PCA of the parameter trajectories across epochs for a given variant.
 
-**Workaround**: Delete the analyzer's artifact directory and re-run analysis.
-
-**Desired behavior**: A "recompute summaries" mode that reads existing per-epoch `.npz` artifacts and calls `compute_summary()` on each, without re-running the full analysis (model loading, forward pass, etc.). This should be accessible from both the CLI and the dashboard "Run Analysis" button.
-
-REQ_??? - Compute effective dimensionality
-For each checkpoint, compute the Hessian and examine the eigenspectrum.
-
-REQ_??? - Parameter Space Trajectory Projections
-For each epoch, use PCA to project parameter vectors onto 2D/3D space. This might be better as a separate requirement, but I might want to look at UMAP, too.
-
-REQ_??? - Compute the local loss landscape flatness
-Calculate the flatness radius based on a random sample of how far you can move before loss increases significantly.
+Without getting into too much detail on implementation, we might be able to store summary tensors in a summary subfolder under each analyzer. It may also be necessary to create an additional analyzer type that runs at the end of an analysis run to summarize epoch data.
