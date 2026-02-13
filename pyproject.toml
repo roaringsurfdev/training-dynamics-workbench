@@ -49,6 +49,6 @@ ignore = ["E501"]  # Line length handled separately
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
-exclude = [
+ignore = [
     "notebooks"
 ]
