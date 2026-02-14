@@ -63,6 +63,7 @@ from visualization.renderers.neuron_freq_clusters import (
     render_specialization_trajectory,
 )
 from visualization.renderers.parameter_trajectory import (
+    get_group_label,
     render_component_velocity,
     render_explained_variance,
     render_parameter_trajectory,
@@ -112,7 +113,8 @@ __all__ = [
     "render_flatness_trajectory",
     "render_perturbation_distribution",
     "FLATNESS_METRICS",
-    # REQ_029: Parameter trajectory
+    # REQ_029/REQ_038: Parameter trajectory
+    "get_group_label",
     "render_parameter_trajectory",
     "render_explained_variance",
     "render_parameter_velocity",

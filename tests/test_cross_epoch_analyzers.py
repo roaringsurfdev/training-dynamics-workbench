@@ -9,11 +9,10 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from analysis import ArtifactLoader, AnalysisPipeline, CrossEpochAnalyzer
+from analysis import AnalysisPipeline, ArtifactLoader, CrossEpochAnalyzer
 from analysis.analyzers import AnalyzerRegistry, ParameterSnapshotAnalyzer, ParameterTrajectoryPCA
 from analysis.analyzers.parameter_trajectory_pca import _GROUPS
-from analysis.library.trajectory import compute_pca_trajectory, compute_parameter_velocity
-from analysis.library.weights import COMPONENT_GROUPS, WEIGHT_MATRIX_NAMES
+from analysis.library.trajectory import compute_parameter_velocity, compute_pca_trajectory
 from families import FamilyRegistry
 from visualization.renderers.parameter_trajectory import (
     get_group_label,
@@ -25,7 +24,6 @@ from visualization.renderers.parameter_trajectory import (
     render_trajectory_pc1_pc3,
     render_trajectory_pc2_pc3,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -64,7 +62,7 @@ def artifacts_with_snapshots():
 
         for epoch, snapshot in zip(epochs, snapshots):
             path = os.path.join(snapshot_dir, f"epoch_{epoch:05d}.npz")
-            np.savez_compressed(path, **snapshot)
+            np.savez_compressed(path, **snapshot)  # type: ignore[arg-type]
 
         yield artifacts_dir, epochs, snapshots
 
@@ -184,7 +182,7 @@ class TestArtifactLoaderCrossEpoch:
         result = analyzer.analyze_across_epochs(artifacts_dir, epochs, {})
         out_dir = os.path.join(artifacts_dir, "parameter_trajectory")
         os.makedirs(out_dir, exist_ok=True)
-        np.savez_compressed(os.path.join(out_dir, "cross_epoch.npz"), **result)
+        np.savez_compressed(os.path.join(out_dir, "cross_epoch.npz"), **result)  # type: ignore[arg-type]
 
         loader = ArtifactLoader(artifacts_dir)
         assert loader.has_cross_epoch("parameter_trajectory")
@@ -195,7 +193,7 @@ class TestArtifactLoaderCrossEpoch:
         result = analyzer.analyze_across_epochs(artifacts_dir, epochs, {})
         out_dir = os.path.join(artifacts_dir, "parameter_trajectory")
         os.makedirs(out_dir, exist_ok=True)
-        np.savez_compressed(os.path.join(out_dir, "cross_epoch.npz"), **result)
+        np.savez_compressed(os.path.join(out_dir, "cross_epoch.npz"), **result)  # type: ignore[arg-type]
 
         loader = ArtifactLoader(artifacts_dir)
         loaded = loader.load_cross_epoch("parameter_trajectory")
@@ -417,7 +415,7 @@ class TestRenderersWithPrecomputedData:
             render_trajectory_pc2_pc3,
         ]:
             fig = renderer(pca_result, epochs, current_epoch=50)
-            assert len(fig.data) == 3, f"{renderer.__name__} missing highlight"
+            assert len(fig.data) == 3, f"{renderer.__name__} missing highlight"  # type: ignore[arg-type]
 
     def test_no_highlight_for_missing_epoch(self, precomputed_data):
         pca_result, _, epochs, _ = precomputed_data
@@ -427,4 +425,4 @@ class TestRenderersWithPrecomputedData:
             render_trajectory_pc2_pc3,
         ]:
             fig = renderer(pca_result, epochs, current_epoch=999)
-            assert len(fig.data) == 2, f"{renderer.__name__} unexpected highlight"
+            assert len(fig.data) == 2, f"{renderer.__name__} unexpected highlight"  # type: ignore[arg-type]
