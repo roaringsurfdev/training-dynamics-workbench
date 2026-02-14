@@ -1,7 +1,7 @@
 """Dash dashboard application for training dynamics analysis.
 
-REQ_035 Phase 1: Spike — validates sidebar layout, click-to-navigate,
-selective rendering with Patch(), and per-output callbacks.
+REQ_035: Visualization with sidebar, click-to-navigate, selective rendering.
+REQ_040: Training and Analysis Run pages with site-level navigation.
 
 Launch: python -m dashboard_v2.app
 Runs on port 8050 (separate from Gradio on 7860).
@@ -12,6 +12,9 @@ from dash import Dash
 
 from dashboard_v2.callbacks import register_callbacks
 from dashboard_v2.layout import create_layout
+from dashboard_v2.navigation import register_routing_callbacks
+from dashboard_v2.pages.analysis_run import register_analysis_callbacks
+from dashboard_v2.pages.training import register_training_callbacks
 
 
 def create_app() -> Dash:
@@ -23,7 +26,10 @@ def create_app() -> Dash:
     )
     app.title = "Training Dynamics Workbench"
     app.layout = create_layout()
+    register_routing_callbacks(app)
     register_callbacks(app)
+    register_training_callbacks(app)
+    register_analysis_callbacks(app)
     return app
 
 
