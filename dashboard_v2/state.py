@@ -72,6 +72,11 @@ class ServerState:
     # Model config
     model_config: dict[str, Any] | None = None
     n_neurons: int = 512
+    n_heads: int = 4
+
+    # Cached parameter snapshots for trajectory rendering (REQ_029)
+    _trajectory_snapshots: list[dict[str, Any]] | None = field(default=None, repr=False)
+    _trajectory_epochs: list[int] | None = field(default=None, repr=False)
 
     def clear(self) -> None:
         """Reset all state."""
@@ -83,6 +88,9 @@ class ServerState:
         self.test_losses = None
         self.model_config = None
         self.n_neurons = 512
+        self.n_heads = 4
+        self._trajectory_snapshots = None
+        self._trajectory_epochs = None
 
     def get_epoch_at_index(self, idx: int) -> int:
         """Map slider index to actual epoch number."""
@@ -102,6 +110,26 @@ class ServerState:
         if self.artifacts_dir:
             return ArtifactLoader(self.artifacts_dir)
         return None
+
+    def get_trajectory_data(
+        self,
+    ) -> tuple[list[dict[str, Any]], list[int]] | None:
+        """Get cached trajectory snapshots, loading on first access."""
+        if self._trajectory_snapshots is not None:
+            return self._trajectory_snapshots, self._trajectory_epochs  # type: ignore[return-value]
+
+        if not self.artifacts_dir or "parameter_snapshot" not in self.available_analyzers:
+            return None
+
+        loader = ArtifactLoader(self.artifacts_dir)
+        epochs = loader.get_epochs("parameter_snapshot")
+        if not epochs:
+            return None
+
+        snapshots = [loader.load_epoch("parameter_snapshot", e) for e in epochs]
+        self._trajectory_snapshots = snapshots
+        self._trajectory_epochs = epochs
+        return snapshots, epochs
 
     def load_variant(self, family_name: str, variant_name: str) -> bool:
         """Load a variant's metadata and discover its artifacts.
@@ -135,12 +163,13 @@ class ServerState:
             self.train_losses = metadata.get("train_losses", [])
             self.test_losses = metadata.get("test_losses", [])
 
-        # Load config (includes d_mlp for neuron count)
+        # Load config (includes d_mlp for neuron count, n_heads for attention)
         if variant.config_path.exists():
             with open(variant.config_path) as f:
                 config = json.load(f)
             self.model_config = config
             self.n_neurons = config.get("d_mlp", 512)
+            self.n_heads = config.get("n_heads", 4)
 
         # Discover artifacts
         artifacts_dir = variant.artifacts_dir

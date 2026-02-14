@@ -1,11 +1,11 @@
 """Callback registrations for the Dash dashboard.
 
-Organized by interaction pattern:
+All 18 Analysis tab visualizations with:
 - Variant selection: loads data, renders all plots
-- Epoch change (summary): Patch() marker updates only
-- Epoch change (per-epoch): full re-render of detail plots
-- Click-to-navigate: summary plot click → epoch slider update
-- Control-specific: neuron slider, flatness metric
+- Epoch change: Patch() for summary/trajectory markers, full re-render for per-epoch
+- Click-to-navigate: summary/trajectory plot click → epoch slider update
+- Click-to-navigate: freq clusters click → neuron slider update
+- Control-specific: neuron, position pair, trajectory group, SV matrix/head, flatness metric
 - Sidebar toggle
 """
 
@@ -14,15 +14,36 @@ from __future__ import annotations
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, Patch, State, no_update
 
+from analysis.library.weights import ATTENTION_MATRICES, COMPONENT_GROUPS
 from dashboard.components.family_selector import get_family_choices, get_variant_choices
 from dashboard.components.loss_curves import render_loss_curves_with_indicator
 from dashboard_v2.state import get_registry, server_state
+from visualization.renderers.attention_freq import (
+    render_attention_freq_heatmap,
+    render_attention_specialization_trajectory,
+)
+from visualization.renderers.attention_patterns import render_attention_heads
 from visualization.renderers.dominant_frequencies import render_dominant_frequencies
-from visualization.renderers.landscape_flatness import render_flatness_trajectory
+from visualization.renderers.effective_dimensionality import (
+    render_dimensionality_trajectory,
+    render_singular_value_spectrum,
+)
+from visualization.renderers.landscape_flatness import (
+    render_flatness_trajectory,
+    render_perturbation_distribution,
+)
 from visualization.renderers.neuron_activations import render_neuron_heatmap
 from visualization.renderers.neuron_freq_clusters import (
     render_freq_clusters,
+    render_specialization_by_frequency,
     render_specialization_trajectory,
+)
+from visualization.renderers.parameter_trajectory import (
+    render_component_velocity,
+    render_parameter_trajectory,
+    render_trajectory_3d,
+    render_trajectory_pc1_pc3,
+    render_trajectory_pc2_pc3,
 )
 
 
@@ -56,6 +77,14 @@ def _empty_figure(message: str = "No data") -> go.Figure:
 _figure_cache: dict[str, go.Figure] = {}
 _figure_epoch: dict[str, int] = {}
 
+# Plot names for all summary/trajectory plots that use Patch()
+_PATCHABLE_PLOTS = [
+    "loss", "spec_traj", "spec_freq", "attn_spec",
+    "dim_traj", "flatness",
+    "trajectory", "trajectory_3d", "trajectory_pc1_pc3", "trajectory_pc2_pc3",
+    "velocity",
+]
+
 
 def _cache_key(plot_name: str) -> str:
     """Build cache key from current variant + plot name."""
@@ -64,54 +93,27 @@ def _cache_key(plot_name: str) -> str:
     return f"{vname}:{plot_name}"
 
 
-def _render_and_cache_loss(epoch: int) -> go.Figure:
-    """Render loss curves and cache the figure."""
-    fig = render_loss_curves_with_indicator(
-        server_state.train_losses,
-        server_state.test_losses,
-        current_epoch=epoch,
-        checkpoint_epochs=server_state.available_epochs,
-    )
-    key = _cache_key("loss")
+def _cache_figure(plot_name: str, fig: go.Figure, epoch: int) -> go.Figure:
+    """Store a figure in the cache with its epoch and return it."""
+    key = _cache_key(plot_name)
     _figure_cache[key] = fig
     _figure_epoch[key] = epoch
     return fig
 
 
-def _render_and_cache_spec_trajectory(epoch: int) -> go.Figure:
-    """Render specialization trajectory and cache."""
-    loader = server_state.get_loader()
-    if loader is None or "neuron_freq_norm" not in server_state.available_analyzers:
-        return _empty_figure("Run analysis first")
-    if not loader.has_summary("neuron_freq_norm"):
-        return _empty_figure("No summary data")
-    try:
-        summary_data = loader.load_summary("neuron_freq_norm")
-        fig = render_specialization_trajectory(summary_data, current_epoch=epoch)
-        key = _cache_key("spec_traj")
-        _figure_cache[key] = fig
-        _figure_epoch[key] = epoch
-        return fig
-    except FileNotFoundError:
-        return _empty_figure("No summary data")
+def _patch_or_skip(plot_name: str, epoch: int) -> Patch | go.Figure:
+    """Return a Patch for epoch marker update, or no_update if already current.
 
-
-def _render_and_cache_flatness(epoch: int, metric: str) -> go.Figure:
-    """Render flatness trajectory and cache."""
-    loader = server_state.get_loader()
-    if loader is None or "landscape_flatness" not in server_state.available_analyzers:
-        return _empty_figure("Run analysis first")
-    if not loader.has_summary("landscape_flatness"):
-        return _empty_figure("No summary data")
-    try:
-        summary_data = loader.load_summary("landscape_flatness")
-        fig = render_flatness_trajectory(summary_data, current_epoch=epoch, metric=metric)
-        key = _cache_key("flatness")
-        _figure_cache[key] = fig
-        _figure_epoch[key] = epoch
-        return fig
-    except FileNotFoundError:
-        return _empty_figure("No summary data")
+    If the figure is not cached, returns a full re-render.
+    """
+    key = _cache_key(plot_name)
+    if key not in _figure_cache:
+        # No cached figure — need full render (caller handles this)
+        return no_update  # type: ignore[return-value]
+    if _figure_epoch.get(key) == epoch:
+        return no_update  # type: ignore[return-value]
+    _figure_epoch[key] = epoch
+    return _patch_epoch_marker(epoch)
 
 
 def _patch_epoch_marker(epoch: int) -> Patch:
@@ -129,18 +131,278 @@ def _patch_epoch_marker(epoch: int) -> Patch:
     return patched
 
 
+def _resolve_trajectory_components(group: str) -> list[str] | None:
+    """Map trajectory group name to component list."""
+    if group == "all":
+        return None
+    return COMPONENT_GROUPS.get(group)
+
+
+# ---------------------------------------------------------------------------
+# Summary/cross-epoch render-and-cache functions
+# ---------------------------------------------------------------------------
+
+
+def _render_loss(epoch: int) -> go.Figure:
+    return _cache_figure("loss", render_loss_curves_with_indicator(
+        server_state.train_losses,
+        server_state.test_losses,
+        current_epoch=epoch,
+        checkpoint_epochs=server_state.available_epochs,
+    ), epoch)
+
+
+def _render_spec_trajectory(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "neuron_freq_norm" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    if not loader.has_summary("neuron_freq_norm"):
+        return _empty_figure("No summary data")
+    try:
+        summary = loader.load_summary("neuron_freq_norm")
+        return _cache_figure("spec_traj",
+                             render_specialization_trajectory(summary, current_epoch=epoch), epoch)
+    except FileNotFoundError:
+        return _empty_figure("No summary data")
+
+
+def _render_spec_freq(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "neuron_freq_norm" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    if not loader.has_summary("neuron_freq_norm"):
+        return _empty_figure("No summary data")
+    try:
+        summary = loader.load_summary("neuron_freq_norm")
+        return _cache_figure("spec_freq",
+                             render_specialization_by_frequency(summary, current_epoch=epoch),
+                             epoch)
+    except FileNotFoundError:
+        return _empty_figure("No summary data")
+
+
+def _render_attn_spec(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "attention_freq" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    if not loader.has_summary("attention_freq"):
+        return _empty_figure("No summary data")
+    try:
+        summary = loader.load_summary("attention_freq")
+        return _cache_figure(
+            "attn_spec",
+            render_attention_specialization_trajectory(summary, current_epoch=epoch),
+            epoch,
+        )
+    except FileNotFoundError:
+        return _empty_figure("No summary data")
+
+
+def _render_dim_trajectory(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "effective_dimensionality" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    if not loader.has_summary("effective_dimensionality"):
+        return _empty_figure("No summary data")
+    try:
+        summary = loader.load_summary("effective_dimensionality")
+        return _cache_figure("dim_traj",
+                             render_dimensionality_trajectory(summary, current_epoch=epoch), epoch)
+    except FileNotFoundError:
+        return _empty_figure("No summary data")
+
+
+def _render_flatness(epoch: int, metric: str) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "landscape_flatness" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    if not loader.has_summary("landscape_flatness"):
+        return _empty_figure("No summary data")
+    try:
+        summary = loader.load_summary("landscape_flatness")
+        return _cache_figure("flatness",
+                             render_flatness_trajectory(summary, current_epoch=epoch, metric=metric),
+                             epoch)
+    except FileNotFoundError:
+        return _empty_figure("No summary data")
+
+
+def _render_trajectory_plots(
+    epoch: int, group: str,
+) -> tuple[go.Figure, go.Figure, go.Figure, go.Figure, go.Figure]:
+    """Render all 5 trajectory/velocity plots and cache them."""
+    trajectory_data = server_state.get_trajectory_data()
+    if trajectory_data is None:
+        empty = _empty_figure("Run analysis first")
+        return empty, empty, empty, empty, empty
+    try:
+        snapshots, traj_epochs = trajectory_data
+        components = _resolve_trajectory_components(group)
+        t_fig = _cache_figure(
+            "trajectory",
+            render_parameter_trajectory(snapshots, traj_epochs, epoch, components=components),
+            epoch,
+        )
+        t3d_fig = _cache_figure(
+            "trajectory_3d",
+            render_trajectory_3d(snapshots, traj_epochs, epoch, components=components),
+            epoch,
+        )
+        pc13_fig = _cache_figure(
+            "trajectory_pc1_pc3",
+            render_trajectory_pc1_pc3(snapshots, traj_epochs, epoch, components=components),
+            epoch,
+        )
+        pc23_fig = _cache_figure(
+            "trajectory_pc2_pc3",
+            render_trajectory_pc2_pc3(snapshots, traj_epochs, epoch, components=components),
+            epoch,
+        )
+        vel_fig = _cache_figure(
+            "velocity",
+            render_component_velocity(snapshots, traj_epochs, epoch),
+            epoch,
+        )
+        return t_fig, t3d_fig, pc13_fig, pc23_fig, vel_fig
+    except Exception:
+        empty = _empty_figure("Error rendering trajectory")
+        return empty, empty, empty, empty, empty
+
+
+# ---------------------------------------------------------------------------
+# Per-epoch render functions
+# ---------------------------------------------------------------------------
+
+
+def _render_freq(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "dominant_frequencies" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    try:
+        return render_dominant_frequencies(
+            loader.load_epoch("dominant_frequencies", epoch), epoch=epoch, threshold=1.0)
+    except FileNotFoundError:
+        return _empty_figure("No data for this epoch")
+
+
+def _render_activation(epoch: int, neuron_idx: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "neuron_activations" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    try:
+        return render_neuron_heatmap(
+            loader.load_epoch("neuron_activations", epoch), epoch=epoch, neuron_idx=neuron_idx)
+    except FileNotFoundError:
+        return _empty_figure("No data for this epoch")
+
+
+def _render_clusters(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "neuron_freq_norm" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    try:
+        return render_freq_clusters(loader.load_epoch("neuron_freq_norm", epoch), epoch=epoch)
+    except FileNotFoundError:
+        return _empty_figure("No data for this epoch")
+
+
+def _render_attention(epoch: int, to_pos: int, from_pos: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "attention_patterns" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    try:
+        return render_attention_heads(
+            loader.load_epoch("attention_patterns", epoch),
+            epoch=epoch, to_position=to_pos, from_position=from_pos,
+        )
+    except FileNotFoundError:
+        return _empty_figure("No data for this epoch")
+
+
+def _render_attn_freq(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "attention_freq" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    try:
+        return render_attention_freq_heatmap(
+            loader.load_epoch("attention_freq", epoch), epoch=epoch)
+    except FileNotFoundError:
+        return _empty_figure("No data for this epoch")
+
+
+def _render_sv_spectrum(epoch: int, matrix: str, head_idx: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "effective_dimensionality" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    try:
+        head = head_idx if matrix in ATTENTION_MATRICES else None
+        return render_singular_value_spectrum(
+            loader.load_epoch("effective_dimensionality", epoch),
+            epoch=epoch, matrix_name=matrix, head_idx=head,
+        )
+    except FileNotFoundError:
+        return _empty_figure("No data for this epoch")
+
+
+def _render_perturbation(epoch: int) -> go.Figure:
+    loader = server_state.get_loader()
+    if loader is None or "landscape_flatness" not in server_state.available_analyzers:
+        return _empty_figure("Run analysis first")
+    try:
+        return render_perturbation_distribution(
+            loader.load_epoch("landscape_flatness", epoch), epoch=epoch)
+    except FileNotFoundError:
+        return _empty_figure("No data for this epoch")
+
+
+# ---------------------------------------------------------------------------
+# All 18 plot IDs (output order for variant change and epoch change)
+# ---------------------------------------------------------------------------
+
+_ALL_PLOT_IDS = [
+    "loss-plot",
+    "freq-plot",
+    "activation-plot",
+    "clusters-plot",
+    "spec-trajectory-plot",
+    "spec-freq-plot",
+    "attention-plot",
+    "attn-freq-plot",
+    "attn-spec-plot",
+    "trajectory-plot",
+    "trajectory-3d-plot",
+    "trajectory-pc1-pc3-plot",
+    "trajectory-pc2-pc3-plot",
+    "velocity-plot",
+    "dim-trajectory-plot",
+    "sv-spectrum-plot",
+    "flatness-trajectory-plot",
+    "perturbation-plot",
+]
+
+# Summary/trajectory plot IDs that support click-to-navigate (epoch)
+_CLICK_NAV_PLOT_IDS = [
+    "loss-plot",
+    "spec-trajectory-plot",
+    "spec-freq-plot",
+    "attn-spec-plot",
+    "dim-trajectory-plot",
+    "flatness-trajectory-plot",
+]
+
+
 # ---------------------------------------------------------------------------
 # Callback registration
 # ---------------------------------------------------------------------------
 
 
-def register_callbacks(app: Dash) -> None:
+def register_callbacks(app: Dash) -> None:  # noqa: C901
     """Register all callbacks on the Dash app."""
 
     # --- Populate family dropdown on load ---
     @app.callback(
         Output("family-dropdown", "options"),
-        Input("family-dropdown", "id"),  # fires once on load
+        Input("family-dropdown", "id"),
     )
     def populate_families(_: str) -> list[dict]:
         registry = get_registry()
@@ -160,61 +422,70 @@ def register_callbacks(app: Dash) -> None:
         choices = get_variant_choices(registry, family_name)
         return [{"label": display, "value": name} for display, name in choices], None
 
-    # --- Variant change → load data, render all plots ---
+    # --- Variant change → load data, render all 18 plots ---
     @app.callback(
-        Output("loss-plot", "figure"),
-        Output("spec-trajectory-plot", "figure"),
-        Output("flatness-trajectory-plot", "figure"),
-        Output("freq-plot", "figure"),
-        Output("activation-plot", "figure"),
-        Output("clusters-plot", "figure"),
+        *[Output(pid, "figure") for pid in _ALL_PLOT_IDS],
         Output("epoch-slider", "max"),
         Output("epoch-slider", "value"),
         Output("neuron-slider", "max"),
+        Output("sv-head-slider", "max"),
         Output("epoch-display", "children"),
         Output("neuron-display", "children"),
         Output("status-display", "children"),
         Input("variant-dropdown", "value"),
         State("family-dropdown", "value"),
         State("flatness-metric-dropdown", "value"),
+        State("trajectory-group-radio", "value"),
+        State("position-pair-dropdown", "value"),
+        State("sv-matrix-dropdown", "value"),
+        State("sv-head-slider", "value"),
     )
     def on_variant_change(
-        variant_name: str | None,
-        family_name: str | None,
-        flatness_metric: str,
+        variant_name, family_name, flatness_metric,
+        traj_group, position_pair, sv_matrix, sv_head,
     ):
+        n_plots = len(_ALL_PLOT_IDS)
         empty = _empty_figure("Select a variant")
+
         if not variant_name or not family_name:
             server_state.clear()
             return (
-                empty, empty, empty, empty, empty, empty,
-                1, 0, 511,
+                *[empty] * n_plots,
+                1, 0, 511, 3,
                 "Epoch 0 (Index 0)", "Neuron 0", "No variant selected",
             )
 
         if not server_state.load_variant(family_name, variant_name):
             server_state.clear()
             return (
-                _empty_figure("Variant not found"),
-                *[empty] * 5,
-                1, 0, 511,
+                *[_empty_figure("Variant not found")] * n_plots,
+                1, 0, 511, 3,
                 "Epoch 0 (Index 0)", "Neuron 0", "Variant not found",
             )
 
         epoch = server_state.get_epoch_at_index(0)
         max_idx = max(0, len(server_state.available_epochs) - 1)
+        to_pos, from_pos = _parse_position_pair(position_pair)
 
-        # Render and cache summary plots
-        loss_fig = _render_and_cache_loss(epoch)
-        spec_traj_fig = _render_and_cache_spec_trajectory(epoch)
-        flatness_fig = _render_and_cache_flatness(epoch, flatness_metric)
+        # Summary/cross-epoch plots (cached for Patch)
+        loss = _render_loss(epoch)
+        spec_traj = _render_spec_trajectory(epoch)
+        spec_freq = _render_spec_freq(epoch)
+        attn_spec = _render_attn_spec(epoch)
+        dim_traj = _render_dim_trajectory(epoch)
+        flatness = _render_flatness(epoch, flatness_metric)
+        t, t3d, pc13, pc23, vel = _render_trajectory_plots(epoch, traj_group)
 
-        # Render per-epoch plots
-        freq_fig = _render_per_epoch_freq(epoch)
-        activation_fig = _render_per_epoch_activation(epoch, 0)
-        clusters_fig = _render_per_epoch_clusters(epoch)
+        # Per-epoch plots
+        freq = _render_freq(epoch)
+        activation = _render_activation(epoch, 0)
+        clusters = _render_clusters(epoch)
+        attention = _render_attention(epoch, to_pos, from_pos)
+        attn_freq = _render_attn_freq(epoch)
+        sv_spectrum = _render_sv_spectrum(epoch, sv_matrix, sv_head)
+        perturbation = _render_perturbation(epoch)
 
-        # Status (variant is guaranteed non-None after successful load_variant)
+        # Status
         variant = server_state.variant
         assert variant is not None
         status_parts = [f"Variant: {variant.name}"]
@@ -224,92 +495,81 @@ def register_callbacks(app: Dash) -> None:
         status = " | ".join(status_parts)
 
         return (
-            loss_fig, spec_traj_fig, flatness_fig,
-            freq_fig, activation_fig, clusters_fig,
-            max_idx, 0, max(0, server_state.n_neurons - 1),
+            # 18 plots in _ALL_PLOT_IDS order
+            loss, freq, activation, clusters,
+            spec_traj, spec_freq,
+            attention, attn_freq, attn_spec,
+            t, t3d, pc13, pc23, vel,
+            dim_traj, sv_spectrum,
+            flatness, perturbation,
+            # Controls
+            max_idx, 0,
+            max(0, server_state.n_neurons - 1),
+            max(0, server_state.n_heads - 1),
             f"Epoch {epoch} (Index 0)", "Neuron 0", status,
         )
 
     # --- Epoch change → Patch summary markers + re-render per-epoch ---
     @app.callback(
-        Output("loss-plot", "figure", allow_duplicate=True),
-        Output("spec-trajectory-plot", "figure", allow_duplicate=True),
-        Output("flatness-trajectory-plot", "figure", allow_duplicate=True),
-        Output("freq-plot", "figure", allow_duplicate=True),
-        Output("activation-plot", "figure", allow_duplicate=True),
-        Output("clusters-plot", "figure", allow_duplicate=True),
+        *[Output(pid, "figure", allow_duplicate=True) for pid in _ALL_PLOT_IDS],
         Output("epoch-display", "children", allow_duplicate=True),
         Input("epoch-slider", "value"),
         State("neuron-slider", "value"),
+        State("position-pair-dropdown", "value"),
+        State("sv-matrix-dropdown", "value"),
+        State("sv-head-slider", "value"),
         prevent_initial_call=True,
     )
-    def on_epoch_change(epoch_idx: int, neuron_idx: int):
+    def on_epoch_change(epoch_idx, neuron_idx, position_pair, sv_matrix, sv_head):
         epoch = server_state.get_epoch_at_index(epoch_idx)
+        to_pos, from_pos = _parse_position_pair(position_pair)
 
-        # Patch summary plots (no full re-render).
-        # If the cached figure already shows this epoch (e.g. variant just loaded),
-        # return no_update to avoid a Patch racing against the full figure render.
-        loss_key = _cache_key("loss")
-        spec_key = _cache_key("spec_traj")
-        flat_key = _cache_key("flatness")
+        # Patch summary/trajectory plots (skip if already at this epoch)
+        loss_p = _patch_or_skip("loss", epoch)
+        spec_traj_p = _patch_or_skip("spec_traj", epoch)
+        spec_freq_p = _patch_or_skip("spec_freq", epoch)
+        attn_spec_p = _patch_or_skip("attn_spec", epoch)
+        dim_traj_p = _patch_or_skip("dim_traj", epoch)
+        flatness_p = _patch_or_skip("flatness", epoch)
 
-        if loss_key in _figure_cache:
-            if _figure_epoch.get(loss_key) == epoch:
-                loss_patch = no_update
-            else:
-                loss_patch = _patch_epoch_marker(epoch)
-                _figure_epoch[loss_key] = epoch
-        else:
-            loss_patch = _render_and_cache_loss(epoch)
-
-        if spec_key in _figure_cache:
-            if _figure_epoch.get(spec_key) == epoch:
-                spec_patch = no_update
-            else:
-                spec_patch = _patch_epoch_marker(epoch)
-                _figure_epoch[spec_key] = epoch
-        else:
-            spec_patch = _render_and_cache_spec_trajectory(epoch)
-
-        if flat_key in _figure_cache:
-            if _figure_epoch.get(flat_key) == epoch:
-                flat_patch = no_update
-            else:
-                flat_patch = _patch_epoch_marker(epoch)
-                _figure_epoch[flat_key] = epoch
-        else:
-            flat_patch = _render_and_cache_flatness(epoch, "mean_delta_loss")
+        # Trajectory plots: Patch if cached, otherwise no_update
+        # (trajectory plots don't re-render on epoch change alone — they show
+        # the full trajectory with a marker. Patch moves the marker.)
+        traj_p = _patch_or_skip("trajectory", epoch)
+        t3d_p = _patch_or_skip("trajectory_3d", epoch)
+        pc13_p = _patch_or_skip("trajectory_pc1_pc3", epoch)
+        pc23_p = _patch_or_skip("trajectory_pc2_pc3", epoch)
+        vel_p = _patch_or_skip("velocity", epoch)
 
         # Full re-render per-epoch plots
-        freq_fig = _render_per_epoch_freq(epoch)
-        activation_fig = _render_per_epoch_activation(epoch, neuron_idx)
-        clusters_fig = _render_per_epoch_clusters(epoch)
-
-        epoch_display = f"Epoch {epoch} (Index {epoch_idx})"
+        freq = _render_freq(epoch)
+        activation = _render_activation(epoch, neuron_idx)
+        clusters = _render_clusters(epoch)
+        attention = _render_attention(epoch, to_pos, from_pos)
+        attn_freq = _render_attn_freq(epoch)
+        sv_spectrum = _render_sv_spectrum(epoch, sv_matrix, sv_head)
+        perturbation = _render_perturbation(epoch)
 
         return (
-            loss_patch, spec_patch, flat_patch,
-            freq_fig, activation_fig, clusters_fig,
-            epoch_display,
+            loss_p, freq, activation, clusters,
+            spec_traj_p, spec_freq_p,
+            attention, attn_freq, attn_spec_p,
+            traj_p, t3d_p, pc13_p, pc23_p, vel_p,
+            dim_traj_p, sv_spectrum,
+            flatness_p, perturbation,
+            f"Epoch {epoch} (Index {epoch_idx})",
         )
 
-    # --- Click-to-navigate on summary plots ---
+    # --- Click-to-navigate on summary plots → epoch ---
     @app.callback(
         Output("epoch-slider", "value", allow_duplicate=True),
-        Input("loss-plot", "clickData"),
-        Input("spec-trajectory-plot", "clickData"),
-        Input("flatness-trajectory-plot", "clickData"),
+        *[Input(pid, "clickData") for pid in _CLICK_NAV_PLOT_IDS],
         prevent_initial_call=True,
     )
-    def on_summary_click(loss_click, spec_click, flat_click):
+    def on_summary_click(*click_args):
         from dash import ctx
 
-        # Use triggered_id to get click data from the plot that was actually clicked
-        click_map = {
-            "loss-plot": loss_click,
-            "spec-trajectory-plot": spec_click,
-            "flatness-trajectory-plot": flat_click,
-        }
+        click_map = dict(zip(_CLICK_NAV_PLOT_IDS, click_args, strict=False))
         triggered = ctx.triggered_id
         click_data = click_map.get(triggered) if isinstance(triggered, str) else None
         if not click_data or not click_data.get("points"):
@@ -328,7 +588,6 @@ def register_callbacks(app: Dash) -> None:
     def on_clusters_click(click_data):
         if not click_data or not click_data.get("points"):
             return no_update
-        # Heatmap x-axis is neuron index
         neuron_idx = click_data["points"][0].get("x")
         if neuron_idx is None:
             return no_update
@@ -345,10 +604,51 @@ def register_callbacks(app: Dash) -> None:
         State("epoch-slider", "value"),
         prevent_initial_call=True,
     )
-    def on_neuron_change(neuron_idx: int, epoch_idx: int):
+    def on_neuron_change(neuron_idx, epoch_idx):
         epoch = server_state.get_epoch_at_index(epoch_idx)
-        fig = _render_per_epoch_activation(epoch, neuron_idx)
-        return fig, f"Neuron {neuron_idx}"
+        return _render_activation(epoch, neuron_idx), f"Neuron {neuron_idx}"
+
+    # --- Position pair change → re-render attention only ---
+    @app.callback(
+        Output("attention-plot", "figure", allow_duplicate=True),
+        Input("position-pair-dropdown", "value"),
+        State("epoch-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def on_position_change(position_pair, epoch_idx):
+        epoch = server_state.get_epoch_at_index(epoch_idx)
+        to_pos, from_pos = _parse_position_pair(position_pair)
+        return _render_attention(epoch, to_pos, from_pos)
+
+    # --- Trajectory group change → re-render 5 trajectory plots ---
+    @app.callback(
+        Output("trajectory-plot", "figure", allow_duplicate=True),
+        Output("trajectory-3d-plot", "figure", allow_duplicate=True),
+        Output("trajectory-pc1-pc3-plot", "figure", allow_duplicate=True),
+        Output("trajectory-pc2-pc3-plot", "figure", allow_duplicate=True),
+        Output("velocity-plot", "figure", allow_duplicate=True),
+        Input("trajectory-group-radio", "value"),
+        State("epoch-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def on_trajectory_group_change(group, epoch_idx):
+        epoch = server_state.get_epoch_at_index(epoch_idx)
+        return _render_trajectory_plots(epoch, group)
+
+    # --- SV matrix/head change → re-render spectrum + toggle head visibility ---
+    @app.callback(
+        Output("sv-spectrum-plot", "figure", allow_duplicate=True),
+        Output("sv-head-container", "style"),
+        Input("sv-matrix-dropdown", "value"),
+        Input("sv-head-slider", "value"),
+        State("epoch-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def on_sv_change(matrix, head_idx, epoch_idx):
+        epoch = server_state.get_epoch_at_index(epoch_idx)
+        fig = _render_sv_spectrum(epoch, matrix, head_idx)
+        head_style = {"display": "block"} if matrix in ATTENTION_MATRICES else {"display": "none"}
+        return fig, head_style
 
     # --- Flatness metric change → full re-render flatness trajectory ---
     @app.callback(
@@ -357,9 +657,9 @@ def register_callbacks(app: Dash) -> None:
         State("epoch-slider", "value"),
         prevent_initial_call=True,
     )
-    def on_flatness_metric_change(metric: str, epoch_idx: int):
+    def on_flatness_metric_change(metric, epoch_idx):
         epoch = server_state.get_epoch_at_index(epoch_idx)
-        return _render_and_cache_flatness(epoch, metric)
+        return _render_flatness(epoch, metric)
 
     # --- Sidebar toggle ---
     @app.callback(
@@ -410,41 +710,14 @@ def register_callbacks(app: Dash) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Per-epoch rendering helpers
+# Helpers
 # ---------------------------------------------------------------------------
 
 
-def _render_per_epoch_freq(epoch: int) -> go.Figure:
-    """Render dominant frequencies for a single epoch."""
-    loader = server_state.get_loader()
-    if loader is None or "dominant_frequencies" not in server_state.available_analyzers:
-        return _empty_figure("Run analysis first")
-    try:
-        epoch_data = loader.load_epoch("dominant_frequencies", epoch)
-        return render_dominant_frequencies(epoch_data, epoch=epoch, threshold=1.0)
-    except FileNotFoundError:
-        return _empty_figure("No data for this epoch")
-
-
-def _render_per_epoch_activation(epoch: int, neuron_idx: int) -> go.Figure:
-    """Render neuron activation heatmap for a single epoch."""
-    loader = server_state.get_loader()
-    if loader is None or "neuron_activations" not in server_state.available_analyzers:
-        return _empty_figure("Run analysis first")
-    try:
-        epoch_data = loader.load_epoch("neuron_activations", epoch)
-        return render_neuron_heatmap(epoch_data, epoch=epoch, neuron_idx=neuron_idx)
-    except FileNotFoundError:
-        return _empty_figure("No data for this epoch")
-
-
-def _render_per_epoch_clusters(epoch: int) -> go.Figure:
-    """Render frequency clusters for a single epoch."""
-    loader = server_state.get_loader()
-    if loader is None or "neuron_freq_norm" not in server_state.available_analyzers:
-        return _empty_figure("Run analysis first")
-    try:
-        epoch_data = loader.load_epoch("neuron_freq_norm", epoch)
-        return render_freq_clusters(epoch_data, epoch=epoch)
-    except FileNotFoundError:
-        return _empty_figure("No data for this epoch")
+def _parse_position_pair(value: str | None) -> tuple[int, int]:
+    """Parse 'to,from' position pair string into (to_position, from_position)."""
+    if value:
+        parts = value.split(",")
+        if len(parts) == 2:
+            return int(parts[0]), int(parts[1])
+    return 2, 0

@@ -1,11 +1,13 @@
 """Layout components for the Dash dashboard.
 
 Defines the sidebar (controls) and content area (plots) layout.
+All 18 Analysis tab visualizations organized by rendering group.
 """
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
+from analysis.library.weights import WEIGHT_MATRIX_NAMES
 from visualization.renderers.landscape_flatness import FLATNESS_METRICS
 
 
@@ -77,7 +79,67 @@ def create_sidebar() -> html.Div:
 
             html.Hr(),
 
-            # Flatness metric selector
+            # Attention position pair (REQ_025)
+            dbc.Label("Attention Relationship", className="fw-bold"),
+            dcc.Dropdown(
+                id="position-pair-dropdown",
+                options=[
+                    {"label": "= attending to a", "value": "2,0"},
+                    {"label": "= attending to b", "value": "2,1"},
+                    {"label": "b attending to a", "value": "1,0"},
+                    {"label": "b attending to b", "value": "1,1"},
+                    {"label": "a attending to a", "value": "0,0"},
+                    {"label": "a attending to b", "value": "0,1"},
+                ],
+                value="2,0",
+                clearable=False,
+            ),
+            html.Br(),
+
+            # Trajectory component group (REQ_029, REQ_032)
+            dbc.Label("Trajectory Group", className="fw-bold"),
+            dbc.RadioItems(
+                id="trajectory-group-radio",
+                options=[
+                    {"label": "All", "value": "all"},
+                    {"label": "Embedding", "value": "embedding"},
+                    {"label": "Attention", "value": "attention"},
+                    {"label": "MLP", "value": "mlp"},
+                ],
+                value="all",
+                inline=True,
+                className="mb-3",
+            ),
+
+            html.Hr(),
+
+            # SV matrix selector (REQ_030)
+            dbc.Label("SV Matrix", className="fw-bold"),
+            dcc.Dropdown(
+                id="sv-matrix-dropdown",
+                options=[{"label": name, "value": name} for name in WEIGHT_MATRIX_NAMES],
+                value="W_in",
+                clearable=False,
+            ),
+            html.Div(
+                id="sv-head-container",
+                children=[
+                    dbc.Label("Attention Head", className="fw-bold small mt-2"),
+                    dcc.Slider(
+                        id="sv-head-slider",
+                        min=0,
+                        max=3,
+                        step=1,
+                        value=0,
+                        marks=None,
+                        tooltip={"placement": "bottom", "always_visible": False},
+                    ),
+                ],
+                style={"display": "none"},
+            ),
+            html.Br(),
+
+            # Flatness metric selector (REQ_031)
             dbc.Label("Flatness Metric", className="fw-bold"),
             dcc.Dropdown(
                 id="flatness-metric-dropdown",
@@ -140,61 +202,63 @@ def create_collapsed_sidebar() -> html.Div:
             "height": "100vh",
             "position": "sticky",
             "top": "0",
-            "display": "none",  # Hidden by default, shown when sidebar collapses
+            "display": "none",
         },
     )
 
 
+def _graph(graph_id: str, height: str = "400px") -> dcc.Graph:
+    """Create a dcc.Graph with consistent config."""
+    return dcc.Graph(
+        id=graph_id,
+        config={"displayModeBar": True},
+        style={"height": height},
+    )
+
+
 def create_content_area() -> html.Div:
-    """Create the scrollable content area with plot containers."""
+    """Create the scrollable content area with all 18 plot containers.
+
+    Organized by rendering group, matching the Gradio dashboard order.
+    """
     return html.Div(
         id="content-area",
         children=[
             html.H4("Training Dynamics Analysis", className="mb-3"),
 
-            # Loss curves (summary, click-to-navigate)
-            dcc.Graph(
-                id="loss-plot",
-                config={"displayModeBar": True},
-                style={"height": "350px"},
-            ),
+            # --- Loss ---
+            _graph("loss-plot", "350px"),
 
-            # Specialization trajectory (summary, click-to-navigate)
-            dcc.Graph(
-                id="spec-trajectory-plot",
-                config={"displayModeBar": True},
-                style={"height": "350px"},
-            ),
+            # --- Frequency Analysis ---
+            _graph("freq-plot", "400px"),
+            _graph("activation-plot", "600px"),
+            _graph("clusters-plot", "450px"),
 
-            # Flatness trajectory (summary, click-to-navigate)
-            dcc.Graph(
-                id="flatness-trajectory-plot",
-                config={"displayModeBar": True},
-                style={"height": "350px"},
-            ),
+            # --- Neuron Specialization (summary, click-to-navigate) ---
+            _graph("spec-trajectory-plot", "350px"),
+            _graph("spec-freq-plot", "450px"),
 
-            html.Hr(),
+            # --- Attention (per-epoch) ---
+            _graph("attention-plot", "400px"),
+            _graph("attn-freq-plot", "400px"),
 
-            # Dominant frequencies (per-epoch)
-            dcc.Graph(
-                id="freq-plot",
-                config={"displayModeBar": True},
-                style={"height": "400px"},
-            ),
+            # --- Attention Specialization (summary, click-to-navigate) ---
+            _graph("attn-spec-plot", "350px"),
 
-            # Neuron activation heatmap (per-epoch)
-            dcc.Graph(
-                id="activation-plot",
-                config={"displayModeBar": True},
-                style={"height": "600px"},
-            ),
+            # --- Trajectory (cross-epoch) ---
+            _graph("trajectory-plot", "500px"),
+            _graph("trajectory-3d-plot", "600px"),
+            _graph("trajectory-pc1-pc3-plot", "500px"),
+            _graph("trajectory-pc2-pc3-plot", "500px"),
+            _graph("velocity-plot", "400px"),
 
-            # Frequency clusters (per-epoch)
-            dcc.Graph(
-                id="clusters-plot",
-                config={"displayModeBar": True},
-                style={"height": "450px"},
-            ),
+            # --- Dimensionality (summary + per-epoch) ---
+            _graph("dim-trajectory-plot", "400px"),
+            _graph("sv-spectrum-plot", "400px"),
+
+            # --- Flatness (summary + per-epoch, click-to-navigate) ---
+            _graph("flatness-trajectory-plot", "400px"),
+            _graph("perturbation-plot", "400px"),
         ],
         style={
             "flex": "1",
