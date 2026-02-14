@@ -14,6 +14,7 @@ from analysis.analyzers.landscape_flatness import LandscapeFlatnessAnalyzer
 from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
 from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
 from analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
+from analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
 from analysis.analyzers.registry import AnalyzerRegistry
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "NeuronActivationsAnalyzer",
     "NeuronFreqClustersAnalyzer",
     "ParameterSnapshotAnalyzer",
+    "ParameterTrajectoryPCA",
 ]

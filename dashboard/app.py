@@ -32,8 +32,9 @@ from analysis.analyzers import (
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
     ParameterSnapshotAnalyzer,
+    ParameterTrajectoryPCA,
 )
-from analysis.library.weights import ATTENTION_MATRICES, COMPONENT_GROUPS, WEIGHT_MATRIX_NAMES
+from analysis.library.weights import ATTENTION_MATRICES, WEIGHT_MATRIX_NAMES
 from dashboard.components import (
     get_family_choices,
     get_variant_choices,
@@ -45,6 +46,7 @@ from dashboard.version import __version__
 from families import FamilyRegistry, TrainingResult
 from visualization import (
     FLATNESS_METRICS,
+    get_group_label,
     render_attention_freq_heatmap,
     render_attention_heads,
     render_attention_specialization_trajectory,
@@ -470,6 +472,7 @@ def run_analysis_for_variant(
         pipeline.register(ParameterSnapshotAnalyzer())
         pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.register(LandscapeFlatnessAnalyzer())
+        pipeline.register_cross_epoch(ParameterTrajectoryPCA())
         pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")
@@ -493,11 +496,13 @@ def refresh_variants(family_name: str | None) -> gr.Dropdown:
     return gr.Dropdown(choices=variant_choices, value=None)
 
 
-def _resolve_trajectory_components(group: str) -> list[str] | None:
-    """Map trajectory group name to component list."""
-    if group == "all":
-        return None
-    return COMPONENT_GROUPS.get(group)
+def _extract_group_pca(cross_epoch_data: dict, group: str) -> dict:
+    """Extract a pca_result dict for a specific component group."""
+    return {
+        "projections": cross_epoch_data[f"{group}__projections"],
+        "explained_variance_ratio": cross_epoch_data[f"{group}__explained_variance_ratio"],
+        "explained_variance": cross_epoch_data[f"{group}__explained_variance"],
+    }
 
 
 def generate_all_plots(state: DashboardState):
@@ -620,25 +625,23 @@ def generate_all_plots(state: DashboardState):
         attn_freq_fig = create_empty_plot("Run analysis first")
         attn_spec_fig = create_empty_plot("Run analysis first")
 
-    # Parameter trajectory and velocity (REQ_029, REQ_032, cross-epoch)
+    # Parameter trajectory and velocity (REQ_029, REQ_032, REQ_038)
     trajectory_data = state.get_trajectory_data()
     if trajectory_data is not None:
         try:
-            snapshots, traj_epochs = trajectory_data
-            components = _resolve_trajectory_components(state.selected_trajectory_group)
-            trajectory_fig = render_parameter_trajectory(
-                snapshots, traj_epochs, epoch, components=components
-            )
-            trajectory_3d_fig = render_trajectory_3d(
-                snapshots, traj_epochs, epoch, components=components
-            )
+            traj_epochs = trajectory_data["epochs"].tolist()
+            group = state.selected_trajectory_group
+            pca = _extract_group_pca(trajectory_data, group)
+            label = get_group_label(group)
+            trajectory_fig = render_parameter_trajectory(pca, traj_epochs, epoch, group_label=label)
+            trajectory_3d_fig = render_trajectory_3d(pca, traj_epochs, epoch, group_label=label)
             trajectory_pc1_pc3_fig = render_trajectory_pc1_pc3(
-                snapshots, traj_epochs, epoch, components=components
+                pca, traj_epochs, epoch, group_label=label
             )
             trajectory_pc2_pc3_fig = render_trajectory_pc2_pc3(
-                snapshots, traj_epochs, epoch, components=components
+                pca, traj_epochs, epoch, group_label=label
             )
-            velocity_fig = render_component_velocity(snapshots, traj_epochs, epoch)
+            velocity_fig = render_component_velocity(trajectory_data, traj_epochs, epoch)
         except Exception:
             trajectory_fig = create_empty_plot("Error rendering trajectory")
             trajectory_3d_fig = create_empty_plot("Error rendering trajectory")
@@ -817,17 +820,15 @@ def update_trajectory_only(group: str | None, state: DashboardState):
     trajectory_data = state.get_trajectory_data()
     if trajectory_data is not None:
         try:
-            snapshots, traj_epochs = trajectory_data
+            traj_epochs = trajectory_data["epochs"].tolist()
             epoch = state.get_current_epoch()
-            components = _resolve_trajectory_components(state.selected_trajectory_group)
-            fig = render_parameter_trajectory(snapshots, traj_epochs, epoch, components=components)
-            fig_3d = render_trajectory_3d(snapshots, traj_epochs, epoch, components=components)
-            fig_pc1_pc3 = render_trajectory_pc1_pc3(
-                snapshots, traj_epochs, epoch, components=components
-            )
-            fig_pc2_pc3 = render_trajectory_pc2_pc3(
-                snapshots, traj_epochs, epoch, components=components
-            )
+            group = state.selected_trajectory_group
+            pca = _extract_group_pca(trajectory_data, group)
+            label = get_group_label(group)
+            fig = render_parameter_trajectory(pca, traj_epochs, epoch, group_label=label)
+            fig_3d = render_trajectory_3d(pca, traj_epochs, epoch, group_label=label)
+            fig_pc1_pc3 = render_trajectory_pc1_pc3(pca, traj_epochs, epoch, group_label=label)
+            fig_pc2_pc3 = render_trajectory_pc2_pc3(pca, traj_epochs, epoch, group_label=label)
         except Exception:
             fig = create_empty_plot("Error rendering trajectory")
             fig_3d = create_empty_plot("Error rendering trajectory")

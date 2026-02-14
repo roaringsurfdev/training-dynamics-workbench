@@ -59,11 +59,9 @@ class DashboardState:
     # Landscape flatness metric selector (REQ_031)
     selected_flatness_metric: str = "mean_delta_loss"
 
-    # Cached parameter snapshots for trajectory rendering (REQ_029)
-    # Unlike per-epoch artifacts, trajectory needs all epochs loaded at once.
-    # Cached on first access per variant to avoid reloading on every slider change.
-    _trajectory_snapshots: list[dict[str, Any]] | None = field(default=None, repr=False)
-    _trajectory_epochs: list[int] | None = field(default=None, repr=False)
+    # Cached cross-epoch trajectory data (REQ_038)
+    # Loaded from precomputed cross_epoch.npz on first access.
+    _trajectory_data: dict[str, np.ndarray] | None = field(default=None, repr=False)
 
     def get_current_epoch(self) -> int:
         """Get actual epoch number at current index."""
@@ -80,34 +78,28 @@ class DashboardState:
         self.available_epochs = []
         self.current_epoch_idx = 0
         self.model_config = None
-        self._trajectory_snapshots = None
-        self._trajectory_epochs = None
+        self._trajectory_data = None
 
-    def get_trajectory_data(
-        self,
-    ) -> tuple[list[dict[str, np.ndarray]], list[int]] | None:
-        """Get cached trajectory snapshots, loading on first access.
+    def get_trajectory_data(self) -> dict[str, np.ndarray] | None:
+        """Get cached cross-epoch trajectory data, loading on first access.
 
         Returns:
-            Tuple of (snapshots, epochs) or None if not available.
+            Cross-epoch data dict or None if not available.
         """
-        if self._trajectory_snapshots is not None:
-            return self._trajectory_snapshots, self._trajectory_epochs  # type: ignore[return-value]
+        if self._trajectory_data is not None:
+            return self._trajectory_data
 
-        if not self.artifacts_dir or "parameter_snapshot" not in self.available_analyzers:
+        if not self.artifacts_dir:
             return None
 
         from analysis import ArtifactLoader
 
         loader = ArtifactLoader(self.artifacts_dir)
-        epochs = loader.get_epochs("parameter_snapshot")
-        if not epochs:
+        if not loader.has_cross_epoch("parameter_trajectory"):
             return None
 
-        snapshots = [loader.load_epoch("parameter_snapshot", e) for e in epochs]
-        self._trajectory_snapshots = snapshots
-        self._trajectory_epochs = epochs
-        return snapshots, epochs
+        self._trajectory_data = loader.load_cross_epoch("parameter_trajectory")
+        return self._trajectory_data
 
     def clear_selection(self) -> None:
         """Clear family/variant selection and all artifacts."""

@@ -5,6 +5,102 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-02-13
+
+### Added
+
+- **Cross-Epoch Analyzers** (REQ_038)
+  - `CrossEpochAnalyzer` protocol: new analyzer type that runs after per-epoch analysis, consuming artifacts across all checkpoints
+  - Two-phase pipeline: Phase 1 (per-epoch, unchanged) → Phase 2 (cross-epoch, new)
+  - `ParameterTrajectoryPCA`: first cross-epoch analyzer — precomputes PCA projections and parameter velocity for all 4 component groups (all, embedding, attention, mlp)
+  - Storage: `artifacts/{analyzer_name}/cross_epoch.npz` with group-prefixed keys
+  - `ArtifactLoader.load_cross_epoch()` / `has_cross_epoch()` for loading precomputed results
+  - Skip-if-exists logic with `force=True` override for recomputation
+
+### Changed
+
+- **Trajectory renderers** accept precomputed PCA data instead of raw weight snapshots — no computation at render time
+- **Dashboard v2** loads trajectory data from cross-epoch artifacts, significantly faster epoch navigation
+- **Export module** supports new data patterns (`cross_epoch_pca`, `cross_epoch_velocity`, etc.)
+- **Family protocol** extended with `cross_epoch_analyzers` property
+
+### Architecture
+
+```
+analysis/
+  protocols.py                        # + CrossEpochAnalyzer protocol
+  pipeline.py                         # Two-phase execution
+  analyzers/
+    parameter_trajectory_pca.py       # New: first cross-epoch analyzer
+  artifact_loader.py                  # + load_cross_epoch, has_cross_epoch
+visualization/renderers/
+  parameter_trajectory.py             # Refactored: precomputed data input
+```
+
+## [0.5.0] - 2026-02-13
+
+### Added
+
+- **Dash Dashboard Migration** (REQ_035)
+  - New `dashboard_v2/` built on Dash + Plotly for improved interactivity
+  - Sidebar layout: variant selector, epoch slider, neuron index, and all visualization-specific controls in a persistent collapsible left panel
+  - Click-to-navigate: click any data point on summary/trajectory plots to jump to that epoch
+  - Selective rendering: epoch changes only re-render affected plots, not all 18
+  - `Patch()` for epoch marker updates — summary plots update markers without full re-render
+  - Neuron click-to-navigate from frequency clusters heatmap
+  - All 18 Analysis tab visualizations migrated
+  - Dependencies: `dash`, `dash-bootstrap-components`
+
+### Architecture
+
+```
+dashboard_v2/           # Dash-based dashboard (new)
+  app.py                # Application factory
+  layout.py             # Sidebar + main content layout
+  callbacks.py          # Per-visualization callbacks with click-to-navigate
+  state.py              # DashboardState (variant/epoch/artifact management)
+dashboard/              # Gradio dashboard (frozen, still functional)
+```
+
+### References
+
+- Archived requirements: `requirements/archive/v0.5.0-dash-migration/`
+- Milestone summary: `requirements/archive/v0.5.0-dash-migration/MILESTONE_SUMMARY.md`
+
+## [0.4.0] - 2026-02-13
+
+### Added
+
+- **Application Configuration** (REQ_036)
+  - `tdw.config` module with `get_config()` for project path resolution
+  - Environment variable overrides: `TDW_RESULTS_DIR`, `TDW_MODEL_FAMILIES_DIR`, `TDW_PROJECT_ROOT`
+  - Frozen `AppConfig` dataclass — single source of truth for project paths
+
+- **Notebook Research API** (REQ_037)
+  - `tdw` package with `load_family()` entry point for notebook-based research
+  - `LoadedFamily` with variant lookup by domain parameters (`family.get_variant(prime=113, seed=999)`)
+  - Variant discovery: `list_variants()`, `list_variant_parameters()`
+  - Variant convenience properties: `artifacts`, `metadata`, `model_config`, `train_losses`, `test_losses`
+  - Forward pass helpers: `run_with_cache(probe, epoch)`, `make_probe(inputs)`, `analysis_dataset()`, `analysis_context()`
+  - `make_probe()` added to `ModelFamily` protocol with Modulo Addition implementation
+  - Build system (hatchling) for proper package installation from notebooks
+
+### Architecture
+
+```
+tdw/                    # Notebook research API
+  __init__.py           # load_family(), list_families()
+  config.py             # AppConfig, get_config()
+  loaded_family.py      # LoadedFamily (variant access by params)
+families/variant.py     # +convenience properties (artifacts, metadata, etc.)
+families/protocols.py   # +make_probe() on ModelFamily protocol
+```
+
+### References
+
+- Archived requirements: `requirements/archive/v0.4.0-notebook-api/`
+- Milestone summary: `requirements/archive/v0.4.0-notebook-api/MILESTONE_SUMMARY.md`
+
 ## [0.3.1] - 2026-02-10
 
 ### Added

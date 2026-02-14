@@ -84,3 +84,48 @@ class Analyzer(Protocol):
             Keys become field names in the saved .npz file.
         """
         ...
+
+
+@runtime_checkable
+class CrossEpochAnalyzer(Protocol):
+    """Protocol for analyzers that operate across all checkpoints.
+
+    Unlike Analyzer (which processes one checkpoint at a time),
+    CrossEpochAnalyzers run after per-epoch analysis completes and
+    consume the resulting artifacts to produce cross-epoch results.
+
+    Examples: PCA trajectory projection, phase transition detection,
+    representational similarity across training.
+
+    Results are stored as a single file per analyzer:
+        artifacts/{analyzer_name}/cross_epoch.npz
+    """
+
+    @property
+    def name(self) -> str:
+        """Unique identifier for this analyzer (used in artifact naming)."""
+        ...
+
+    @property
+    def requires(self) -> list[str]:
+        """Names of per-epoch analyzers whose artifacts this analyzer consumes."""
+        ...
+
+    def analyze_across_epochs(
+        self,
+        artifacts_dir: str,
+        epochs: list[int],
+        context: dict[str, Any],
+    ) -> dict[str, np.ndarray]:
+        """Run cross-epoch analysis.
+
+        Args:
+            artifacts_dir: Root artifacts directory for the variant.
+            epochs: Sorted list of available epoch numbers.
+            context: Family-provided analysis context (same as per-epoch).
+
+        Returns:
+            Dict mapping artifact keys to numpy arrays.
+            Keys become field names in the saved cross_epoch.npz file.
+        """
+        ...

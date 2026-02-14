@@ -256,14 +256,30 @@ _VISUALIZATION_REGISTRY: dict[str, tuple[str, str, str]] = {
         "render_dominant_frequencies_over_time",
         "cross_epoch",
     ),
-    # Snapshot-based cross-epoch renderers (snapshots list, epochs list, current_epoch)
-    "parameter_trajectory": ("parameter_snapshot", "render_parameter_trajectory", "snapshot"),
-    "trajectory_3d": ("parameter_snapshot", "render_trajectory_3d", "snapshot"),
-    "trajectory_pc1_pc3": ("parameter_snapshot", "render_trajectory_pc1_pc3", "snapshot"),
-    "trajectory_pc2_pc3": ("parameter_snapshot", "render_trajectory_pc2_pc3", "snapshot"),
-    "explained_variance": ("parameter_snapshot", "render_explained_variance", "snapshot_no_epoch"),
-    "parameter_velocity": ("parameter_snapshot", "render_parameter_velocity", "snapshot"),
-    "component_velocity": ("parameter_snapshot", "render_component_velocity", "snapshot"),
+    # Cross-epoch precomputed renderers (REQ_038)
+    "parameter_trajectory": (
+        "parameter_trajectory",
+        "render_parameter_trajectory",
+        "cross_epoch_pca",
+    ),
+    "trajectory_3d": ("parameter_trajectory", "render_trajectory_3d", "cross_epoch_pca"),
+    "trajectory_pc1_pc3": ("parameter_trajectory", "render_trajectory_pc1_pc3", "cross_epoch_pca"),
+    "trajectory_pc2_pc3": ("parameter_trajectory", "render_trajectory_pc2_pc3", "cross_epoch_pca"),
+    "explained_variance": (
+        "parameter_trajectory",
+        "render_explained_variance",
+        "cross_epoch_pca_no_epoch",
+    ),
+    "parameter_velocity": (
+        "parameter_trajectory",
+        "render_parameter_velocity",
+        "cross_epoch_velocity",
+    ),
+    "component_velocity": (
+        "parameter_trajectory",
+        "render_component_velocity",
+        "cross_epoch_component_velocity",
+    ),
 }
 
 
@@ -349,21 +365,44 @@ def export_variant_visualization(
         fig = render_fn(artifact, **kwargs)
         filename = visualization
 
-    elif data_pattern == "snapshot":
-        epochs = loader.get_epochs(analyzer_name)
-        if not epochs:
-            raise FileNotFoundError(f"No artifacts for '{analyzer_name}' in {artifacts_dir}")
-        snapshots = [loader.load_epoch(analyzer_name, e) for e in epochs]
-        current_epoch = epoch if epoch is not None else epochs[-1]
-        fig = render_fn(snapshots, epochs, current_epoch, **kwargs)
+    elif data_pattern == "cross_epoch_pca":
+        cross_epoch = loader.load_cross_epoch(analyzer_name)
+        epochs_arr = cross_epoch["epochs"].tolist()
+        current_epoch = epoch if epoch is not None else epochs_arr[-1]
+        group = kwargs.pop("group", "all")
+        pca_result = {
+            "projections": cross_epoch[f"{group}__projections"],
+            "explained_variance_ratio": cross_epoch[f"{group}__explained_variance_ratio"],
+            "explained_variance": cross_epoch[f"{group}__explained_variance"],
+        }
+        fig = render_fn(pca_result, epochs_arr, current_epoch, **kwargs)
         filename = visualization
 
-    elif data_pattern == "snapshot_no_epoch":
-        epochs = loader.get_epochs(analyzer_name)
-        if not epochs:
-            raise FileNotFoundError(f"No artifacts for '{analyzer_name}' in {artifacts_dir}")
-        snapshots = [loader.load_epoch(analyzer_name, e) for e in epochs]
-        fig = render_fn(snapshots, **kwargs)
+    elif data_pattern == "cross_epoch_pca_no_epoch":
+        cross_epoch = loader.load_cross_epoch(analyzer_name)
+        group = kwargs.pop("group", "all")
+        pca_result = {
+            "projections": cross_epoch[f"{group}__projections"],
+            "explained_variance_ratio": cross_epoch[f"{group}__explained_variance_ratio"],
+            "explained_variance": cross_epoch[f"{group}__explained_variance"],
+        }
+        fig = render_fn(pca_result, **kwargs)
+        filename = visualization
+
+    elif data_pattern == "cross_epoch_velocity":
+        cross_epoch = loader.load_cross_epoch(analyzer_name)
+        epochs_arr = cross_epoch["epochs"].tolist()
+        current_epoch = epoch if epoch is not None else epochs_arr[-1]
+        group = kwargs.pop("group", "all")
+        velocity = cross_epoch[f"{group}__velocity"]
+        fig = render_fn(velocity, epochs_arr, current_epoch, **kwargs)
+        filename = visualization
+
+    elif data_pattern == "cross_epoch_component_velocity":
+        cross_epoch = loader.load_cross_epoch(analyzer_name)
+        epochs_arr = cross_epoch["epochs"].tolist()
+        current_epoch = epoch if epoch is not None else epochs_arr[-1]
+        fig = render_fn(cross_epoch, epochs_arr, current_epoch, **kwargs)
         filename = visualization
 
     else:

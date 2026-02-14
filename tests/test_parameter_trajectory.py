@@ -23,7 +23,7 @@ from analysis.library.weights import (
 )
 from families import FamilyRegistry
 from visualization.renderers.parameter_trajectory import (
-    _get_component_label,
+    get_group_label,
     render_component_velocity,
     render_explained_variance,
     render_parameter_trajectory,
@@ -292,51 +292,67 @@ class TestParameterSnapshotAnalyzerProtocol:
 
 
 class TestRenderers:
-    """Tests for parameter trajectory renderers."""
+    """Tests for parameter trajectory renderers with precomputed data."""
 
     @pytest.fixture
     def trajectory_data(self):
-        """Create sample data for renderer tests."""
+        """Create precomputed PCA result and velocity for renderer tests."""
         snapshots = _make_snapshot_sequence(10)
         epochs = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
-        return snapshots, epochs
+        pca_result = compute_pca_trajectory(snapshots, n_components=10)
+        velocity = compute_parameter_velocity(snapshots, epochs=epochs)
+        return pca_result, velocity, epochs
+
+    @pytest.fixture
+    def cross_epoch_data(self):
+        """Create precomputed cross-epoch data with all component groups."""
+        snapshots = _make_snapshot_sequence(10)
+        epochs = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
+        data = {"epochs": np.array(epochs)}
+        groups = {"all": None, **COMPONENT_GROUPS}
+        for group_name, components in groups.items():
+            pca = compute_pca_trajectory(snapshots, components, n_components=10)
+            vel = compute_parameter_velocity(snapshots, components, epochs=epochs)
+            data[f"{group_name}__projections"] = pca["projections"]
+            data[f"{group_name}__explained_variance_ratio"] = pca["explained_variance_ratio"]
+            data[f"{group_name}__explained_variance"] = pca["explained_variance"]
+            data[f"{group_name}__velocity"] = vel
+        return data, epochs
 
     def test_render_parameter_trajectory_returns_figure(self, trajectory_data):
         """render_parameter_trajectory returns a Plotly Figure."""
-        snapshots, epochs = trajectory_data
-        fig = render_parameter_trajectory(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_parameter_trajectory(pca_result, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
 
-    def test_render_parameter_trajectory_with_components(self, trajectory_data):
-        """render_parameter_trajectory works with component filter."""
-        snapshots, epochs = trajectory_data
-        fig = render_parameter_trajectory(
-            snapshots, epochs, current_epoch=50, components=COMPONENT_GROUPS["mlp"]
-        )
+    def test_render_parameter_trajectory_with_group_label(self, trajectory_data):
+        """render_parameter_trajectory works with group_label."""
+        pca_result, _, epochs = trajectory_data
+        fig = render_parameter_trajectory(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
     def test_render_explained_variance_returns_figure(self, trajectory_data):
         """render_explained_variance returns a Plotly Figure."""
-        snapshots, _ = trajectory_data
-        fig = render_explained_variance(snapshots)
+        pca_result, _, _ = trajectory_data
+        fig = render_explained_variance(pca_result)
         assert isinstance(fig, go.Figure)
 
     def test_render_parameter_velocity_returns_figure(self, trajectory_data):
         """render_parameter_velocity returns a Plotly Figure."""
-        snapshots, epochs = trajectory_data
-        fig = render_parameter_velocity(snapshots, epochs, current_epoch=50)
+        _, velocity, epochs = trajectory_data
+        fig = render_parameter_velocity(velocity, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
 
-    def test_render_component_velocity_returns_figure(self, trajectory_data):
+    def test_render_component_velocity_returns_figure(self, cross_epoch_data):
         """render_component_velocity returns a Plotly Figure."""
-        snapshots, epochs = trajectory_data
-        fig = render_component_velocity(snapshots, epochs, current_epoch=50)
+        data, epochs = cross_epoch_data
+        fig = render_component_velocity(data, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
 
-    def test_render_component_velocity_has_three_traces(self, trajectory_data):
+    def test_render_component_velocity_has_three_traces(self, cross_epoch_data):
         """Component velocity renders one trace per group."""
-        snapshots, epochs = trajectory_data
-        fig = render_component_velocity(snapshots, epochs, current_epoch=50)
+        data, epochs = cross_epoch_data
+        fig = render_component_velocity(data, epochs, current_epoch=50)
         # 3 component groups (embedding, attention, mlp) as line traces
         line_traces = [t for t in fig.data if isinstance(t, go.Scatter)]
         assert len(line_traces) == 3
@@ -345,21 +361,21 @@ class TestRenderers:
 
     def test_render_trajectory_3d_returns_figure(self, trajectory_data):
         """render_trajectory_3d returns a Plotly Figure."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_3d(pca_result, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
 
     def test_render_trajectory_3d_uses_scatter3d(self, trajectory_data):
         """3D renderer uses Scatter3d traces (not Scatter)."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_3d(pca_result, epochs, current_epoch=50)
         scatter3d_traces = [t for t in fig.data if isinstance(t, go.Scatter3d)]
         assert len(scatter3d_traces) >= 2  # path + points (+ optional highlight)
 
     def test_render_trajectory_3d_projects_3_dimensions(self, trajectory_data):
         """3D renderer data spans 3 coordinate axes."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_3d(pca_result, epochs, current_epoch=50)
         # The points trace (second trace) should have x, y, and z data
         points_trace = fig.data[1]
         assert isinstance(points_trace, go.Scatter3d)
@@ -367,25 +383,23 @@ class TestRenderers:
         assert points_trace.y is not None
         assert points_trace.z is not None
 
-    def test_render_trajectory_3d_with_components(self, trajectory_data):
-        """3D renderer respects component group filter."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_3d(
-            snapshots, epochs, current_epoch=50, components=COMPONENT_GROUPS["mlp"]
-        )
+    def test_render_trajectory_3d_with_group_label(self, trajectory_data):
+        """3D renderer accepts group_label parameter."""
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_3d(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
     def test_render_trajectory_3d_highlights_epoch(self, trajectory_data):
         """3D renderer includes highlight marker for current epoch."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_3d(pca_result, epochs, current_epoch=50)
         # 3 traces: path, points, highlight
         assert len(fig.data) == 3  # type: ignore[arg-type]
 
     def test_render_trajectory_3d_axis_labels(self, trajectory_data):
         """3D renderer labels all three axes with PC number and variance."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_3d(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_3d(pca_result, epochs, current_epoch=50)
         scene = fig.layout.scene  # type: ignore[union-attr]
         assert "PC1" in scene.xaxis.title.text
         assert "PC2" in scene.yaxis.title.text
@@ -393,81 +407,77 @@ class TestRenderers:
 
     def test_render_trajectory_pc1_pc3_returns_figure(self, trajectory_data):
         """render_trajectory_pc1_pc3 returns a Plotly Figure."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_pc1_pc3(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_pc1_pc3(pca_result, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
 
     def test_render_trajectory_pc1_pc3_axis_labels(self, trajectory_data):
         """PC1 vs PC3 renderer uses correct axis labels."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_pc1_pc3(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_pc1_pc3(pca_result, epochs, current_epoch=50)
         assert "PC1" in fig.layout.xaxis.title.text
         assert "PC3" in fig.layout.yaxis.title.text
 
     def test_render_trajectory_pc2_pc3_returns_figure(self, trajectory_data):
         """render_trajectory_pc2_pc3 returns a Plotly Figure."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_pc2_pc3(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_pc2_pc3(pca_result, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
 
     def test_render_trajectory_pc2_pc3_axis_labels(self, trajectory_data):
         """PC2 vs PC3 renderer uses correct axis labels."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_pc2_pc3(snapshots, epochs, current_epoch=50)
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_pc2_pc3(pca_result, epochs, current_epoch=50)
         assert "PC2" in fig.layout.xaxis.title.text
         assert "PC3" in fig.layout.yaxis.title.text
 
-    def test_render_trajectory_pc1_pc3_with_components(self, trajectory_data):
-        """PC1 vs PC3 renderer respects component filter."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_pc1_pc3(
-            snapshots, epochs, current_epoch=50, components=COMPONENT_GROUPS["mlp"]
-        )
+    def test_render_trajectory_pc1_pc3_with_group_label(self, trajectory_data):
+        """PC1 vs PC3 renderer accepts group_label parameter."""
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_pc1_pc3(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
-    def test_render_trajectory_pc2_pc3_with_components(self, trajectory_data):
-        """PC2 vs PC3 renderer respects component filter."""
-        snapshots, epochs = trajectory_data
-        fig = render_trajectory_pc2_pc3(
-            snapshots, epochs, current_epoch=50, components=COMPONENT_GROUPS["mlp"]
-        )
+    def test_render_trajectory_pc2_pc3_with_group_label(self, trajectory_data):
+        """PC2 vs PC3 renderer accepts group_label parameter."""
+        pca_result, _, epochs = trajectory_data
+        fig = render_trajectory_pc2_pc3(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
-    def test_new_renderers_highlight_current_epoch(self, trajectory_data):
-        """All new renderers include highlight when epoch exists."""
-        snapshots, epochs = trajectory_data
+    def test_renderers_highlight_current_epoch(self, trajectory_data):
+        """All trajectory renderers include highlight when epoch exists."""
+        pca_result, _, epochs = trajectory_data
         for renderer in [
             render_trajectory_3d,
             render_trajectory_pc1_pc3,
             render_trajectory_pc2_pc3,
         ]:
-            fig = renderer(snapshots, epochs, current_epoch=50)
+            fig = renderer(pca_result, epochs, current_epoch=50)
             # 3 traces: path, points, highlight
             assert len(fig.data) == 3, f"{renderer.__name__} missing highlight"  # type: ignore[arg-type]
 
-    def test_new_renderers_no_highlight_for_missing_epoch(self, trajectory_data):
-        """New renderers skip highlight when epoch not in list."""
-        snapshots, epochs = trajectory_data
+    def test_renderers_no_highlight_for_missing_epoch(self, trajectory_data):
+        """Renderers skip highlight when epoch not in list."""
+        pca_result, _, epochs = trajectory_data
         for renderer in [
             render_trajectory_3d,
             render_trajectory_pc1_pc3,
             render_trajectory_pc2_pc3,
         ]:
-            fig = renderer(snapshots, epochs, current_epoch=999)
+            fig = renderer(pca_result, epochs, current_epoch=999)
             # 2 traces: path, points only
             assert len(fig.data) == 2, f"{renderer.__name__} unexpected highlight"  # type: ignore[arg-type]
 
-    def test_get_component_label_all(self):
-        """None components gives 'All Parameters' label."""
-        assert _get_component_label(None) == "All Parameters"
+    def test_get_group_label_all(self):
+        """'all' group gives 'All Parameters' label."""
+        assert get_group_label("all") == "All Parameters"
 
-    def test_get_component_label_named_group(self):
-        """Named group components give capitalized group name."""
-        assert _get_component_label(COMPONENT_GROUPS["mlp"]) == "Mlp"
+    def test_get_group_label_named_group(self):
+        """Named group gives capitalized group name."""
+        assert get_group_label("mlp") == "Mlp"
 
-    def test_get_component_label_arbitrary(self):
-        """Arbitrary component list gives count-based label."""
-        assert _get_component_label(["W_E", "W_Q"]) == "2 matrices"
+    def test_get_group_label_unknown(self):
+        """Unknown group gets capitalized fallback."""
+        assert get_group_label("custom") == "Custom"
 
 
 # ── Integration tests ─────────────────────────────────────────────────

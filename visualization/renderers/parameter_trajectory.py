@@ -1,30 +1,32 @@
-"""REQ_029, REQ_032: Parameter Space Trajectory Visualizations.
+"""REQ_029, REQ_032, REQ_038: Parameter Space Trajectory Visualizations.
 
-Renders PCA trajectory projections, explained variance, and
-parameter velocity from weight matrix snapshots across training.
+Renders PCA trajectory projections, explained variance, and parameter
+velocity from precomputed cross-epoch analysis results.
 
-All cross-epoch renderers accept a list of per-epoch snapshot dicts
-loaded via ArtifactLoader.load_epochs("parameter_snapshot"). PCA and
-velocity are computed at render time from the raw weight matrices.
-
-REQ_032 adds 3D trajectory and additional 2D projections (PC1vPC3, PC2vPC3).
+All renderers accept precomputed PCA results (projections, explained
+variance) rather than raw weight snapshots. PCA computation happens
+at analysis time via ParameterTrajectoryPCA (REQ_038), not at render time.
 """
 
 import numpy as np
 import plotly.graph_objects as go
 
-from analysis.library.trajectory import (
-    compute_parameter_velocity,
-    compute_pca_trajectory,
-)
 from analysis.library.weights import COMPONENT_GROUPS
+
+# Display names for component groups
+_GROUP_LABELS = {
+    "all": "All Parameters",
+    "embedding": "Embedding",
+    "attention": "Attention",
+    "mlp": "Mlp",
+}
 
 
 def render_parameter_trajectory(
-    snapshots: list[dict[str, np.ndarray]],
+    pca_result: dict[str, np.ndarray],
     epochs: list[int],
     current_epoch: int,
-    components: list[str] | None = None,
+    group_label: str = "All Parameters",
     title: str | None = None,
     height: int = 450,
 ) -> go.Figure:
@@ -32,11 +34,15 @@ def render_parameter_trajectory(
 
     Points colored by epoch (blue=early, red=late), connected by path.
     Current epoch highlighted with a larger marker.
+
+    Args:
+        pca_result: Dict with 'projections' and 'explained_variance_ratio'.
+        epochs: Epoch numbers corresponding to each projection.
+        current_epoch: Current epoch for highlight marker.
+        group_label: Display name for the component group.
     """
-    pca_result = compute_pca_trajectory(snapshots, components, n_components=2)
-    component_label = _get_component_label(components)
     if title is None:
-        title = f"Parameter Trajectory ({component_label})"
+        title = f"Parameter Trajectory ({group_label})"
     return _render_trajectory_2d(
         pca_result,
         col_x=0,
@@ -49,18 +55,16 @@ def render_parameter_trajectory(
 
 
 def render_trajectory_pc1_pc3(
-    snapshots: list[dict[str, np.ndarray]],
+    pca_result: dict[str, np.ndarray],
     epochs: list[int],
     current_epoch: int,
-    components: list[str] | None = None,
+    group_label: str = "All Parameters",
     title: str | None = None,
     height: int = 450,
 ) -> go.Figure:
     """2D PCA trajectory: PC1 vs PC3 (REQ_032)."""
-    pca_result = compute_pca_trajectory(snapshots, components, n_components=3)
-    component_label = _get_component_label(components)
     if title is None:
-        title = f"Parameter Trajectory PC1 vs PC3 ({component_label})"
+        title = f"Parameter Trajectory PC1 vs PC3 ({group_label})"
     return _render_trajectory_2d(
         pca_result,
         col_x=0,
@@ -73,18 +77,16 @@ def render_trajectory_pc1_pc3(
 
 
 def render_trajectory_pc2_pc3(
-    snapshots: list[dict[str, np.ndarray]],
+    pca_result: dict[str, np.ndarray],
     epochs: list[int],
     current_epoch: int,
-    components: list[str] | None = None,
+    group_label: str = "All Parameters",
     title: str | None = None,
     height: int = 450,
 ) -> go.Figure:
     """2D PCA trajectory: PC2 vs PC3 (REQ_032)."""
-    pca_result = compute_pca_trajectory(snapshots, components, n_components=3)
-    component_label = _get_component_label(components)
     if title is None:
-        title = f"Parameter Trajectory PC2 vs PC3 ({component_label})"
+        title = f"Parameter Trajectory PC2 vs PC3 ({group_label})"
     return _render_trajectory_2d(
         pca_result,
         col_x=1,
@@ -97,10 +99,10 @@ def render_trajectory_pc2_pc3(
 
 
 def render_trajectory_3d(
-    snapshots: list[dict[str, np.ndarray]],
+    pca_result: dict[str, np.ndarray],
     epochs: list[int],
     current_epoch: int,
-    components: list[str] | None = None,
+    group_label: str = "All Parameters",
     title: str | None = None,
     height: int = 550,
 ) -> go.Figure:
@@ -108,7 +110,6 @@ def render_trajectory_3d(
 
     Supports rotation, zoom, and pan for exploratory analysis.
     """
-    pca_result = compute_pca_trajectory(snapshots, components, n_components=3)
     projections = pca_result["projections"]
     var_ratio = pca_result["explained_variance_ratio"]
 
@@ -172,9 +173,8 @@ def render_trajectory_3d(
             )
         )
 
-    component_label = _get_component_label(components)
     if title is None:
-        title = f"Parameter Trajectory 3D ({component_label})"
+        title = f"Parameter Trajectory 3D ({group_label})"
 
     pct = [v * 100 for v in var_ratio[:3]]
 
@@ -194,8 +194,8 @@ def render_trajectory_3d(
 
 
 def render_explained_variance(
-    snapshots: list[dict[str, np.ndarray]],
-    components: list[str] | None = None,
+    pca_result: dict[str, np.ndarray],
+    group_label: str = "All Parameters",
     n_components: int = 10,
     title: str | None = None,
     height: int = 300,
@@ -203,25 +203,19 @@ def render_explained_variance(
     """Scree plot of explained variance per principal component.
 
     Args:
-        snapshots: List of per-epoch snapshot dicts.
-        components: Weight matrix names to include. None = all.
+        pca_result: Dict with 'explained_variance_ratio'.
+        group_label: Display name for the component group.
         n_components: Max number of PCs to show.
         title: Custom title.
         height: Figure height in pixels.
-
-    Returns:
-        Plotly Figure with bar chart and cumulative line.
     """
-    n_components = min(n_components, len(snapshots))
-    pca_result = compute_pca_trajectory(snapshots, components, n_components)
-    var_ratio = pca_result["explained_variance_ratio"]
+    var_ratio = pca_result["explained_variance_ratio"][:n_components]
     cumulative = np.cumsum(var_ratio)
 
     pc_labels = [f"PC{i + 1}" for i in range(len(var_ratio))]
 
     fig = go.Figure()
 
-    # Individual variance bars
     fig.add_trace(
         go.Bar(
             x=pc_labels,
@@ -232,7 +226,6 @@ def render_explained_variance(
         )
     )
 
-    # Cumulative line
     fig.add_trace(
         go.Scatter(
             x=pc_labels,
@@ -245,9 +238,8 @@ def render_explained_variance(
         )
     )
 
-    component_label = _get_component_label(components)
     if title is None:
-        title = f"Explained Variance ({component_label})"
+        title = f"Explained Variance ({group_label})"
 
     fig.update_layout(
         title=title,
@@ -264,27 +256,23 @@ def render_explained_variance(
 
 
 def render_parameter_velocity(
-    snapshots: list[dict[str, np.ndarray]],
+    velocity: np.ndarray,
     epochs: list[int],
     current_epoch: int,
-    components: list[str] | None = None,
+    group_label: str = "All Parameters",
     title: str | None = None,
     height: int = 300,
 ) -> go.Figure:
     """Parameter velocity (L2 norm of change) over training epochs.
 
     Args:
-        snapshots: List of per-epoch snapshot dicts, ordered by epoch.
-        epochs: Epoch numbers corresponding to each snapshot.
+        velocity: 1D array of length (n_epochs - 1).
+        epochs: Epoch numbers (length n_epochs).
         current_epoch: Current epoch for vertical indicator.
-        components: Weight matrix names to include. None = all.
+        group_label: Display name for the component group.
         title: Custom title.
         height: Figure height in pixels.
-
-    Returns:
-        Plotly Figure with velocity line plot.
     """
-    velocity = compute_parameter_velocity(snapshots, components, epochs=epochs)
     velocity_epochs = epochs[1:]
 
     fig = go.Figure()
@@ -300,7 +288,6 @@ def render_parameter_velocity(
         )
     )
 
-    # Epoch indicator
     fig.add_vline(
         x=current_epoch,
         line_dash="solid",
@@ -311,9 +298,8 @@ def render_parameter_velocity(
         annotation_font_color="red",
     )
 
-    component_label = _get_component_label(components)
     if title is None:
-        title = f"Parameter Velocity ({component_label})"
+        title = f"Parameter Velocity ({group_label})"
 
     fig.update_layout(
         title=title,
@@ -328,7 +314,7 @@ def render_parameter_velocity(
 
 
 def render_component_velocity(
-    snapshots: list[dict[str, np.ndarray]],
+    cross_epoch_data: dict[str, np.ndarray],
     epochs: list[int],
     current_epoch: int,
     title: str | None = None,
@@ -337,17 +323,14 @@ def render_component_velocity(
     """Per-component group velocity over training epochs.
 
     One line per component group (Embedding, Attention, MLP).
-    Reveals timing differences in when parts of the model move.
 
     Args:
-        snapshots: List of per-epoch snapshot dicts, ordered by epoch.
-        epochs: Epoch numbers corresponding to each snapshot.
+        cross_epoch_data: Full cross-epoch data dict with
+            {group}__velocity keys.
+        epochs: Epoch numbers.
         current_epoch: Current epoch for vertical indicator.
         title: Custom title.
         height: Figure height in pixels.
-
-    Returns:
-        Plotly Figure with multi-line velocity plot.
     """
     velocity_epochs = epochs[1:]
     colors = {
@@ -358,8 +341,8 @@ def render_component_velocity(
 
     fig = go.Figure()
 
-    for group_name, group_components in COMPONENT_GROUPS.items():
-        velocity = compute_parameter_velocity(snapshots, group_components, epochs=epochs)
+    for group_name in COMPONENT_GROUPS:
+        velocity = cross_epoch_data[f"{group_name}__velocity"]
         fig.add_trace(
             go.Scatter(
                 x=velocity_epochs,
@@ -375,7 +358,6 @@ def render_component_velocity(
             )
         )
 
-    # Epoch indicator
     fig.add_vline(
         x=current_epoch,
         line_dash="solid",
@@ -498,15 +480,6 @@ def _render_trajectory_2d(
     return fig
 
 
-def _get_component_label(components: list[str] | None) -> str:
-    """Generate a human-readable label for the selected components."""
-    if components is None:
-        return "All Parameters"
-
-    # Check if components match a named group
-    component_set = set(components)
-    for group_name, group_components in COMPONENT_GROUPS.items():
-        if component_set == set(group_components):
-            return group_name.capitalize()
-
-    return f"{len(components)} matrices"
+def get_group_label(group: str) -> str:
+    """Get display label for a component group key."""
+    return _GROUP_LABELS.get(group, group.capitalize())

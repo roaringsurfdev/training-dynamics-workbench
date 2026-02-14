@@ -15,12 +15,13 @@ requirements/
     ├── v0.1.1-cuda/    # CUDA support
     ├── v0.1.2-quality/ # Code quality (ruff, pyright, deps)
     ├── v0.2.0-foundations/ # Model Family abstraction, per-epoch artifacts
-    └── v0.2.1-coarseness/  # Summary statistics, coarseness analysis & visualization
+    ├── v0.2.1-coarseness/  # Summary statistics, coarseness analysis & visualization
+    └── v0.4.0-notebook-api/ # App config, notebook research API
 ```
 
 ## Current Status
 
-**Latest Version:** 0.2.1 (Coarseness Analysis)
+**Latest Version:** 0.4.0 (Notebook Research API)
 
 ### Active Requirements
 
@@ -30,9 +31,8 @@ None — all current requirements are complete.
 
 | Document | Description |
 |----------|-------------|
-| [analysis](drafts/analysis.md) | Attention head visualizations, neuron specialization statistics |
+| [analysis](drafts/analysis.md) | Large cross-epoch summaries |
 | [general](drafts/general.md) | Parallelization |
-| [ui](drafts/ui.md) | Variant dropdown improvements |
 
 ### Future Requirements
 
@@ -44,11 +44,14 @@ Requirements that have been documented but are not yet scheduled for implementat
 | [REQ_015](future/REQ_015_checkpoint_editor.md) | Checkpoint editor using Train/Test loss curve | Medium | High |
 | [REQ_017](future/REQ_017_multi_model_support.md) | Support for multiple toy models | High | High |
 | [REQ_019](future/REQ_019_multiscale_activation_visualization.md) | Multi-scale activation visualization (downsampled) | Medium | Medium |
+| [REQ_034](future/REQ_034_turn_detection.md) | Grokking turn detection | High | Medium |
+| [REQ_035](future/REQ_035_dashboard_interaction.md) | Dashboard interaction + Dash migration | High | High |
 
 ### Completed Milestones
 
 | Version | Name | Date | Requirements |
 |---------|------|------|--------------|
+| [0.4.0](archive/v0.4.0-notebook-api/) | Notebook Research API | 2026-02-13 | REQ_036, REQ_037 |
 | [0.2.1](archive/v0.2.1-coarseness/) | Coarseness Analysis | 2026-02-08 | REQ_022, REQ_023, REQ_024 |
 | [0.2.0](archive/v0.2.0-foundations/) | First Foundational Release | 2026-02-06 | REQ_020, REQ_021 (a–f) |
 | [0.1.2](archive/v0.1.2-quality/) | Quality | — | REQ_011, REQ_012, REQ_013 |
