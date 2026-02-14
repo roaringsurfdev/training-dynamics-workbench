@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-13
+
+### Added
+
+- **Dash Dashboard Migration** (REQ_035)
+  - New `dashboard_v2/` built on Dash + Plotly for improved interactivity
+  - Sidebar layout: variant selector, epoch slider, neuron index, and all visualization-specific controls in a persistent collapsible left panel
+  - Click-to-navigate: click any data point on summary/trajectory plots to jump to that epoch
+  - Selective rendering: epoch changes only re-render affected plots, not all 18
+  - `Patch()` for epoch marker updates — summary plots update markers without full re-render
+  - Neuron click-to-navigate from frequency clusters heatmap
+  - All 18 Analysis tab visualizations migrated
+  - Dependencies: `dash`, `dash-bootstrap-components`
+
+### Architecture
+
+```
+dashboard_v2/           # Dash-based dashboard (new)
+  app.py                # Application factory
+  layout.py             # Sidebar + main content layout
+  callbacks.py          # Per-visualization callbacks with click-to-navigate
+  state.py              # DashboardState (variant/epoch/artifact management)
+dashboard/              # Gradio dashboard (frozen, still functional)
+```
+
+### References
+
+- Archived requirements: `requirements/archive/v0.5.0-dash-migration/`
+- Milestone summary: `requirements/archive/v0.5.0-dash-migration/MILESTONE_SUMMARY.md`
+
 ## [0.4.0] - 2026-02-13
 
 ### Added
