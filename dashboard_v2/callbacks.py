@@ -81,8 +81,12 @@ _figure_epoch: dict[str, int] = {}
 _PATCHABLE_PLOTS = [
     "loss", "spec_traj", "spec_freq", "attn_spec",
     "dim_traj", "flatness",
-    "trajectory", "trajectory_3d", "trajectory_pc1_pc3", "trajectory_pc2_pc3",
     "velocity",
+]
+# Trajectory 2D/3D plots use scatter trace markers (not add_vline shapes),
+# so they need full re-render on epoch change instead of Patch().
+_TRAJECTORY_RERENDER_PLOTS = [
+    "trajectory", "trajectory_3d", "trajectory_pc1_pc3", "trajectory_pc2_pc3",
 ]
 
 
@@ -518,9 +522,10 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
         State("position-pair-dropdown", "value"),
         State("sv-matrix-dropdown", "value"),
         State("sv-head-slider", "value"),
+        State("trajectory-group-radio", "value"),
         prevent_initial_call=True,
     )
-    def on_epoch_change(epoch_idx, neuron_idx, position_pair, sv_matrix, sv_head):
+    def on_epoch_change(epoch_idx, neuron_idx, position_pair, sv_matrix, sv_head, traj_group):
         epoch = server_state.get_epoch_at_index(epoch_idx)
         to_pos, from_pos = _parse_position_pair(position_pair)
 
@@ -532,14 +537,40 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
         dim_traj_p = _patch_or_skip("dim_traj", epoch)
         flatness_p = _patch_or_skip("flatness", epoch)
 
-        # Trajectory plots: Patch if cached, otherwise no_update
-        # (trajectory plots don't re-render on epoch change alone — they show
-        # the full trajectory with a marker. Patch moves the marker.)
-        traj_p = _patch_or_skip("trajectory", epoch)
-        t3d_p = _patch_or_skip("trajectory_3d", epoch)
-        pc13_p = _patch_or_skip("trajectory_pc1_pc3", epoch)
-        pc23_p = _patch_or_skip("trajectory_pc2_pc3", epoch)
+        # Velocity plot uses add_vline() — patchable
         vel_p = _patch_or_skip("velocity", epoch)
+
+        # Trajectory 2D/3D plots use scatter trace markers (not shapes),
+        # so they need full re-render to update the current-epoch marker.
+        trajectory_data = server_state.get_trajectory_data()
+        if trajectory_data is not None:
+            snapshots, traj_epochs = trajectory_data
+            components = _resolve_trajectory_components(traj_group)
+            traj_p = _cache_figure(
+                "trajectory",
+                render_parameter_trajectory(snapshots, traj_epochs, epoch, components=components),
+                epoch,
+            )
+            t3d_p = _cache_figure(
+                "trajectory_3d",
+                render_trajectory_3d(snapshots, traj_epochs, epoch, components=components),
+                epoch,
+            )
+            pc13_p = _cache_figure(
+                "trajectory_pc1_pc3",
+                render_trajectory_pc1_pc3(snapshots, traj_epochs, epoch, components=components),
+                epoch,
+            )
+            pc23_p = _cache_figure(
+                "trajectory_pc2_pc3",
+                render_trajectory_pc2_pc3(snapshots, traj_epochs, epoch, components=components),
+                epoch,
+            )
+        else:
+            traj_p = no_update
+            t3d_p = no_update
+            pc13_p = no_update
+            pc23_p = no_update
 
         # Full re-render per-epoch plots
         freq = _render_freq(epoch)
