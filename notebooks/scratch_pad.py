@@ -25,4 +25,7 @@ print("W_neur", W_neur.shape)
 W_logit = model.blocks[0].mlp.W_out @ model.unembed.W_U
 print("W_logit", W_logit.shape)
 
+# %% artifacts
+artifacts = variant.artifacts
+
 # %%
