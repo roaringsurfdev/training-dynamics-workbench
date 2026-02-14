@@ -32,6 +32,7 @@ from analysis.analyzers import (
     NeuronActivationsAnalyzer,
     NeuronFreqClustersAnalyzer,
     ParameterSnapshotAnalyzer,
+    ParameterTrajectoryPCA,
 )
 from analysis.library.weights import ATTENTION_MATRICES, COMPONENT_GROUPS, WEIGHT_MATRIX_NAMES
 from dashboard.components import (
@@ -470,6 +471,7 @@ def run_analysis_for_variant(
         pipeline.register(ParameterSnapshotAnalyzer())
         pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.register(LandscapeFlatnessAnalyzer())
+        pipeline.register_cross_epoch(ParameterTrajectoryPCA())
         pipeline.run(progress_callback=pipeline_progress)
 
         progress(1.0, desc="Analysis complete!")

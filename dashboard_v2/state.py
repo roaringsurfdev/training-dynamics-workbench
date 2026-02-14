@@ -74,9 +74,8 @@ class ServerState:
     n_neurons: int = 512
     n_heads: int = 4
 
-    # Cached parameter snapshots for trajectory rendering (REQ_029)
-    _trajectory_snapshots: list[dict[str, Any]] | None = field(default=None, repr=False)
-    _trajectory_epochs: list[int] | None = field(default=None, repr=False)
+    # Cached cross-epoch trajectory data (REQ_038)
+    _trajectory_data: dict[str, Any] | None = field(default=None, repr=False)
 
     def clear(self) -> None:
         """Reset all state."""
@@ -89,8 +88,7 @@ class ServerState:
         self.model_config = None
         self.n_neurons = 512
         self.n_heads = 4
-        self._trajectory_snapshots = None
-        self._trajectory_epochs = None
+        self._trajectory_data = None
 
     def get_epoch_at_index(self, idx: int) -> int:
         """Map slider index to actual epoch number."""
@@ -111,25 +109,27 @@ class ServerState:
             return ArtifactLoader(self.artifacts_dir)
         return None
 
-    def get_trajectory_data(
-        self,
-    ) -> tuple[list[dict[str, Any]], list[int]] | None:
-        """Get cached trajectory snapshots, loading on first access."""
-        if self._trajectory_snapshots is not None:
-            return self._trajectory_snapshots, self._trajectory_epochs  # type: ignore[return-value]
+    def get_trajectory_data(self) -> dict[str, Any] | None:
+        """Load precomputed trajectory analysis (REQ_038 cross-epoch artifact).
 
-        if not self.artifacts_dir or "parameter_snapshot" not in self.available_analyzers:
+        Returns the full cross-epoch data dict with group-prefixed keys,
+        or None if no precomputed data exists.
+        """
+        if self._trajectory_data is not None:
+            return self._trajectory_data
+
+        if not self.artifacts_dir:
             return None
 
         loader = ArtifactLoader(self.artifacts_dir)
-        epochs = loader.get_epochs("parameter_snapshot")
-        if not epochs:
+        if not loader.has_cross_epoch("parameter_trajectory"):
             return None
 
-        snapshots = [loader.load_epoch("parameter_snapshot", e) for e in epochs]
-        self._trajectory_snapshots = snapshots
-        self._trajectory_epochs = epochs
-        return snapshots, epochs
+        try:
+            self._trajectory_data = loader.load_cross_epoch("parameter_trajectory")
+            return self._trajectory_data
+        except FileNotFoundError:
+            return None
 
     def load_variant(self, family_name: str, variant_name: str) -> bool:
         """Load a variant's metadata and discover its artifacts.

@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import tqdm.auto as tqdm
 
-from analysis.protocols import AnalysisRunConfig, Analyzer
+from analysis.protocols import AnalysisRunConfig, Analyzer, CrossEpochAnalyzer
 
 if TYPE_CHECKING:
     from families import Variant
@@ -36,6 +36,10 @@ class AnalysisPipeline:
     Analyzers may optionally produce summary statistics (REQ_022) — small
     per-epoch values accumulated in memory and saved as a single file:
         artifacts/{analyzer_name}/summary.npz
+
+    Cross-epoch analyzers (REQ_038) run after per-epoch analysis completes,
+    consuming per-epoch artifacts to produce cross-epoch results:
+        artifacts/{analyzer_name}/cross_epoch.npz
     """
 
     def __init__(
@@ -55,6 +59,7 @@ class AnalysisPipeline:
         self.artifacts_dir = str(variant.artifacts_dir)
 
         self._analyzers: list[Analyzer] = []
+        self._cross_epoch_analyzers: list[CrossEpochAnalyzer] = []
         self._manifest: dict[str, Any] = {}
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -74,6 +79,23 @@ class AnalysisPipeline:
         self._analyzers.append(analyzer)
         return self
 
+    def register_cross_epoch(
+        self, analyzer: CrossEpochAnalyzer,
+    ) -> AnalysisPipeline:
+        """Register a cross-epoch analyzer with the pipeline.
+
+        Cross-epoch analyzers run after all per-epoch analysis completes.
+        They consume per-epoch artifacts to produce cross-epoch results.
+
+        Args:
+            analyzer: CrossEpochAnalyzer instance
+
+        Returns:
+            Self for method chaining
+        """
+        self._cross_epoch_analyzers.append(analyzer)
+        return self
+
     def run(
         self,
         force: bool = False,
@@ -89,7 +111,7 @@ class AnalysisPipeline:
             progress_callback: Optional callback(progress, description) for UI updates.
                                Progress is a float from 0.0 to 1.0.
         """
-        if not self._analyzers:
+        if not self._analyzers and not self._cross_epoch_analyzers:
             return
 
         available_epochs = self.variant.get_available_checkpoints()
@@ -101,40 +123,48 @@ class AnalysisPipeline:
         if not target_epochs:
             return
 
+        # Phase 1: Per-epoch analysis
         work_queue = self._build_work_queue(target_epochs, force)
-        if not work_queue:
-            return
-
-        all_epochs_needed = sorted(set(e for _, needed in work_queue for e in needed))
-
-        # Generate probe from family (enforces scientific invariant)
-        probe = self.variant.family.generate_analysis_dataset(
-            self.variant.params, device=self._device
+        context = self.variant.family.prepare_analysis_context(
+            self.variant.params, self._device,
         )
 
-        # Prepare analysis context from family (contains params + precomputed values)
-        context = self.variant.family.prepare_analysis_context(self.variant.params, self._device)
+        if work_queue:
+            all_epochs_needed = sorted(
+                set(e for _, needed in work_queue for e in needed)
+            )
 
-        # Build summary collectors for analyzers that produce summary stats
-        summary_collectors = self._build_summary_collectors(work_queue)
+            probe = self.variant.family.generate_analysis_dataset(
+                self.variant.params, device=self._device,
+            )
 
-        total_epochs = len(all_epochs_needed)
-        for i, epoch in enumerate(tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints")):
-            if progress_callback:
-                progress_callback(
-                    i / total_epochs,
-                    f"Analyzing checkpoint {epoch} ({i + 1}/{total_epochs})",
+            summary_collectors = self._build_summary_collectors(work_queue)
+
+            total_epochs = len(all_epochs_needed)
+            for i, epoch in enumerate(
+                tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints")
+            ):
+                if progress_callback:
+                    progress_callback(
+                        i / total_epochs,
+                        f"Analyzing checkpoint {epoch} ({i + 1}/{total_epochs})",
+                    )
+
+                self._run_single_epoch(
+                    epoch, work_queue, probe, context, summary_collectors,
                 )
 
-            self._run_single_epoch(epoch, work_queue, probe, context, summary_collectors)
+            for analyzer_name, collector in summary_collectors.items():
+                if collector["epochs"]:
+                    self._save_summary(analyzer_name, collector)
 
-        # Save summary statistics for analyzers that produced them
-        for analyzer_name, collector in summary_collectors.items():
-            if collector["epochs"]:
-                self._save_summary(analyzer_name, collector)
+        # Phase 2: Cross-epoch analysis (REQ_038)
+        if self._cross_epoch_analyzers:
+            self._run_cross_epoch_analyzers(context, force, progress_callback)
 
         # Save manifest with metadata at end of run
-        self._update_manifest(work_queue)
+        if work_queue:
+            self._update_manifest(work_queue)
         self._save_manifest()
 
         if progress_callback:
@@ -346,3 +376,63 @@ class AnalysisPipeline:
         if not os.path.exists(summary_path):
             return None
         return dict(np.load(summary_path))
+
+    # ------------------------------------------------------------------
+    # Phase 2: Cross-epoch analysis (REQ_038)
+    # ------------------------------------------------------------------
+
+    def _run_cross_epoch_analyzers(
+        self,
+        context: dict[str, Any],
+        force: bool,
+        progress_callback: Callable[[float, str], None] | None = None,
+    ) -> None:
+        """Execute cross-epoch analyzers after per-epoch phase completes.
+
+        Validates that required per-epoch analyzers have completed,
+        then runs each cross-epoch analyzer and saves results.
+        """
+        available_epochs = sorted(self.variant.get_available_checkpoints())
+
+        for analyzer in self._cross_epoch_analyzers:
+            # Skip if already computed (unless force)
+            cross_epoch_path = os.path.join(
+                self.artifacts_dir, analyzer.name, "cross_epoch.npz",
+            )
+            if os.path.exists(cross_epoch_path) and not force:
+                continue
+
+            # Validate dependencies
+            for required in analyzer.requires:
+                completed = self.get_completed_epochs(required)
+                if not completed:
+                    raise RuntimeError(
+                        f"Cross-epoch analyzer '{analyzer.name}' requires "
+                        f"'{required}' but no epochs have been analyzed."
+                    )
+
+            if progress_callback:
+                progress_callback(
+                    0.95,
+                    f"Running cross-epoch analysis: {analyzer.name}",
+                )
+
+            result = analyzer.analyze_across_epochs(
+                self.artifacts_dir, available_epochs, context,
+            )
+            self._save_cross_epoch_artifact(analyzer.name, result)
+
+    def _save_cross_epoch_artifact(
+        self, analyzer_name: str, result: dict[str, np.ndarray],
+    ) -> None:
+        """Save cross-epoch analysis result to disk.
+
+        Writes to: artifacts/{analyzer_name}/cross_epoch.npz
+        """
+        analyzer_dir = os.path.join(self.artifacts_dir, analyzer_name)
+        os.makedirs(analyzer_dir, exist_ok=True)
+
+        cross_epoch_path = os.path.join(analyzer_dir, "cross_epoch.npz")
+        temp_base = os.path.join(analyzer_dir, ".cross_epoch_tmp")
+        np.savez_compressed(temp_base, **result)  # type: ignore[arg-type]
+        os.replace(temp_base + ".npz", cross_epoch_path)

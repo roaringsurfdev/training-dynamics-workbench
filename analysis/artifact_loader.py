@@ -222,6 +222,47 @@ class ArtifactLoader:
         summary_path = os.path.join(self.artifacts_dir, analyzer_name, "summary.npz")
         return os.path.exists(summary_path)
 
+    def load_cross_epoch(self, analyzer_name: str) -> dict[str, np.ndarray]:
+        """Load cross-epoch analysis results.
+
+        Cross-epoch files contain results from analyzers that operate across
+        all checkpoints (REQ_038), e.g. PCA trajectory projections.
+
+        Args:
+            analyzer_name: Name of the cross-epoch analyzer
+
+        Returns:
+            Dict of numpy arrays from cross_epoch.npz
+
+        Raises:
+            FileNotFoundError: If no cross-epoch results exist
+        """
+        cross_epoch_path = os.path.join(
+            self.artifacts_dir, analyzer_name, "cross_epoch.npz"
+        )
+
+        if not os.path.exists(cross_epoch_path):
+            raise FileNotFoundError(
+                f"No cross-epoch results for '{analyzer_name}'. "
+                f"Expected: {cross_epoch_path}"
+            )
+
+        return dict(np.load(cross_epoch_path))
+
+    def has_cross_epoch(self, analyzer_name: str) -> bool:
+        """Check whether cross-epoch results exist for an analyzer.
+
+        Args:
+            analyzer_name: Name of the cross-epoch analyzer
+
+        Returns:
+            True if cross_epoch.npz exists for this analyzer
+        """
+        cross_epoch_path = os.path.join(
+            self.artifacts_dir, analyzer_name, "cross_epoch.npz"
+        )
+        return os.path.exists(cross_epoch_path)
+
     def get_model_config(self) -> dict[str, Any]:
         """Get model configuration from manifest.
 
