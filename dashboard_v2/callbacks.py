@@ -48,10 +48,13 @@ def _empty_figure(message: str = "No data") -> go.Figure:
 # ---------------------------------------------------------------------------
 # Summary figure cache
 # ---------------------------------------------------------------------------
-# Keyed by (variant_name, extra_key). Stores base figures so Patch() can
+# Keyed by (variant_name, plot_name). Stores base figures so Patch() can
 # update just the epoch marker without full re-render.
+# _figure_epoch tracks what epoch each cached figure currently shows,
+# used to skip redundant Patch() calls that race with full renders.
 
 _figure_cache: dict[str, go.Figure] = {}
+_figure_epoch: dict[str, int] = {}
 
 
 def _cache_key(plot_name: str) -> str:
@@ -69,7 +72,9 @@ def _render_and_cache_loss(epoch: int) -> go.Figure:
         current_epoch=epoch,
         checkpoint_epochs=server_state.available_epochs,
     )
-    _figure_cache[_cache_key("loss")] = fig
+    key = _cache_key("loss")
+    _figure_cache[key] = fig
+    _figure_epoch[key] = epoch
     return fig
 
 
@@ -83,7 +88,9 @@ def _render_and_cache_spec_trajectory(epoch: int) -> go.Figure:
     try:
         summary_data = loader.load_summary("neuron_freq_norm")
         fig = render_specialization_trajectory(summary_data, current_epoch=epoch)
-        _figure_cache[_cache_key("spec_traj")] = fig
+        key = _cache_key("spec_traj")
+        _figure_cache[key] = fig
+        _figure_epoch[key] = epoch
         return fig
     except FileNotFoundError:
         return _empty_figure("No summary data")
@@ -99,7 +106,9 @@ def _render_and_cache_flatness(epoch: int, metric: str) -> go.Figure:
     try:
         summary_data = loader.load_summary("landscape_flatness")
         fig = render_flatness_trajectory(summary_data, current_epoch=epoch, metric=metric)
-        _figure_cache[_cache_key("flatness")] = fig
+        key = _cache_key("flatness")
+        _figure_cache[key] = fig
+        _figure_epoch[key] = epoch
         return fig
     except FileNotFoundError:
         return _empty_figure("No summary data")
@@ -237,23 +246,37 @@ def register_callbacks(app: Dash) -> None:
     def on_epoch_change(epoch_idx: int, neuron_idx: int):
         epoch = server_state.get_epoch_at_index(epoch_idx)
 
-        # Patch summary plots (no full re-render)
+        # Patch summary plots (no full re-render).
+        # If the cached figure already shows this epoch (e.g. variant just loaded),
+        # return no_update to avoid a Patch racing against the full figure render.
         loss_key = _cache_key("loss")
         spec_key = _cache_key("spec_traj")
         flat_key = _cache_key("flatness")
 
         if loss_key in _figure_cache:
-            loss_patch = _patch_epoch_marker(epoch)
+            if _figure_epoch.get(loss_key) == epoch:
+                loss_patch = no_update
+            else:
+                loss_patch = _patch_epoch_marker(epoch)
+                _figure_epoch[loss_key] = epoch
         else:
             loss_patch = _render_and_cache_loss(epoch)
 
         if spec_key in _figure_cache:
-            spec_patch = _patch_epoch_marker(epoch)
+            if _figure_epoch.get(spec_key) == epoch:
+                spec_patch = no_update
+            else:
+                spec_patch = _patch_epoch_marker(epoch)
+                _figure_epoch[spec_key] = epoch
         else:
             spec_patch = _render_and_cache_spec_trajectory(epoch)
 
         if flat_key in _figure_cache:
-            flat_patch = _patch_epoch_marker(epoch)
+            if _figure_epoch.get(flat_key) == epoch:
+                flat_patch = no_update
+            else:
+                flat_patch = _patch_epoch_marker(epoch)
+                _figure_epoch[flat_key] = epoch
         else:
             flat_patch = _render_and_cache_flatness(epoch, "mean_delta_loss")
 
