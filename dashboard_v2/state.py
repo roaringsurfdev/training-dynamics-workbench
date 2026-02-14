@@ -11,12 +11,69 @@ the Gradio dashboard's model and is appropriate for a local analysis tool.
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from analysis import ArtifactLoader
 from families import FamilyRegistry, Variant
+
+# ---------------------------------------------------------------------------
+# Job progress tracking (thread-safe)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class JobProgress:
+    """Server-side mutable progress state for a running job.
+
+    Used with threading.Thread + dcc.Interval polling pattern.
+    Single-user assumption makes global instances safe.
+    """
+
+    running: bool = False
+    progress: float = 0.0
+    message: str = ""
+    result: str = ""
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def start(self) -> None:
+        """Mark job as started, reset progress."""
+        with self._lock:
+            self.running = True
+            self.progress = 0.0
+            self.message = "Starting..."
+            self.result = ""
+
+    def update(self, progress: float, message: str) -> None:
+        """Update progress (0.0-1.0) and status message."""
+        with self._lock:
+            self.progress = progress
+            self.message = message
+
+    def finish(self, result: str) -> None:
+        """Mark job as complete with result message."""
+        with self._lock:
+            self.running = False
+            self.progress = 1.0
+            self.message = "Complete"
+            self.result = result
+
+    def get_state(self) -> dict[str, Any]:
+        """Get a snapshot of current progress state."""
+        with self._lock:
+            return {
+                "running": self.running,
+                "progress": self.progress,
+                "message": self.message,
+                "result": self.result,
+            }
+
+
+training_progress = JobProgress()
+analysis_progress = JobProgress()
+
 
 # ---------------------------------------------------------------------------
 # Registry (singleton)

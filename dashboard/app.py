@@ -42,7 +42,7 @@ from dashboard.components import (
 )
 from dashboard.state import DashboardState
 from dashboard.utils import parse_checkpoint_epochs
-from dashboard.version import __version__
+from dashboard_v2.version import __version__
 from families import FamilyRegistry, TrainingResult
 from visualization import (
     FLATNESS_METRICS,

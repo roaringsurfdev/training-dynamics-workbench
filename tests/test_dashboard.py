@@ -274,8 +274,8 @@ class TestVersioning:
         assert isinstance(__version__, str)
 
     def test_version_importable_from_version_module(self):
-        """Can import __version__ from dashboard.version."""
-        from dashboard.version import __version__
+        """Can import __version__ from dashboard_v2.version."""
+        from dashboard_v2.version import __version__
 
         assert __version__ is not None
         assert isinstance(__version__, str)
@@ -300,7 +300,7 @@ class TestVersioning:
     def test_version_consistency(self):
         """Version from dashboard matches version from version module."""
         from dashboard import __version__ as pkg_version
-        from dashboard.version import __version__ as mod_version
+        from dashboard_v2.version import __version__ as mod_version
 
         assert pkg_version == mod_version
 

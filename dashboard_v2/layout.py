@@ -2,12 +2,16 @@
 
 Defines the sidebar (controls) and content area (plots) layout.
 All 18 Analysis tab visualizations organized by rendering group.
+
+REQ_040: create_layout() now wraps pages in a navbar + URL-driven container.
+The visualization layout (sidebar + plots) moved to create_visualization_layout().
 """
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
 from analysis.library.weights import WEIGHT_MATRIX_NAMES
+from dashboard_v2.navigation import create_navbar
 from visualization.renderers.landscape_flatness import FLATNESS_METRICS
 
 
@@ -248,8 +252,8 @@ def create_content_area() -> html.Div:
     )
 
 
-def create_layout() -> html.Div:
-    """Create the full application layout."""
+def create_visualization_layout() -> html.Div:
+    """Create the visualization page layout (sidebar + plots)."""
     return html.Div(
         children=[
             create_sidebar(),
@@ -258,7 +262,16 @@ def create_layout() -> html.Div:
         ],
         style={
             "display": "flex",
-            "height": "100vh",
+            "height": "calc(100vh - 56px)",
             "overflow": "hidden",
         },
     )
+
+
+def create_layout() -> html.Div:
+    """Create the full application layout with navbar and URL routing."""
+    return html.Div([
+        dcc.Location(id="url", refresh=False),
+        create_navbar(),
+        html.Div(id="page-content"),
+    ])

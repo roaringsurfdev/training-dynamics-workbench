@@ -11,6 +11,6 @@ Usage:
 """
 
 from dashboard.app import create_app
-from dashboard.version import __version__
+from dashboard_v2.version import __version__
 
 __all__ = ["create_app", "__version__"]
