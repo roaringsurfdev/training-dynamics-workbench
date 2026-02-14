@@ -319,6 +319,24 @@ def register_callbacks(app: Dash) -> None:
             return no_update
         return server_state.nearest_epoch_index(int(clicked_epoch))
 
+    # --- Click on freq clusters heatmap → navigate to neuron ---
+    @app.callback(
+        Output("neuron-slider", "value", allow_duplicate=True),
+        Input("clusters-plot", "clickData"),
+        prevent_initial_call=True,
+    )
+    def on_clusters_click(click_data):
+        if not click_data or not click_data.get("points"):
+            return no_update
+        # Heatmap x-axis is neuron index
+        neuron_idx = click_data["points"][0].get("x")
+        if neuron_idx is None:
+            return no_update
+        neuron_idx = int(neuron_idx)
+        if 0 <= neuron_idx < server_state.n_neurons:
+            return neuron_idx
+        return no_update
+
     # --- Neuron slider → re-render activation only ---
     @app.callback(
         Output("activation-plot", "figure", allow_duplicate=True),

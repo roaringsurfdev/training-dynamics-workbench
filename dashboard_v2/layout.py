@@ -186,7 +186,7 @@ def create_content_area() -> html.Div:
             dcc.Graph(
                 id="activation-plot",
                 config={"displayModeBar": True},
-                style={"height": "400px"},
+                style={"height": "600px"},
             ),
 
             # Frequency clusters (per-epoch)
