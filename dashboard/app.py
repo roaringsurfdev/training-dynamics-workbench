@@ -633,12 +633,8 @@ def generate_all_plots(state: DashboardState):
             group = state.selected_trajectory_group
             pca = _extract_group_pca(trajectory_data, group)
             label = get_group_label(group)
-            trajectory_fig = render_parameter_trajectory(
-                pca, traj_epochs, epoch, group_label=label
-            )
-            trajectory_3d_fig = render_trajectory_3d(
-                pca, traj_epochs, epoch, group_label=label
-            )
+            trajectory_fig = render_parameter_trajectory(pca, traj_epochs, epoch, group_label=label)
+            trajectory_3d_fig = render_trajectory_3d(pca, traj_epochs, epoch, group_label=label)
             trajectory_pc1_pc3_fig = render_trajectory_pc1_pc3(
                 pca, traj_epochs, epoch, group_label=label
             )
@@ -831,12 +827,8 @@ def update_trajectory_only(group: str | None, state: DashboardState):
             label = get_group_label(group)
             fig = render_parameter_trajectory(pca, traj_epochs, epoch, group_label=label)
             fig_3d = render_trajectory_3d(pca, traj_epochs, epoch, group_label=label)
-            fig_pc1_pc3 = render_trajectory_pc1_pc3(
-                pca, traj_epochs, epoch, group_label=label
-            )
-            fig_pc2_pc3 = render_trajectory_pc2_pc3(
-                pca, traj_epochs, epoch, group_label=label
-            )
+            fig_pc1_pc3 = render_trajectory_pc1_pc3(pca, traj_epochs, epoch, group_label=label)
+            fig_pc2_pc3 = render_trajectory_pc2_pc3(pca, traj_epochs, epoch, group_label=label)
         except Exception:
             fig = create_empty_plot("Error rendering trajectory")
             fig_3d = create_empty_plot("Error rendering trajectory")

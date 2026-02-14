@@ -91,9 +91,7 @@ class TestCrossEpochAnalyzerProtocol:
         assert callable(analyzer.analyze_across_epochs)
 
     def test_registered_in_registry(self):
-        assert "parameter_trajectory" in [
-            name for name in AnalyzerRegistry._cross_epoch_analyzers
-        ]
+        assert "parameter_trajectory" in [name for name in AnalyzerRegistry._cross_epoch_analyzers]
 
 
 # ── Analyzer output tests ────────────────────────────────────────────
@@ -143,7 +141,9 @@ class TestParameterTrajectoryPCA:
         # Compare "all" group with direct library call
         direct_pca = compute_pca_trajectory(snapshots, None, n_components=min(10, len(epochs)))
         np.testing.assert_allclose(
-            result["all__projections"], direct_pca["projections"], atol=1e-5,
+            result["all__projections"],
+            direct_pca["projections"],
+            atol=1e-5,
         )
         np.testing.assert_allclose(
             result["all__explained_variance_ratio"],
@@ -160,7 +160,8 @@ class TestParameterTrajectoryPCA:
         analyzer = ParameterTrajectoryPCA()
         result = analyzer.analyze_across_epochs(artifacts_dir, epochs, {})
         assert not np.allclose(
-            result["all__projections"], result["mlp__projections"],
+            result["all__projections"],
+            result["mlp__projections"],
         )
 
 
@@ -230,8 +231,14 @@ def trained_variant(temp_dirs):
         "display_name": "Modulo Addition (1 Layer)",
         "description": "Test",
         "architecture": {
-            "n_layers": 1, "n_heads": 4, "d_model": 128, "d_head": 32,
-            "d_mlp": 512, "act_fn": "relu", "normalization_type": None, "n_ctx": 3,
+            "n_layers": 1,
+            "n_heads": 4,
+            "d_model": 128,
+            "d_head": 32,
+            "d_mlp": 512,
+            "act_fn": "relu",
+            "normalization_type": None,
+            "n_ctx": 3,
         },
         "domain_parameters": {
             "prime": {"type": "int", "description": "Modulus", "default": 113},
@@ -264,7 +271,9 @@ class TestPipelineCrossEpoch:
         pipeline.run()
 
         cross_epoch_path = os.path.join(
-            pipeline.artifacts_dir, "parameter_trajectory", "cross_epoch.npz",
+            pipeline.artifacts_dir,
+            "parameter_trajectory",
+            "cross_epoch.npz",
         )
         assert os.path.exists(cross_epoch_path)
 
@@ -288,12 +297,15 @@ class TestPipelineCrossEpoch:
 
         # Modify the cross-epoch file to detect if it gets overwritten
         cross_epoch_path = os.path.join(
-            pipeline.artifacts_dir, "parameter_trajectory", "cross_epoch.npz",
+            pipeline.artifacts_dir,
+            "parameter_trajectory",
+            "cross_epoch.npz",
         )
         mtime_before = os.path.getmtime(cross_epoch_path)
 
         # Run again without force — should skip
         import time
+
         time.sleep(0.05)
         pipeline2 = AnalysisPipeline(trained_variant)
         pipeline2.register(ParameterSnapshotAnalyzer())
@@ -310,11 +322,14 @@ class TestPipelineCrossEpoch:
         pipeline.run()
 
         cross_epoch_path = os.path.join(
-            pipeline.artifacts_dir, "parameter_trajectory", "cross_epoch.npz",
+            pipeline.artifacts_dir,
+            "parameter_trajectory",
+            "cross_epoch.npz",
         )
         mtime_before = os.path.getmtime(cross_epoch_path)
 
         import time
+
         time.sleep(0.05)
         pipeline2 = AnalysisPipeline(trained_variant)
         pipeline2.register(ParameterSnapshotAnalyzer())
@@ -353,7 +368,9 @@ class TestRenderersWithPrecomputedData:
             pca = compute_pca_trajectory(snapshots, components, n_components=10)
             vel = compute_parameter_velocity(snapshots, components, epochs=epochs)
             cross_epoch_data[f"{group_name}__projections"] = pca["projections"]
-            cross_epoch_data[f"{group_name}__explained_variance_ratio"] = pca["explained_variance_ratio"]
+            cross_epoch_data[f"{group_name}__explained_variance_ratio"] = pca[
+                "explained_variance_ratio"
+            ]
             cross_epoch_data[f"{group_name}__explained_variance"] = pca["explained_variance"]
             cross_epoch_data[f"{group_name}__velocity"] = vel
 

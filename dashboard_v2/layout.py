@@ -32,17 +32,14 @@ def create_sidebar() -> html.Div:
                 style={"display": "flex", "alignItems": "center"},
             ),
             html.Hr(),
-
             # Family selector
             dbc.Label("Family", className="fw-bold"),
             dcc.Dropdown(id="family-dropdown", placeholder="Select family..."),
             html.Br(),
-
             # Variant selector
             dbc.Label("Variant", className="fw-bold"),
             dcc.Dropdown(id="variant-dropdown", placeholder="Select variant..."),
             html.Br(),
-
             # Epoch slider
             dbc.Label("Epoch", className="fw-bold"),
             dcc.Slider(
@@ -59,7 +56,6 @@ def create_sidebar() -> html.Div:
                 children="Epoch 0 (Index 0)",
                 className="text-muted small mb-3",
             ),
-
             # Neuron slider
             dbc.Label("Neuron Index", className="fw-bold"),
             dcc.Slider(
@@ -76,9 +72,7 @@ def create_sidebar() -> html.Div:
                 children="Neuron 0",
                 className="text-muted small mb-3",
             ),
-
             html.Hr(),
-
             # Attention position pair (REQ_025)
             dbc.Label("Attention Relationship", className="fw-bold"),
             dcc.Dropdown(
@@ -95,7 +89,6 @@ def create_sidebar() -> html.Div:
                 clearable=False,
             ),
             html.Br(),
-
             # Trajectory component group (REQ_029, REQ_032)
             dbc.Label("Trajectory Group", className="fw-bold"),
             dbc.RadioItems(
@@ -110,9 +103,7 @@ def create_sidebar() -> html.Div:
                 inline=True,
                 className="mb-3",
             ),
-
             html.Hr(),
-
             # SV matrix selector (REQ_030)
             dbc.Label("SV Matrix", className="fw-bold"),
             dcc.Dropdown(
@@ -138,21 +129,17 @@ def create_sidebar() -> html.Div:
                 style={"display": "none"},
             ),
             html.Br(),
-
             # Flatness metric selector (REQ_031)
             dbc.Label("Flatness Metric", className="fw-bold"),
             dcc.Dropdown(
                 id="flatness-metric-dropdown",
                 options=[
-                    {"label": display, "value": key}
-                    for key, display in FLATNESS_METRICS.items()
+                    {"label": display, "value": key} for key, display in FLATNESS_METRICS.items()
                 ],
                 value="mean_delta_loss",
                 clearable=False,
             ),
-
             html.Hr(),
-
             # Status
             html.Div(
                 id="status-display",
@@ -225,37 +212,29 @@ def create_content_area() -> html.Div:
         id="content-area",
         children=[
             html.H4("Training Dynamics Analysis", className="mb-3"),
-
             # --- Loss ---
             _graph("loss-plot", "350px"),
-
             # --- Frequency Analysis ---
             _graph("freq-plot", "400px"),
             _graph("activation-plot", "600px"),
             _graph("clusters-plot", "450px"),
-
             # --- Neuron Specialization (summary, click-to-navigate) ---
             _graph("spec-trajectory-plot", "350px"),
             _graph("spec-freq-plot", "450px"),
-
             # --- Attention (per-epoch) ---
             _graph("attention-plot", "400px"),
             _graph("attn-freq-plot", "400px"),
-
             # --- Attention Specialization (summary, click-to-navigate) ---
             _graph("attn-spec-plot", "350px"),
-
             # --- Trajectory (cross-epoch) ---
             _graph("trajectory-plot", "500px"),
             _graph("trajectory-3d-plot", "600px"),
             _graph("trajectory-pc1-pc3-plot", "500px"),
             _graph("trajectory-pc2-pc3-plot", "500px"),
             _graph("velocity-plot", "400px"),
-
             # --- Dimensionality (summary + per-epoch) ---
             _graph("dim-trajectory-plot", "400px"),
             _graph("sv-spectrum-plot", "400px"),
-
             # --- Flatness (summary + per-epoch, click-to-navigate) ---
             _graph("flatness-trajectory-plot", "400px"),
             _graph("perturbation-plot", "400px"),

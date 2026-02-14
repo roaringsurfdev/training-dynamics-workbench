@@ -80,7 +80,8 @@ class AnalysisPipeline:
         return self
 
     def register_cross_epoch(
-        self, analyzer: CrossEpochAnalyzer,
+        self,
+        analyzer: CrossEpochAnalyzer,
     ) -> AnalysisPipeline:
         """Register a cross-epoch analyzer with the pipeline.
 
@@ -126,24 +127,22 @@ class AnalysisPipeline:
         # Phase 1: Per-epoch analysis
         work_queue = self._build_work_queue(target_epochs, force)
         context = self.variant.family.prepare_analysis_context(
-            self.variant.params, self._device,
+            self.variant.params,
+            self._device,
         )
 
         if work_queue:
-            all_epochs_needed = sorted(
-                set(e for _, needed in work_queue for e in needed)
-            )
+            all_epochs_needed = sorted(set(e for _, needed in work_queue for e in needed))
 
             probe = self.variant.family.generate_analysis_dataset(
-                self.variant.params, device=self._device,
+                self.variant.params,
+                device=self._device,
             )
 
             summary_collectors = self._build_summary_collectors(work_queue)
 
             total_epochs = len(all_epochs_needed)
-            for i, epoch in enumerate(
-                tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints")
-            ):
+            for i, epoch in enumerate(tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints")):
                 if progress_callback:
                     progress_callback(
                         i / total_epochs,
@@ -151,7 +150,11 @@ class AnalysisPipeline:
                     )
 
                 self._run_single_epoch(
-                    epoch, work_queue, probe, context, summary_collectors,
+                    epoch,
+                    work_queue,
+                    probe,
+                    context,
+                    summary_collectors,
                 )
 
             for analyzer_name, collector in summary_collectors.items():
@@ -397,7 +400,9 @@ class AnalysisPipeline:
         for analyzer in self._cross_epoch_analyzers:
             # Skip if already computed (unless force)
             cross_epoch_path = os.path.join(
-                self.artifacts_dir, analyzer.name, "cross_epoch.npz",
+                self.artifacts_dir,
+                analyzer.name,
+                "cross_epoch.npz",
             )
             if os.path.exists(cross_epoch_path) and not force:
                 continue
@@ -418,12 +423,16 @@ class AnalysisPipeline:
                 )
 
             result = analyzer.analyze_across_epochs(
-                self.artifacts_dir, available_epochs, context,
+                self.artifacts_dir,
+                available_epochs,
+                context,
             )
             self._save_cross_epoch_artifact(analyzer.name, result)
 
     def _save_cross_epoch_artifact(
-        self, analyzer_name: str, result: dict[str, np.ndarray],
+        self,
+        analyzer_name: str,
+        result: dict[str, np.ndarray],
     ) -> None:
         """Save cross-epoch analysis result to disk.
 

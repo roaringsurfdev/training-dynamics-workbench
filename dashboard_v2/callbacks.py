@@ -53,8 +53,10 @@ def _empty_figure(message: str = "No data") -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
         text=message,
-        xref="paper", yref="paper",
-        x=0.5, y=0.5,
+        xref="paper",
+        yref="paper",
+        x=0.5,
+        y=0.5,
         showarrow=False,
         font=dict(size=16, color="gray"),
     )
@@ -80,14 +82,21 @@ _figure_epoch: dict[str, int] = {}
 
 # Plot names for all summary/trajectory plots that use Patch()
 _PATCHABLE_PLOTS = [
-    "loss", "spec_traj", "spec_freq", "attn_spec",
-    "dim_traj", "flatness",
+    "loss",
+    "spec_traj",
+    "spec_freq",
+    "attn_spec",
+    "dim_traj",
+    "flatness",
     "velocity",
 ]
 # Trajectory 2D/3D plots use scatter trace markers (not add_vline shapes),
 # so they need full re-render on epoch change instead of Patch().
 _TRAJECTORY_RERENDER_PLOTS = [
-    "trajectory", "trajectory_3d", "trajectory_pc1_pc3", "trajectory_pc2_pc3",
+    "trajectory",
+    "trajectory_3d",
+    "trajectory_pc1_pc3",
+    "trajectory_pc2_pc3",
 ]
 
 
@@ -137,7 +146,8 @@ def _patch_epoch_marker(epoch: int) -> Patch:
 
 
 def _extract_group_pca(
-    cross_epoch_data: dict, group: str,
+    cross_epoch_data: dict,
+    group: str,
 ) -> dict:
     """Extract a pca_result dict for a specific component group."""
     return {
@@ -153,12 +163,16 @@ def _extract_group_pca(
 
 
 def _render_loss(epoch: int) -> go.Figure:
-    return _cache_figure("loss", render_loss_curves_with_indicator(
-        server_state.train_losses,
-        server_state.test_losses,
-        current_epoch=epoch,
-        checkpoint_epochs=server_state.available_epochs,
-    ), epoch)
+    return _cache_figure(
+        "loss",
+        render_loss_curves_with_indicator(
+            server_state.train_losses,
+            server_state.test_losses,
+            current_epoch=epoch,
+            checkpoint_epochs=server_state.available_epochs,
+        ),
+        epoch,
+    )
 
 
 def _render_spec_trajectory(epoch: int) -> go.Figure:
@@ -169,8 +183,9 @@ def _render_spec_trajectory(epoch: int) -> go.Figure:
         return _empty_figure("No summary data")
     try:
         summary = loader.load_summary("neuron_freq_norm")
-        return _cache_figure("spec_traj",
-                             render_specialization_trajectory(summary, current_epoch=epoch), epoch)
+        return _cache_figure(
+            "spec_traj", render_specialization_trajectory(summary, current_epoch=epoch), epoch
+        )
     except FileNotFoundError:
         return _empty_figure("No summary data")
 
@@ -183,9 +198,9 @@ def _render_spec_freq(epoch: int) -> go.Figure:
         return _empty_figure("No summary data")
     try:
         summary = loader.load_summary("neuron_freq_norm")
-        return _cache_figure("spec_freq",
-                             render_specialization_by_frequency(summary, current_epoch=epoch),
-                             epoch)
+        return _cache_figure(
+            "spec_freq", render_specialization_by_frequency(summary, current_epoch=epoch), epoch
+        )
     except FileNotFoundError:
         return _empty_figure("No summary data")
 
@@ -215,8 +230,9 @@ def _render_dim_trajectory(epoch: int) -> go.Figure:
         return _empty_figure("No summary data")
     try:
         summary = loader.load_summary("effective_dimensionality")
-        return _cache_figure("dim_traj",
-                             render_dimensionality_trajectory(summary, current_epoch=epoch), epoch)
+        return _cache_figure(
+            "dim_traj", render_dimensionality_trajectory(summary, current_epoch=epoch), epoch
+        )
     except FileNotFoundError:
         return _empty_figure("No summary data")
 
@@ -229,15 +245,18 @@ def _render_flatness(epoch: int, metric: str) -> go.Figure:
         return _empty_figure("No summary data")
     try:
         summary = loader.load_summary("landscape_flatness")
-        return _cache_figure("flatness",
-                             render_flatness_trajectory(summary, current_epoch=epoch, metric=metric),
-                             epoch)
+        return _cache_figure(
+            "flatness",
+            render_flatness_trajectory(summary, current_epoch=epoch, metric=metric),
+            epoch,
+        )
     except FileNotFoundError:
         return _empty_figure("No summary data")
 
 
 def _render_trajectory_plots(
-    epoch: int, group: str,
+    epoch: int,
+    group: str,
 ) -> tuple[go.Figure, go.Figure, go.Figure, go.Figure, go.Figure]:
     """Render all 5 trajectory/velocity plots and cache them."""
     data = server_state.get_trajectory_data()
@@ -290,7 +309,8 @@ def _render_freq(epoch: int) -> go.Figure:
         return _empty_figure("Run analysis first")
     try:
         return render_dominant_frequencies(
-            loader.load_epoch("dominant_frequencies", epoch), epoch=epoch, threshold=1.0)
+            loader.load_epoch("dominant_frequencies", epoch), epoch=epoch, threshold=1.0
+        )
     except FileNotFoundError:
         return _empty_figure("No data for this epoch")
 
@@ -301,7 +321,8 @@ def _render_activation(epoch: int, neuron_idx: int) -> go.Figure:
         return _empty_figure("Run analysis first")
     try:
         return render_neuron_heatmap(
-            loader.load_epoch("neuron_activations", epoch), epoch=epoch, neuron_idx=neuron_idx)
+            loader.load_epoch("neuron_activations", epoch), epoch=epoch, neuron_idx=neuron_idx
+        )
     except FileNotFoundError:
         return _empty_figure("No data for this epoch")
 
@@ -323,7 +344,9 @@ def _render_attention(epoch: int, to_pos: int, from_pos: int) -> go.Figure:
     try:
         return render_attention_heads(
             loader.load_epoch("attention_patterns", epoch),
-            epoch=epoch, to_position=to_pos, from_position=from_pos,
+            epoch=epoch,
+            to_position=to_pos,
+            from_position=from_pos,
         )
     except FileNotFoundError:
         return _empty_figure("No data for this epoch")
@@ -335,7 +358,8 @@ def _render_attn_freq(epoch: int) -> go.Figure:
         return _empty_figure("Run analysis first")
     try:
         return render_attention_freq_heatmap(
-            loader.load_epoch("attention_freq", epoch), epoch=epoch)
+            loader.load_epoch("attention_freq", epoch), epoch=epoch
+        )
     except FileNotFoundError:
         return _empty_figure("No data for this epoch")
 
@@ -348,7 +372,9 @@ def _render_sv_spectrum(epoch: int, matrix: str, head_idx: int) -> go.Figure:
         head = head_idx if matrix in ATTENTION_MATRICES else None
         return render_singular_value_spectrum(
             loader.load_epoch("effective_dimensionality", epoch),
-            epoch=epoch, matrix_name=matrix, head_idx=head,
+            epoch=epoch,
+            matrix_name=matrix,
+            head_idx=head,
         )
     except FileNotFoundError:
         return _empty_figure("No data for this epoch")
@@ -360,7 +386,8 @@ def _render_perturbation(epoch: int) -> go.Figure:
         return _empty_figure("Run analysis first")
     try:
         return render_perturbation_distribution(
-            loader.load_epoch("landscape_flatness", epoch), epoch=epoch)
+            loader.load_epoch("landscape_flatness", epoch), epoch=epoch
+        )
     except FileNotFoundError:
         return _empty_figure("No data for this epoch")
 
@@ -451,8 +478,13 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
         State("sv-head-slider", "value"),
     )
     def on_variant_change(
-        variant_name, family_name, flatness_metric,
-        traj_group, position_pair, sv_matrix, sv_head,
+        variant_name,
+        family_name,
+        flatness_metric,
+        traj_group,
+        position_pair,
+        sv_matrix,
+        sv_head,
     ):
         n_plots = len(_ALL_PLOT_IDS)
         empty = _empty_figure("Select a variant")
@@ -461,16 +493,26 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
             server_state.clear()
             return (
                 *[empty] * n_plots,
-                1, 0, 511, 3,
-                "Epoch 0 (Index 0)", "Neuron 0", "No variant selected",
+                1,
+                0,
+                511,
+                3,
+                "Epoch 0 (Index 0)",
+                "Neuron 0",
+                "No variant selected",
             )
 
         if not server_state.load_variant(family_name, variant_name):
             server_state.clear()
             return (
                 *[_empty_figure("Variant not found")] * n_plots,
-                1, 0, 511, 3,
-                "Epoch 0 (Index 0)", "Neuron 0", "Variant not found",
+                1,
+                0,
+                511,
+                3,
+                "Epoch 0 (Index 0)",
+                "Neuron 0",
+                "Variant not found",
             )
 
         epoch = server_state.get_epoch_at_index(0)
@@ -506,17 +548,32 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
 
         return (
             # 18 plots in _ALL_PLOT_IDS order
-            loss, freq, activation, clusters,
-            spec_traj, spec_freq,
-            attention, attn_freq, attn_spec,
-            t, t3d, pc13, pc23, vel,
-            dim_traj, sv_spectrum,
-            flatness, perturbation,
+            loss,
+            freq,
+            activation,
+            clusters,
+            spec_traj,
+            spec_freq,
+            attention,
+            attn_freq,
+            attn_spec,
+            t,
+            t3d,
+            pc13,
+            pc23,
+            vel,
+            dim_traj,
+            sv_spectrum,
+            flatness,
+            perturbation,
             # Controls
-            max_idx, 0,
+            max_idx,
+            0,
             max(0, server_state.n_neurons - 1),
             max(0, server_state.n_heads - 1),
-            f"Epoch {epoch} (Index 0)", "Neuron 0", status,
+            f"Epoch {epoch} (Index 0)",
+            "Neuron 0",
+            status,
         )
 
     # --- Epoch change → Patch summary markers + re-render per-epoch ---
@@ -589,12 +646,24 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
         perturbation = _render_perturbation(epoch)
 
         return (
-            loss_p, freq, activation, clusters,
-            spec_traj_p, spec_freq_p,
-            attention, attn_freq, attn_spec_p,
-            traj_p, t3d_p, pc13_p, pc23_p, vel_p,
-            dim_traj_p, sv_spectrum,
-            flatness_p, perturbation,
+            loss_p,
+            freq,
+            activation,
+            clusters,
+            spec_traj_p,
+            spec_freq_p,
+            attention,
+            attn_freq,
+            attn_spec_p,
+            traj_p,
+            t3d_p,
+            pc13_p,
+            pc23_p,
+            vel_p,
+            dim_traj_p,
+            sv_spectrum,
+            flatness_p,
+            perturbation,
             f"Epoch {epoch} (Index {epoch_idx})",
         )
 

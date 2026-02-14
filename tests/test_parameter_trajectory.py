@@ -328,9 +328,7 @@ class TestRenderers:
     def test_render_parameter_trajectory_with_group_label(self, trajectory_data):
         """render_parameter_trajectory works with group_label."""
         pca_result, _, epochs = trajectory_data
-        fig = render_parameter_trajectory(
-            pca_result, epochs, current_epoch=50, group_label="Mlp"
-        )
+        fig = render_parameter_trajectory(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
     def test_render_explained_variance_returns_figure(self, trajectory_data):
@@ -388,9 +386,7 @@ class TestRenderers:
     def test_render_trajectory_3d_with_group_label(self, trajectory_data):
         """3D renderer accepts group_label parameter."""
         pca_result, _, epochs = trajectory_data
-        fig = render_trajectory_3d(
-            pca_result, epochs, current_epoch=50, group_label="Mlp"
-        )
+        fig = render_trajectory_3d(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
     def test_render_trajectory_3d_highlights_epoch(self, trajectory_data):
@@ -438,17 +434,13 @@ class TestRenderers:
     def test_render_trajectory_pc1_pc3_with_group_label(self, trajectory_data):
         """PC1 vs PC3 renderer accepts group_label parameter."""
         pca_result, _, epochs = trajectory_data
-        fig = render_trajectory_pc1_pc3(
-            pca_result, epochs, current_epoch=50, group_label="Mlp"
-        )
+        fig = render_trajectory_pc1_pc3(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
     def test_render_trajectory_pc2_pc3_with_group_label(self, trajectory_data):
         """PC2 vs PC3 renderer accepts group_label parameter."""
         pca_result, _, epochs = trajectory_data
-        fig = render_trajectory_pc2_pc3(
-            pca_result, epochs, current_epoch=50, group_label="Mlp"
-        )
+        fig = render_trajectory_pc2_pc3(pca_result, epochs, current_epoch=50, group_label="Mlp")
         assert isinstance(fig, go.Figure)
 
     def test_renderers_highlight_current_epoch(self, trajectory_data):

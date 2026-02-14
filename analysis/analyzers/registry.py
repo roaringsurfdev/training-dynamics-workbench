@@ -87,15 +87,12 @@ class AnalyzerRegistry:
 
     @classmethod
     def get_cross_epoch_for_family(
-        cls, family: ModelFamily,
+        cls,
+        family: ModelFamily,
     ) -> list[CrossEpochAnalyzer]:
         """Get all cross-epoch analyzers valid for a family."""
         names = getattr(family, "cross_epoch_analyzers", [])
-        return [
-            cls.get_cross_epoch(name)
-            for name in names
-            if name in cls._cross_epoch_analyzers
-        ]
+        return [cls.get_cross_epoch(name) for name in names if name in cls._cross_epoch_analyzers]
 
     @classmethod
     def get_for_family(cls, family: ModelFamily) -> list[Analyzer]:

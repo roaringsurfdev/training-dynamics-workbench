@@ -237,14 +237,11 @@ class ArtifactLoader:
         Raises:
             FileNotFoundError: If no cross-epoch results exist
         """
-        cross_epoch_path = os.path.join(
-            self.artifacts_dir, analyzer_name, "cross_epoch.npz"
-        )
+        cross_epoch_path = os.path.join(self.artifacts_dir, analyzer_name, "cross_epoch.npz")
 
         if not os.path.exists(cross_epoch_path):
             raise FileNotFoundError(
-                f"No cross-epoch results for '{analyzer_name}'. "
-                f"Expected: {cross_epoch_path}"
+                f"No cross-epoch results for '{analyzer_name}'. Expected: {cross_epoch_path}"
             )
 
         return dict(np.load(cross_epoch_path))
@@ -258,9 +255,7 @@ class ArtifactLoader:
         Returns:
             True if cross_epoch.npz exists for this analyzer
         """
-        cross_epoch_path = os.path.join(
-            self.artifacts_dir, analyzer_name, "cross_epoch.npz"
-        )
+        cross_epoch_path = os.path.join(self.artifacts_dir, analyzer_name, "cross_epoch.npz")
         return os.path.exists(cross_epoch_path)
 
     def get_model_config(self) -> dict[str, Any]:

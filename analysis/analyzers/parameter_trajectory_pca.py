@@ -46,16 +46,14 @@ class ParameterTrajectoryPCA:
             n_components = min(10, len(snapshots))
             pca = compute_pca_trajectory(snapshots, components, n_components)
             velocity = compute_parameter_velocity(
-                snapshots, components, epochs=epochs,
+                snapshots,
+                components,
+                epochs=epochs,
             )
 
             result[f"{group_name}__projections"] = pca["projections"]
-            result[f"{group_name}__explained_variance_ratio"] = (
-                pca["explained_variance_ratio"]
-            )
-            result[f"{group_name}__explained_variance"] = (
-                pca["explained_variance"]
-            )
+            result[f"{group_name}__explained_variance_ratio"] = pca["explained_variance_ratio"]
+            result[f"{group_name}__explained_variance"] = pca["explained_variance"]
             result[f"{group_name}__velocity"] = velocity
 
         return result

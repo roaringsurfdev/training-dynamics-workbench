@@ -257,13 +257,29 @@ _VISUALIZATION_REGISTRY: dict[str, tuple[str, str, str]] = {
         "cross_epoch",
     ),
     # Cross-epoch precomputed renderers (REQ_038)
-    "parameter_trajectory": ("parameter_trajectory", "render_parameter_trajectory", "cross_epoch_pca"),
+    "parameter_trajectory": (
+        "parameter_trajectory",
+        "render_parameter_trajectory",
+        "cross_epoch_pca",
+    ),
     "trajectory_3d": ("parameter_trajectory", "render_trajectory_3d", "cross_epoch_pca"),
     "trajectory_pc1_pc3": ("parameter_trajectory", "render_trajectory_pc1_pc3", "cross_epoch_pca"),
     "trajectory_pc2_pc3": ("parameter_trajectory", "render_trajectory_pc2_pc3", "cross_epoch_pca"),
-    "explained_variance": ("parameter_trajectory", "render_explained_variance", "cross_epoch_pca_no_epoch"),
-    "parameter_velocity": ("parameter_trajectory", "render_parameter_velocity", "cross_epoch_velocity"),
-    "component_velocity": ("parameter_trajectory", "render_component_velocity", "cross_epoch_component_velocity"),
+    "explained_variance": (
+        "parameter_trajectory",
+        "render_explained_variance",
+        "cross_epoch_pca_no_epoch",
+    ),
+    "parameter_velocity": (
+        "parameter_trajectory",
+        "render_parameter_velocity",
+        "cross_epoch_velocity",
+    ),
+    "component_velocity": (
+        "parameter_trajectory",
+        "render_component_velocity",
+        "cross_epoch_component_velocity",
+    ),
 }
 
 
