@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-02-13
+
+### Added
+
+- **Cross-Epoch Analyzers** (REQ_038)
+  - `CrossEpochAnalyzer` protocol: new analyzer type that runs after per-epoch analysis, consuming artifacts across all checkpoints
+  - Two-phase pipeline: Phase 1 (per-epoch, unchanged) → Phase 2 (cross-epoch, new)
+  - `ParameterTrajectoryPCA`: first cross-epoch analyzer — precomputes PCA projections and parameter velocity for all 4 component groups (all, embedding, attention, mlp)
+  - Storage: `artifacts/{analyzer_name}/cross_epoch.npz` with group-prefixed keys
+  - `ArtifactLoader.load_cross_epoch()` / `has_cross_epoch()` for loading precomputed results
+  - Skip-if-exists logic with `force=True` override for recomputation
+
+### Changed
+
+- **Trajectory renderers** accept precomputed PCA data instead of raw weight snapshots — no computation at render time
+- **Dashboard v2** loads trajectory data from cross-epoch artifacts, significantly faster epoch navigation
+- **Export module** supports new data patterns (`cross_epoch_pca`, `cross_epoch_velocity`, etc.)
+- **Family protocol** extended with `cross_epoch_analyzers` property
+
+### Architecture
+
+```
+analysis/
+  protocols.py                        # + CrossEpochAnalyzer protocol
+  pipeline.py                         # Two-phase execution
+  analyzers/
+    parameter_trajectory_pca.py       # New: first cross-epoch analyzer
+  artifact_loader.py                  # + load_cross_epoch, has_cross_epoch
+visualization/renderers/
+  parameter_trajectory.py             # Refactored: precomputed data input
+```
+
 ## [0.5.0] - 2026-02-13
 
 ### Added

@@ -53,6 +53,15 @@ class ModelFamily(Protocol):
         ...
 
     @property
+    def cross_epoch_analyzers(self) -> list[str]:
+        """Cross-epoch analyzer identifiers valid for this family.
+
+        These analyzers run after all per-epoch analysis completes
+        and consume per-epoch artifacts to produce cross-epoch results.
+        """
+        ...
+
+    @property
     def visualizations(self) -> list[str]:
         """Visualization identifiers valid for this family."""
         ...

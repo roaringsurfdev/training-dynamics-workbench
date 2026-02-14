@@ -10,7 +10,7 @@ This package provides:
 from analysis.analyzers import AnalyzerRegistry
 from analysis.artifact_loader import ArtifactLoader
 from analysis.pipeline import AnalysisPipeline
-from analysis.protocols import AnalysisRunConfig, Analyzer
+from analysis.protocols import AnalysisRunConfig, Analyzer, CrossEpochAnalyzer
 
 __all__ = [
     "Analyzer",
@@ -18,4 +18,5 @@ __all__ = [
     "AnalysisPipeline",
     "AnalysisRunConfig",
     "ArtifactLoader",
+    "CrossEpochAnalyzer",
 ]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from analysis.protocols import Analyzer
+from analysis.protocols import Analyzer, CrossEpochAnalyzer
 
 if TYPE_CHECKING:
     from families.protocols import ModelFamily
@@ -18,6 +18,7 @@ class AnalyzerRegistry:
     """
 
     _analyzers: dict[str, type] = {}
+    _cross_epoch_analyzers: dict[str, type] = {}
 
     @classmethod
     def register(cls, analyzer_class: type) -> type:
@@ -59,6 +60,44 @@ class AnalyzerRegistry:
         return cls._analyzers[name]()
 
     @classmethod
+    def register_cross_epoch(cls, analyzer_class: type) -> type:
+        """Register a cross-epoch analyzer class.
+
+        Args:
+            analyzer_class: CrossEpochAnalyzer class with a 'name' attribute
+
+        Returns:
+            The analyzer class (for decorator usage)
+        """
+        name = getattr(analyzer_class, "name", None)
+        if name is None:
+            raise ValueError(f"Analyzer {analyzer_class} must have a 'name' attribute")
+        cls._cross_epoch_analyzers[name] = analyzer_class
+        return analyzer_class
+
+    @classmethod
+    def get_cross_epoch(cls, name: str) -> CrossEpochAnalyzer:
+        """Get a cross-epoch analyzer instance by name."""
+        if name not in cls._cross_epoch_analyzers:
+            raise KeyError(
+                f"Cross-epoch analyzer '{name}' not found. "
+                f"Available: {list(cls._cross_epoch_analyzers.keys())}"
+            )
+        return cls._cross_epoch_analyzers[name]()
+
+    @classmethod
+    def get_cross_epoch_for_family(
+        cls, family: ModelFamily,
+    ) -> list[CrossEpochAnalyzer]:
+        """Get all cross-epoch analyzers valid for a family."""
+        names = getattr(family, "cross_epoch_analyzers", [])
+        return [
+            cls.get_cross_epoch(name)
+            for name in names
+            if name in cls._cross_epoch_analyzers
+        ]
+
+    @classmethod
     def get_for_family(cls, family: ModelFamily) -> list[Analyzer]:
         """Get all analyzers valid for a family.
 
@@ -95,6 +134,7 @@ class AnalyzerRegistry:
     def clear(cls) -> None:
         """Clear all registered analyzers. Mainly for testing."""
         cls._analyzers.clear()
+        cls._cross_epoch_analyzers.clear()
 
 
 def register_default_analyzers() -> None:
@@ -108,6 +148,7 @@ def register_default_analyzers() -> None:
     from analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
     from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
     from analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
+    from analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
 
     AnalyzerRegistry.register(AttentionFreqAnalyzer)
     AnalyzerRegistry.register(AttentionPatternsAnalyzer)
@@ -118,6 +159,8 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register(ParameterSnapshotAnalyzer)
     AnalyzerRegistry.register(EffectiveDimensionalityAnalyzer)
     AnalyzerRegistry.register(LandscapeFlatnessAnalyzer)
+
+    AnalyzerRegistry.register_cross_epoch(ParameterTrajectoryPCA)
 
 
 # Auto-register default analyzers on import

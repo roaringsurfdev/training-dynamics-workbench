@@ -40,6 +40,10 @@
     "landscape_flatness"
   ],
 
+  "cross_epoch_analyzers": [
+    "parameter_trajectory"
+  ],
+
   "visualizations": [
     "attention_freq_heatmap",
     "attention_specialization_trajectory",

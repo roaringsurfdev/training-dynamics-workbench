@@ -14,7 +14,7 @@ from __future__ import annotations
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, Patch, State, no_update
 
-from analysis.library.weights import ATTENTION_MATRICES, COMPONENT_GROUPS
+from analysis.library.weights import ATTENTION_MATRICES
 from dashboard.components.family_selector import get_family_choices, get_variant_choices
 from dashboard.components.loss_curves import render_loss_curves_with_indicator
 from dashboard_v2.state import get_registry, server_state
@@ -39,6 +39,7 @@ from visualization.renderers.neuron_freq_clusters import (
     render_specialization_trajectory,
 )
 from visualization.renderers.parameter_trajectory import (
+    get_group_label,
     render_component_velocity,
     render_parameter_trajectory,
     render_trajectory_3d,
@@ -135,11 +136,15 @@ def _patch_epoch_marker(epoch: int) -> Patch:
     return patched
 
 
-def _resolve_trajectory_components(group: str) -> list[str] | None:
-    """Map trajectory group name to component list."""
-    if group == "all":
-        return None
-    return COMPONENT_GROUPS.get(group)
+def _extract_group_pca(
+    cross_epoch_data: dict, group: str,
+) -> dict:
+    """Extract a pca_result dict for a specific component group."""
+    return {
+        "projections": cross_epoch_data[f"{group}__projections"],
+        "explained_variance_ratio": cross_epoch_data[f"{group}__explained_variance_ratio"],
+        "explained_variance": cross_epoch_data[f"{group}__explained_variance"],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -235,36 +240,37 @@ def _render_trajectory_plots(
     epoch: int, group: str,
 ) -> tuple[go.Figure, go.Figure, go.Figure, go.Figure, go.Figure]:
     """Render all 5 trajectory/velocity plots and cache them."""
-    trajectory_data = server_state.get_trajectory_data()
-    if trajectory_data is None:
+    data = server_state.get_trajectory_data()
+    if data is None:
         empty = _empty_figure("Run analysis first")
         return empty, empty, empty, empty, empty
     try:
-        snapshots, traj_epochs = trajectory_data
-        components = _resolve_trajectory_components(group)
+        traj_epochs = data["epochs"].tolist()
+        pca = _extract_group_pca(data, group)
+        label = get_group_label(group)
         t_fig = _cache_figure(
             "trajectory",
-            render_parameter_trajectory(snapshots, traj_epochs, epoch, components=components),
+            render_parameter_trajectory(pca, traj_epochs, epoch, group_label=label),
             epoch,
         )
         t3d_fig = _cache_figure(
             "trajectory_3d",
-            render_trajectory_3d(snapshots, traj_epochs, epoch, components=components),
+            render_trajectory_3d(pca, traj_epochs, epoch, group_label=label),
             epoch,
         )
         pc13_fig = _cache_figure(
             "trajectory_pc1_pc3",
-            render_trajectory_pc1_pc3(snapshots, traj_epochs, epoch, components=components),
+            render_trajectory_pc1_pc3(pca, traj_epochs, epoch, group_label=label),
             epoch,
         )
         pc23_fig = _cache_figure(
             "trajectory_pc2_pc3",
-            render_trajectory_pc2_pc3(snapshots, traj_epochs, epoch, components=components),
+            render_trajectory_pc2_pc3(pca, traj_epochs, epoch, group_label=label),
             epoch,
         )
         vel_fig = _cache_figure(
             "velocity",
-            render_component_velocity(snapshots, traj_epochs, epoch),
+            render_component_velocity(data, traj_epochs, epoch),
             epoch,
         )
         return t_fig, t3d_fig, pc13_fig, pc23_fig, vel_fig
@@ -542,28 +548,29 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
 
         # Trajectory 2D/3D plots use scatter trace markers (not shapes),
         # so they need full re-render to update the current-epoch marker.
-        trajectory_data = server_state.get_trajectory_data()
-        if trajectory_data is not None:
-            snapshots, traj_epochs = trajectory_data
-            components = _resolve_trajectory_components(traj_group)
+        data = server_state.get_trajectory_data()
+        if data is not None:
+            traj_epochs = data["epochs"].tolist()
+            pca = _extract_group_pca(data, traj_group)
+            label = get_group_label(traj_group)
             traj_p = _cache_figure(
                 "trajectory",
-                render_parameter_trajectory(snapshots, traj_epochs, epoch, components=components),
+                render_parameter_trajectory(pca, traj_epochs, epoch, group_label=label),
                 epoch,
             )
             t3d_p = _cache_figure(
                 "trajectory_3d",
-                render_trajectory_3d(snapshots, traj_epochs, epoch, components=components),
+                render_trajectory_3d(pca, traj_epochs, epoch, group_label=label),
                 epoch,
             )
             pc13_p = _cache_figure(
                 "trajectory_pc1_pc3",
-                render_trajectory_pc1_pc3(snapshots, traj_epochs, epoch, components=components),
+                render_trajectory_pc1_pc3(pca, traj_epochs, epoch, group_label=label),
                 epoch,
             )
             pc23_p = _cache_figure(
                 "trajectory_pc2_pc3",
-                render_trajectory_pc2_pc3(snapshots, traj_epochs, epoch, components=components),
+                render_trajectory_pc2_pc3(pca, traj_epochs, epoch, group_label=label),
                 epoch,
             )
         else:
