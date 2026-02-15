@@ -161,9 +161,7 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
 
         refresh_registry()
 
-        analysis_progress.finish(
-            f"Analysis complete!\nArtifacts saved to {variant.artifacts_dir}"
-        )
+        analysis_progress.finish(f"Analysis complete!\nArtifacts saved to {variant.artifacts_dir}")
 
     except Exception as e:
         analysis_progress.finish(f"Analysis failed: {e}\n\n{traceback.format_exc()}")

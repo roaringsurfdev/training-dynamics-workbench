@@ -90,7 +90,9 @@ def create_training_layout() -> html.Div:
                                 value=25000,
                                 step=1,
                             ),
-                            dbc.Label("Checkpoint Epochs (comma-separated)", className="small mt-2"),
+                            dbc.Label(
+                                "Checkpoint Epochs (comma-separated)", className="small mt-2"
+                            ),
                             dbc.Input(
                                 id="training-checkpoint-input",
                                 type="text",

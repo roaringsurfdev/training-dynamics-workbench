@@ -122,7 +122,8 @@ class TestNavigation:
         from dashboard_v2.version import __version__
 
         navbar = create_navbar()
-        assert __version__ in navbar.brand
+        brand = getattr(navbar, "brand", "")
+        assert __version__ in str(brand)
 
 
 class TestPageLayouts:
@@ -156,6 +157,7 @@ class TestPageLayouts:
         layout = create_layout()
         # Layout should have children: Location, Navbar, page-content div
         assert layout is not None
+        assert layout.children is not None
         assert len(layout.children) == 3
 
 

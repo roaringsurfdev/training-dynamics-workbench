@@ -270,8 +270,10 @@ def create_visualization_layout() -> html.Div:
 
 def create_layout() -> html.Div:
     """Create the full application layout with navbar and URL routing."""
-    return html.Div([
-        dcc.Location(id="url", refresh=False),
-        create_navbar(),
-        html.Div(id="page-content"),
-    ])
+    return html.Div(
+        [
+            dcc.Location(id="url", refresh=False),
+            create_navbar(),
+            html.Div(id="page-content"),
+        ]
+    )
