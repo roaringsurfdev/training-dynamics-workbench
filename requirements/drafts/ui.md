@@ -1,21 +1,28 @@
-REQ_??? - Migrate Training and Analysis Run functionality to Dash
+REQ_??? - Summary Lens
 
-This requirement needs to happen before REQ_039.
+When I'm looking at a model for the first time, these are the summary visualizations I most want to see first. Some are currently missing, but I'm listing them hear for symmetry as I expect they'd be just as useful.
 
-Create Training and Analysis Run Job Management UI interfaces in the new dashboard (dashboard_v2). These should replace the Train tab and the top of the Analysis tab on the previous dashboard. 
+For Embedding/Unembedding, I'm thinking it might be useful to see these side-by-side in two columns and two rows.
 
-If possible, it might be ideal to access these from a drop-down/site-level navigation element that might be broken down into:
+Neuron Frequency Specialization By Epoch and Attention Head Specialization By Epoch might also nicely line up across a row, thought they're not a 50/50 split. Neuron Frequency Specialization is wide and tall, Attention Head Specialization is narrow and tall.
 
-Jobs/Processing/Runs
-    - Training
-    - Analysis
-Analysis/Reports
-    - Create Analysis/Report
-    - Edit Analysis/Report
-    - ...
+Of the Parameter Trajectory plots, 3D Scatter is the one I want to see first.
 
-Not for this requirement: Extend the existing Run Training/Run Analysis funtionality from the original dashboard to include more fully-fledged job management functionality.
-
-That said, I think that Training and Analysis Runs will likely look very similar from a UI/UX perpective down the road.
-
-Make sure to move the version.py over or add support for tracking different versions for the API and Consumers (dashboards, etc)
+Train/Test Loss Curve
+Embeddings:
+	*Embedding Specialization Over Training
+	Embedding Fourier Coefficients by Epoch
+*Unembeddings:
+	*Unembedding Specialization Over Training
+	*Unembedding Fourier Coefficients by Epoch
+Neurons:
+	Neuron Specialization Over Training
+	Specialized Neurons by Frequency
+	Neuron Frequency Specialization By Epoch
+Attention Heads:
+	Attention Head Frequency Specialization (Over Training)
+	Attention Head Specialization By Epoch
+Weights:
+	Parameter Trajectory (4 total visualizations)
+	Component Velocity
+	Effective Dimensionality

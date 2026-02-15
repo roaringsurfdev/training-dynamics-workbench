@@ -1,4 +1,4 @@
-"""Version information for Training Dynamics Workbench.
+"""Version information for MIScope.
 
 This module provides the single source of truth for the application version.
 All version references should import from here.
