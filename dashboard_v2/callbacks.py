@@ -14,31 +14,31 @@ from __future__ import annotations
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, Patch, State, no_update
 
-from analysis.library.weights import ATTENTION_MATRICES
-from dashboard.components.family_selector import get_family_choices, get_variant_choices
-from dashboard.components.loss_curves import render_loss_curves_with_indicator
+from dashboard_v2.components.family_selector import get_family_choices, get_variant_choices
+from dashboard_v2.components.loss_curves import render_loss_curves_with_indicator
 from dashboard_v2.state import get_registry, server_state
-from visualization.renderers.attention_freq import (
+from miscope.analysis.library.weights import ATTENTION_MATRICES
+from miscope.visualization.renderers.attention_freq import (
     render_attention_freq_heatmap,
     render_attention_specialization_trajectory,
 )
-from visualization.renderers.attention_patterns import render_attention_heads
-from visualization.renderers.dominant_frequencies import render_dominant_frequencies
-from visualization.renderers.effective_dimensionality import (
+from miscope.visualization.renderers.attention_patterns import render_attention_heads
+from miscope.visualization.renderers.dominant_frequencies import render_dominant_frequencies
+from miscope.visualization.renderers.effective_dimensionality import (
     render_dimensionality_trajectory,
     render_singular_value_spectrum,
 )
-from visualization.renderers.landscape_flatness import (
+from miscope.visualization.renderers.landscape_flatness import (
     render_flatness_trajectory,
     render_perturbation_distribution,
 )
-from visualization.renderers.neuron_activations import render_neuron_heatmap
-from visualization.renderers.neuron_freq_clusters import (
+from miscope.visualization.renderers.neuron_activations import render_neuron_heatmap
+from miscope.visualization.renderers.neuron_freq_clusters import (
     render_freq_clusters,
     render_specialization_by_frequency,
     render_specialization_trajectory,
 )
-from visualization.renderers.parameter_trajectory import (
+from miscope.visualization.renderers.parameter_trajectory import (
     get_group_label,
     render_component_velocity,
     render_parameter_trajectory,

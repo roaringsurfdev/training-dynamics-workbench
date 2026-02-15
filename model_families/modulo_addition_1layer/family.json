@@ -2,7 +2,7 @@
   "name": "modulo_addition_1layer",
   "display_name": "Modulo Addition (1 Layer)",
   "description": "Single-layer transformer trained on modular arithmetic. Based on Neel Nanda's grokking experiment.",
-  "class_type": "families.implementations.modulo_addition_1layer.ModuloAddition1LayerFamily",
+  "class_type": "miscope.families.implementations.modulo_addition_1layer.ModuloAddition1LayerFamily",
 
   "architecture": {
     "n_layers": 1,

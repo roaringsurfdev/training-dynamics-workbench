@@ -25,14 +25,14 @@ class TestRenderAttentionHeads:
 
     def test_returns_figure(self, epoch_data):
         """Renderer returns a Plotly Figure."""
-        from visualization import render_attention_heads
+        from miscope.visualization import render_attention_heads
 
         fig = render_attention_heads(epoch_data, epoch=100)
         assert isinstance(fig, go.Figure)
 
     def test_default_position_pair(self, epoch_data):
         """Default renders = attending to a (to=2, from=0)."""
-        from visualization import render_attention_heads
+        from miscope.visualization import render_attention_heads
 
         fig = render_attention_heads(epoch_data, epoch=100)
         assert isinstance(fig, go.Figure)
@@ -43,7 +43,7 @@ class TestRenderAttentionHeads:
 
     def test_custom_position_pair(self, epoch_data):
         """Can specify different position pair."""
-        from visualization import render_attention_heads
+        from miscope.visualization import render_attention_heads
 
         fig = render_attention_heads(epoch_data, epoch=100, to_position=1, from_position=0)
         assert isinstance(fig, go.Figure)
@@ -52,7 +52,7 @@ class TestRenderAttentionHeads:
 
     def test_custom_title(self, epoch_data):
         """Custom title overrides auto-generated one."""
-        from visualization import render_attention_heads
+        from miscope.visualization import render_attention_heads
 
         fig = render_attention_heads(epoch_data, epoch=100, title="My Custom Title")
         title_text = fig.layout.title.text if fig.layout.title else ""
@@ -60,7 +60,7 @@ class TestRenderAttentionHeads:
 
     def test_has_traces_for_each_head(self, epoch_data):
         """Figure has one heatmap trace per head."""
-        from visualization import render_attention_heads
+        from miscope.visualization import render_attention_heads
 
         fig = render_attention_heads(epoch_data, epoch=100)
         n_heads = epoch_data["patterns"].shape[0]
@@ -69,7 +69,7 @@ class TestRenderAttentionHeads:
 
     def test_custom_position_labels(self, epoch_data):
         """Custom position labels used in title."""
-        from visualization import render_attention_heads
+        from miscope.visualization import render_attention_heads
 
         fig = render_attention_heads(
             epoch_data,
@@ -96,14 +96,14 @@ class TestRenderAttentionSingleHead:
 
     def test_returns_figure(self, epoch_data):
         """Renderer returns a Plotly Figure."""
-        from visualization import render_attention_single_head
+        from miscope.visualization import render_attention_single_head
 
         fig = render_attention_single_head(epoch_data, epoch=100, head_idx=0)
         assert isinstance(fig, go.Figure)
 
     def test_single_heatmap_trace(self, epoch_data):
         """Figure has exactly one heatmap trace."""
-        from visualization import render_attention_single_head
+        from miscope.visualization import render_attention_single_head
 
         fig = render_attention_single_head(epoch_data, epoch=100, head_idx=0)
         heatmap_traces = [t for t in fig.data if isinstance(t, go.Heatmap)]
@@ -111,14 +111,14 @@ class TestRenderAttentionSingleHead:
 
     def test_head_idx_out_of_range(self, epoch_data):
         """Invalid head index raises IndexError."""
-        from visualization import render_attention_single_head
+        from miscope.visualization import render_attention_single_head
 
         with pytest.raises(IndexError):
             render_attention_single_head(epoch_data, epoch=100, head_idx=10)
 
     def test_custom_title(self, epoch_data):
         """Custom title overrides auto-generated one."""
-        from visualization import render_attention_single_head
+        from miscope.visualization import render_attention_single_head
 
         fig = render_attention_single_head(epoch_data, epoch=100, head_idx=0, title="Custom")
         title_text = fig.layout.title.text if fig.layout.title else ""
@@ -126,7 +126,7 @@ class TestRenderAttentionSingleHead:
 
     def test_different_heads_different_data(self, epoch_data):
         """Different head_idx values produce different heatmap data."""
-        from visualization import render_attention_single_head
+        from miscope.visualization import render_attention_single_head
 
         fig0 = render_attention_single_head(epoch_data, epoch=100, head_idx=0)
         fig1 = render_attention_single_head(epoch_data, epoch=100, head_idx=1)
@@ -138,7 +138,7 @@ class TestRenderAttentionSingleHead:
 
     def test_position_pair_selects_data(self, epoch_data):
         """Different position pairs produce different data."""
-        from visualization import render_attention_single_head
+        from miscope.visualization import render_attention_single_head
 
         fig_a = render_attention_single_head(
             epoch_data, epoch=100, head_idx=0, to_position=2, from_position=0

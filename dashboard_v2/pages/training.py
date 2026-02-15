@@ -15,9 +15,9 @@ import traceback
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, dcc, html, no_update
 
-from dashboard.components.family_selector import get_family_choices
-from dashboard.utils import parse_checkpoint_epochs
+from dashboard_v2.components.family_selector import get_family_choices
 from dashboard_v2.state import get_registry, refresh_registry, training_progress
+from dashboard_v2.utils import parse_checkpoint_epochs
 
 
 def create_training_layout() -> html.Div:

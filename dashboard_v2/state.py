@@ -16,8 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from analysis import ArtifactLoader
-from families import FamilyRegistry, Variant
+from miscope.analysis import ArtifactLoader
+from miscope.families import FamilyRegistry, Variant
 
 # ---------------------------------------------------------------------------
 # Job progress tracking (thread-safe)

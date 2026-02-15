@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 import torch
 
-from analysis.analyzers.attention_freq import AttentionFreqAnalyzer
-from analysis.library import (
+from miscope.analysis.analyzers.attention_freq import AttentionFreqAnalyzer
+from miscope.analysis.library import (
     get_fourier_basis,
 )
 
@@ -47,7 +47,7 @@ class TestAttentionFreqAnalyzerProtocol:
         assert callable(analyzer.compute_summary)
 
     def test_conforms_to_analyzer_protocol(self):
-        from analysis.protocols import Analyzer
+        from miscope.analysis.protocols import Analyzer
 
         analyzer = AttentionFreqAnalyzer()
         assert isinstance(analyzer, Analyzer)

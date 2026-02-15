@@ -14,7 +14,7 @@ import traceback
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, dcc, html, no_update
 
-from dashboard.components.family_selector import get_family_choices, get_variant_choices
+from dashboard_v2.components.family_selector import get_family_choices, get_variant_choices
 from dashboard_v2.state import analysis_progress, get_registry, refresh_registry
 
 
@@ -111,8 +111,8 @@ def create_analysis_run_layout() -> html.Div:
 
 def _run_analysis_thread(family_name: str, variant_name: str) -> None:
     """Execute analysis pipeline in a background thread."""
-    from analysis import AnalysisPipeline
-    from analysis.analyzers import (
+    from miscope.analysis import AnalysisPipeline
+    from miscope.analysis.analyzers import (
         AttentionFreqAnalyzer,
         AttentionPatternsAnalyzer,
         DominantFrequenciesAnalyzer,

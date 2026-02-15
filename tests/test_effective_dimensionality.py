@@ -9,16 +9,16 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from analysis import AnalysisPipeline, Analyzer, ArtifactLoader
-from analysis.analyzers import EffectiveDimensionalityAnalyzer
-from analysis.library.weights import (
+from miscope.analysis import AnalysisPipeline, Analyzer, ArtifactLoader
+from miscope.analysis.analyzers import EffectiveDimensionalityAnalyzer
+from miscope.analysis.library.weights import (
     ATTENTION_MATRICES,
     WEIGHT_MATRIX_NAMES,
     compute_participation_ratio,
     compute_weight_singular_values,
 )
-from families import FamilyRegistry
-from visualization.renderers.effective_dimensionality import (
+from miscope.families import FamilyRegistry
+from miscope.visualization.renderers.effective_dimensionality import (
     render_dimensionality_trajectory,
     render_singular_value_spectrum,
 )
@@ -177,7 +177,7 @@ class TestEffectiveDimensionalityAnalyzerProtocol:
 
     def test_registered_in_registry(self):
         """Analyzer is registered in default registry."""
-        from analysis.analyzers import AnalyzerRegistry
+        from miscope.analysis.analyzers import AnalyzerRegistry
 
         assert AnalyzerRegistry.is_registered("effective_dimensionality")
 

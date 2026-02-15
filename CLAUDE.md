@@ -177,18 +177,20 @@ When a set of requirements is complete, follow this process:
 ## Project Structure
 
 ```
-CHANGELOG.md           # Version history and release notes
+src/miscope/           # Installable API package (import miscope.*)
+  analysis/            # Pipeline, analyzers, artifacts, protocols
+  families/            # Family registry, variants, model families
+  visualization/       # Renderers, export
+dashboard_v2/          # Consumer — Dash dashboard
+tests/                 # Test suite
+notebooks/             # Research notebooks
+model_families/        # JSON config + data
+results/               # Generated artifacts
 /policies/             # Development policies and procedures
   debugging/           # Structured debugging policy
-    README.md          # Complete debugging workflow
-    templates/         # Templates for each debugging phase
 /requirements/         # Project requirements
-  README.md            # Current status and workflow
   active/              # Requirements being worked on
   archive/             # Completed requirements by milestone
-    vX.Y.Z-name/       # Milestone archive
-      MILESTONE_SUMMARY.md
-      REQ_NNN_*.md
 /notes/                # Claude's observations and suggestions
   thoughts.md          # Unstructured parking lot for ideas
 ```

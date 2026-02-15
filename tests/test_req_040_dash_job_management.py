@@ -91,19 +91,12 @@ class TestVersionMigration:
         parts = __version__.split(".")
         assert len(parts) == 3
 
-    def test_dashboard_still_exports_version(self):
-        """dashboard package still re-exports __version__."""
-        from dashboard import __version__
+    def test_version_format_semantic(self):
+        """Version follows MAJOR.MINOR.BUILD format."""
+        from dashboard_v2.version import __version__
 
-        assert __version__ is not None
-        assert isinstance(__version__, str)
-
-    def test_versions_match(self):
-        """Both packages report the same version."""
-        from dashboard import __version__ as gradio_version
-        from dashboard_v2.version import __version__ as dash_version
-
-        assert gradio_version == dash_version
+        parts = __version__.split(".")
+        assert all(part.isdigit() for part in parts)
 
 
 class TestNavigation:

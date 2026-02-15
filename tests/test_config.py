@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tdw.config import AppConfig, get_config
+from miscope.config import AppConfig, get_config
 
 
 class TestAppConfig:

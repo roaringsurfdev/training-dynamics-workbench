@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from families import (
+from miscope.families import (
     FamilyRegistry,
     JsonModelFamily,
     Variant,

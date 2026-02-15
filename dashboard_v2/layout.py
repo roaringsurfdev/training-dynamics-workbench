@@ -10,9 +10,9 @@ The visualization layout (sidebar + plots) moved to create_visualization_layout(
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
-from analysis.library.weights import WEIGHT_MATRIX_NAMES
 from dashboard_v2.navigation import create_navbar
-from visualization.renderers.landscape_flatness import FLATNESS_METRICS
+from miscope.analysis.library.weights import WEIGHT_MATRIX_NAMES
+from miscope.visualization.renderers.landscape_flatness import FLATNESS_METRICS
 
 
 def create_sidebar() -> html.Div:
