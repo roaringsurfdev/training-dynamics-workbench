@@ -1,4 +1,4 @@
-"""Tests for dashboard components."""
+"""Tests for dashboard components and utilities."""
 # pyright: reportArgumentType=false
 
 import json
@@ -8,9 +8,8 @@ from pathlib import Path
 import plotly.graph_objects as go
 import pytest
 
-from dashboard.components.loss_curves import render_loss_curves_with_indicator
-from dashboard.state import DashboardState
-from dashboard.utils import (
+from dashboard_v2.components.loss_curves import render_loss_curves_with_indicator
+from dashboard_v2.utils import (
     discover_trained_models,
     get_model_choices,
     parse_checkpoint_epochs,
@@ -65,49 +64,6 @@ class TestLossCurvesRenderer:
             train_losses, test_losses, current_epoch=1, log_scale=False
         )
         assert fig.layout.yaxis.type == "linear"
-
-
-class TestDashboardState:
-    """Tests for dashboard state management."""
-
-    def test_initial_state(self):
-        """Initial state has correct defaults."""
-        state = DashboardState()
-
-        assert state.selected_model_path is None
-        assert state.available_epochs == []
-        assert state.current_epoch_idx == 0
-        assert state.artifacts_dir is None
-        assert state.available_analyzers == []
-
-    def test_get_current_epoch_empty(self):
-        """Returns 0 when no epochs available."""
-        state = DashboardState()
-        assert state.get_current_epoch() == 0
-
-    def test_get_current_epoch_with_data(self):
-        """Returns correct epoch for index."""
-        state = DashboardState()
-        state.available_epochs = [0, 100, 500, 1000]
-        state.current_epoch_idx = 2
-
-        assert state.get_current_epoch() == 500
-
-    def test_clear_artifacts(self):
-        """clear_artifacts resets all cached data."""
-        state = DashboardState()
-        state.selected_model_path = "/some/path"
-        state.available_epochs = [0, 100]
-        state.train_losses = [1.0, 0.5]
-        state.artifacts_dir = "/some/artifacts"
-        state.available_analyzers = ["dominant_frequencies"]
-
-        state.clear_artifacts()
-
-        assert state.available_epochs == []
-        assert state.train_losses is None
-        assert state.artifacts_dir is None
-        assert state.available_analyzers == []
 
 
 class TestModelDiscovery:
@@ -244,45 +200,19 @@ class TestValidateTrainingParams:
         assert "100" in msg
 
 
-class TestDashboardImport:
-    """Tests for dashboard module imports."""
-
-    def test_import_create_app(self):
-        """Can import create_app from dashboard."""
-        from dashboard import create_app
-
-        assert callable(create_app)
-
-    def test_create_app_returns_blocks(self):
-        """create_app returns a Gradio Blocks instance."""
-        from dashboard import create_app
-
-        app = create_app()
-        assert app is not None
-        # Check it's a Gradio Blocks (duck typing)
-        assert hasattr(app, "launch")
-
-
 class TestVersioning:
     """Tests for REQ_010: Application Versioning."""
 
-    def test_version_importable_from_dashboard(self):
-        """Can import __version__ from dashboard package."""
-        from dashboard import __version__
-
-        assert __version__ is not None
-        assert isinstance(__version__, str)
-
     def test_version_importable_from_version_module(self):
-        """Can import __version__ from dashboard.version."""
-        from dashboard.version import __version__
+        """Can import __version__ from dashboard_v2.version."""
+        from dashboard_v2.version import __version__
 
         assert __version__ is not None
         assert isinstance(__version__, str)
 
     def test_version_format_semantic(self):
         """Version follows MAJOR.MINOR.BUILD format."""
-        from dashboard import __version__
+        from dashboard_v2.version import __version__
 
         parts = __version__.split(".")
         assert len(parts) == 3, f"Version should have 3 parts: {__version__}"
@@ -293,16 +223,9 @@ class TestVersioning:
 
     def test_version_is_mvp(self):
         """Version starts with 0.x.x for MVP phase."""
-        from dashboard import __version__
+        from dashboard_v2.version import __version__
 
         assert __version__.startswith("0."), f"MVP version should start with 0.x: {__version__}"
-
-    def test_version_consistency(self):
-        """Version from dashboard matches version from version module."""
-        from dashboard import __version__ as pkg_version
-        from dashboard.version import __version__ as mod_version
-
-        assert pkg_version == mod_version
 
 
 class TestFamilySelectorComponent:
@@ -360,8 +283,8 @@ class TestFamilySelectorComponent:
 
     def test_get_family_choices(self, mock_family_dir):
         """get_family_choices returns list of (display_name, name) tuples."""
-        from dashboard.components import get_family_choices
-        from families import FamilyRegistry
+        from dashboard_v2.components.family_selector import get_family_choices
+        from miscope.families import FamilyRegistry
 
         registry = FamilyRegistry(
             model_families_dir=Path(mock_family_dir) / "model_families",
@@ -375,8 +298,8 @@ class TestFamilySelectorComponent:
 
     def test_get_variant_choices(self, mock_family_dir):
         """get_variant_choices returns list of variant choices."""
-        from dashboard.components import get_variant_choices
-        from families import FamilyRegistry
+        from dashboard_v2.components.family_selector import get_variant_choices
+        from miscope.families import FamilyRegistry
 
         registry = FamilyRegistry(
             model_families_dir=Path(mock_family_dir) / "model_families",
@@ -394,8 +317,8 @@ class TestFamilySelectorComponent:
 
     def test_get_variant_choices_empty_family(self, mock_family_dir):
         """get_variant_choices returns empty list for unknown family."""
-        from dashboard.components import get_variant_choices
-        from families import FamilyRegistry
+        from dashboard_v2.components.family_selector import get_variant_choices
+        from miscope.families import FamilyRegistry
 
         registry = FamilyRegistry(
             model_families_dir=Path(mock_family_dir) / "model_families",
@@ -408,8 +331,8 @@ class TestFamilySelectorComponent:
 
     def test_get_state_indicator(self, mock_family_dir):
         """get_state_indicator returns correct symbols for states."""
-        from dashboard.components import get_state_indicator
-        from families import FamilyRegistry
+        from dashboard_v2.components.family_selector import get_state_indicator
+        from miscope.families import FamilyRegistry
 
         registry = FamilyRegistry(
             model_families_dir=Path(mock_family_dir) / "model_families",
@@ -425,8 +348,8 @@ class TestFamilySelectorComponent:
 
     def test_format_variant_params(self, mock_family_dir):
         """format_variant_params creates readable parameter string."""
-        from dashboard.components import format_variant_params
-        from families import FamilyRegistry
+        from dashboard_v2.components.family_selector import format_variant_params
+        from miscope.families import FamilyRegistry
 
         registry = FamilyRegistry(
             model_families_dir=Path(mock_family_dir) / "model_families",
@@ -442,8 +365,8 @@ class TestFamilySelectorComponent:
 
     def test_get_available_actions(self, mock_family_dir):
         """get_available_actions returns actions for variant state."""
-        from dashboard.components import get_available_actions
-        from families import FamilyRegistry
+        from dashboard_v2.components.family_selector import get_available_actions
+        from miscope.families import FamilyRegistry
 
         registry = FamilyRegistry(
             model_families_dir=Path(mock_family_dir) / "model_families",
@@ -455,55 +378,3 @@ class TestFamilySelectorComponent:
 
         actions = get_available_actions(variant)
         assert "Analyze" in actions
-
-
-class TestDashboardStateWithFamilies:
-    """Tests for REQ_021d: Dashboard state with family/variant tracking."""
-
-    def test_initial_state_has_family_fields(self):
-        """DashboardState has family/variant fields."""
-        state = DashboardState()
-
-        assert state.selected_family_name is None
-        assert state.selected_variant_name is None
-
-    def test_clear_selection(self):
-        """clear_selection resets family/variant and artifacts."""
-        state = DashboardState()
-        state.selected_family_name = "test_family"
-        state.selected_variant_name = "test_variant"
-        state.selected_model_path = "/some/path"
-        state.train_losses = [1.0, 0.5]
-
-        state.clear_selection()
-
-        assert state.selected_family_name is None
-        assert state.selected_variant_name is None
-        assert state.selected_model_path is None
-        assert state.train_losses is None
-
-
-class TestFamilyDashboardIntegration:
-    """Integration tests for REQ_021d: Dashboard with FamilyRegistry."""
-
-    def test_create_app_with_families(self):
-        """create_app initializes with FamilyRegistry."""
-        from dashboard import create_app
-
-        app = create_app()
-        assert app is not None
-        assert hasattr(app, "launch")
-
-    def test_app_imports_work(self):
-        """Dashboard app imports family components successfully."""
-        from dashboard.app import (
-            get_registry,
-            on_family_change,
-            on_variant_change,
-            refresh_variants,
-        )
-
-        assert callable(get_registry)
-        assert callable(on_family_change)
-        assert callable(on_variant_change)
-        assert callable(refresh_variants)

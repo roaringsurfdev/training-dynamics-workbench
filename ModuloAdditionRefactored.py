@@ -17,8 +17,8 @@ import torch.nn.functional as F
 import transformer_lens.utils as utils
 
 import FourierEvaluation
+from miscope.visualization import line
 from ModuloAdditionSpecification import ModuloAdditionSpecification
-from visualization import line
 
 # %% initialize environment and model
 p = 113

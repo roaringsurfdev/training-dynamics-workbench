@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from analysis.library import (
+from miscope.analysis.library import (
     compute_2d_fourier_transform,
     compute_frequency_variance_fractions,
     compute_grid_size_from_dataset,
@@ -259,7 +259,7 @@ class TestAnalyzerRegistry:
 
     def test_default_analyzers_registered(self):
         """Test that default analyzers are registered on import."""
-        from analysis.analyzers import AnalyzerRegistry
+        from miscope.analysis.analyzers import AnalyzerRegistry
 
         assert AnalyzerRegistry.is_registered("dominant_frequencies")
         assert AnalyzerRegistry.is_registered("neuron_activations")
@@ -267,21 +267,21 @@ class TestAnalyzerRegistry:
 
     def test_get_analyzer(self):
         """Test getting an analyzer by name."""
-        from analysis.analyzers import AnalyzerRegistry
+        from miscope.analysis.analyzers import AnalyzerRegistry
 
         analyzer = AnalyzerRegistry.get("dominant_frequencies")
         assert analyzer.name == "dominant_frequencies"
 
     def test_get_unknown_analyzer_raises(self):
         """Test error when getting unknown analyzer."""
-        from analysis.analyzers import AnalyzerRegistry
+        from miscope.analysis.analyzers import AnalyzerRegistry
 
         with pytest.raises(KeyError):
             AnalyzerRegistry.get("nonexistent_analyzer")
 
     def test_list_all(self):
         """Test listing all registered analyzers."""
-        from analysis.analyzers import AnalyzerRegistry
+        from miscope.analysis.analyzers import AnalyzerRegistry
 
         all_names = AnalyzerRegistry.list_all()
         assert "dominant_frequencies" in all_names

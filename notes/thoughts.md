@@ -532,3 +532,95 @@ Wait for a concrete forcing function (likely async job management or multi-probe
 ---
 
 *SQLite is the right choice. Wait for the forcing function. Filesystem stays authoritative for heavy data; database owns metadata and configuration.*
+
+---
+
+## 2026-02-14: p107 Variants — New Outlier and Late Grokker
+
+### p107/seed999: Delayed Attention Diversification
+
+Trained and analyzed via the new Dash Training/Analysis Run pages (REQ_040).
+
+**Timeline**:
+1. Attention heads converge to frequency 22 by ~12.5K epochs (after the test loss drop / grokking onset)
+2. Heads begin diversifying around 15K
+3. By 22K, the specialization chart looks "wild" — unstable diversification
+4. By 25K: Head 0 has specialized on frequency 51, other 3 heads still prefer frequency 22
+
+**Other observations**:
+- Weak MLP specialization on frequency 45; overall MLP range between frequencies 22 and 51
+- No pathological half-frequency specialization in embeddings (unlike p101/999's cos/sin imbalance)
+- Does not perform particularly well by 25K compared to typical variants
+
+**What's unusual**: In normal variants, attention heads diversify *during* grokking (simultaneous with test loss drop). Here, they converge first (all to freq 22), then diversify *after* grokking. The post-grokking diversification is unstable and slow. This suggests the initial convergence to a single frequency may be a local minimum that the model has to escape.
+
+**Comparison with p101/999**: Both are anomalous, but differently:
+- p101/999: Degenerate Fourier solution, open PC2/PC3 loop, cos/sin imbalance
+- p107/999: Initial consensus (all heads → freq 22), followed by slow unstable diversification, no embedding pathology
+
+Both share: poor final performance relative to typical variants, and seed 999 involvement. The seed=999 correlation across two different primes is worth watching.
+
+### p107/seed485: Very Late Grokker
+
+Doesn't grok until ~16.5K epochs — the latest observed grokking onset in the dataset. For comparison, most variants grok between 2-5K epochs.
+
+**Open questions**:
+- What does p107/485's attention head specialization timeline look like? Does it follow the normal pattern (diversify during grokking) but just later?
+- Is p=107 inherently harder, or is this a seed interaction?
+- Does the late grokking correlate with any particular trajectory geometry (open vs closed loop)?
+
+### Emerging Pattern: seed=999 Anomalies
+
+| Variant | Anomaly |
+|---------|---------|
+| p101/999 | Degenerate Fourier solution, open PC2/PC3 loop, 6:1 cos/sin imbalance |
+| p107/999 | Post-grokking attention head diversification instability |
+| p113/999 | (Reference "normal" variant — no anomaly) |
+
+Two anomalies out of ~6 seed=999 variants could be coincidence or could indicate that this specific initialization creates trajectories that are more susceptible to unusual dynamics. Need more data points to distinguish.
+
+---
+
+*p107/999 shows a distinct failure mode from p101/999: consensus-then-diversification rather than degenerate solution. Both produce poor final performance. seed=999 correlation across primes is worth tracking.*
+
+---
+
+## 2026-02-14: Dimensionality Compression as Grokking Precondition
+
+### Observation
+
+Across all variants examined (p113/999, p113/485, p101/999, p107/999, p107/485), effective dimensionality (participation ratio) follows the same qualitative pattern:
+- All weight matrices start at high participation ratio (~80-120) from random initialization
+- Monotonic decline throughout training
+- Sharp collapse in W_in, W_out, W_U around participation ratio ~25-30
+- The sharp collapse coincides with or slightly precedes grokking onset
+
+**The timing varies but the threshold value is consistent:**
+- Fast grokkers (p113): sharp collapse at ~10-12K epochs
+- Slow grokkers (p101/999): sharp collapse at ~15K epochs
+- Late grokkers (p107/485): sharp collapse at ~18-20K epochs
+
+### Hypothesis: Compression Threshold for Grokking
+
+The model needs to compress its weight representations below a participation ratio threshold (~25-30) before the algorithmic (Fourier) solution becomes energetically favorable. Weight decay drives compression throughout training; grokking happens when compression crosses the threshold where a low-rank algorithmic solution is cheaper than a high-rank memorization solution.
+
+**Predictions:**
+- Stronger weight decay → faster compression → earlier grokking
+- Variants that compress slowly (p107/485) grok late
+- Variants that reach the threshold but with a distorted subspace (p101/999) grok poorly
+
+### Spectral Gap as a Finer Metric
+
+The participation ratio measures how many singular values contribute, but doesn't capture *how cleanly separated* the signal subspace is from the noise subspace. The spectral gap (ratio of dominant to non-dominant singular values, or the gap between top-k and remaining) may be a more mechanistically meaningful predictor.
+
+**Connection to subnetwork competition (Merrill):** A growing spectral gap is literally the weight space separating into "subnetwork that matters" and "subnetwork that doesn't." The velocity spike during grokking could be the dominant subnetwork's singular values growing while the others shrink — visible as a spectral gap widening.
+
+**Connection to graph Laplacian / connectedness:** The second eigenvalue of the graph Laplacian measures connectivity. Applied to weight matrices, the spectral gap measures how coherent/structured the learned representation is. Small gap = diffuse, weakly structured. Large gap = tight global structure (the algorithmic solution).
+
+### Next Steps (post-restructuring)
+
+The singular value spectrum is already captured per-epoch by `EffectiveDimensionalityAnalyzer`. Computing the spectral gap metric from stored singular values would be a lightweight notebook exploration — no new analyzers needed. Compare gap trajectory against participation ratio trajectory to see which better predicts grokking onset.
+
+---
+
+*Dimensionality compression to a consistent threshold (~PR 25-30) appears to be a precondition for grokking. Spectral gap may be a finer-grained predictor. Both connect to subnetwork competition through the lens of weight space separating into signal vs noise subspaces.*

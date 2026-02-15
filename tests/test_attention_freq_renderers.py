@@ -24,34 +24,34 @@ class TestRenderAttentionFreqHeatmap:
         return {"freq_matrix": freq_matrix}
 
     def test_returns_figure(self, epoch_data):
-        from visualization import render_attention_freq_heatmap
+        from miscope.visualization import render_attention_freq_heatmap
 
         fig = render_attention_freq_heatmap(epoch_data, epoch=100)
         assert isinstance(fig, go.Figure)
 
     def test_has_heatmap_trace(self, epoch_data):
-        from visualization import render_attention_freq_heatmap
+        from miscope.visualization import render_attention_freq_heatmap
 
         fig = render_attention_freq_heatmap(epoch_data, epoch=100)
         heatmap_traces = [t for t in fig.data if isinstance(t, go.Heatmap)]
         assert len(heatmap_traces) == 1
 
     def test_default_title_has_epoch(self, epoch_data):
-        from visualization import render_attention_freq_heatmap
+        from miscope.visualization import render_attention_freq_heatmap
 
         fig = render_attention_freq_heatmap(epoch_data, epoch=100)
         title_text = fig.layout.title.text if fig.layout.title else ""
         assert "100" in title_text
 
     def test_custom_title(self, epoch_data):
-        from visualization import render_attention_freq_heatmap
+        from miscope.visualization import render_attention_freq_heatmap
 
         fig = render_attention_freq_heatmap(epoch_data, epoch=100, title="Custom")
         title_text = fig.layout.title.text if fig.layout.title else ""
         assert title_text == "Custom"
 
     def test_head_labels_on_x_axis(self, epoch_data):
-        from visualization import render_attention_freq_heatmap
+        from miscope.visualization import render_attention_freq_heatmap
 
         fig = render_attention_freq_heatmap(epoch_data, epoch=100)
         ticktext = fig.layout.xaxis.ticktext
@@ -75,13 +75,13 @@ class TestRenderAttentionSpecializationTrajectory:
         }
 
     def test_returns_figure(self, summary_data):
-        from visualization import render_attention_specialization_trajectory
+        from miscope.visualization import render_attention_specialization_trajectory
 
         fig = render_attention_specialization_trajectory(summary_data, current_epoch=500)
         assert isinstance(fig, go.Figure)
 
     def test_has_traces_per_head(self, summary_data):
-        from visualization import render_attention_specialization_trajectory
+        from miscope.visualization import render_attention_specialization_trajectory
 
         fig = render_attention_specialization_trajectory(summary_data, current_epoch=500)
         n_heads = summary_data["max_frac_per_head"].shape[1]
@@ -89,7 +89,7 @@ class TestRenderAttentionSpecializationTrajectory:
         assert len(scatter_traces) == n_heads
 
     def test_has_epoch_indicator(self, summary_data):
-        from visualization import render_attention_specialization_trajectory
+        from miscope.visualization import render_attention_specialization_trajectory
 
         fig = render_attention_specialization_trajectory(summary_data, current_epoch=500)
         # Vertical line shows up in layout shapes
@@ -97,7 +97,7 @@ class TestRenderAttentionSpecializationTrajectory:
         assert len(vlines) > 0
 
     def test_custom_title(self, summary_data):
-        from visualization import render_attention_specialization_trajectory
+        from miscope.visualization import render_attention_specialization_trajectory
 
         fig = render_attention_specialization_trajectory(
             summary_data, current_epoch=500, title="My Title"
@@ -106,7 +106,7 @@ class TestRenderAttentionSpecializationTrajectory:
         assert title_text == "My Title"
 
     def test_y_axis_range(self, summary_data):
-        from visualization import render_attention_specialization_trajectory
+        from miscope.visualization import render_attention_specialization_trajectory
 
         fig = render_attention_specialization_trajectory(summary_data, current_epoch=500)
         y_range = fig.layout.yaxis.range
@@ -129,13 +129,13 @@ class TestRenderAttentionDominantFrequencies:
         }
 
     def test_returns_figure(self, summary_data):
-        from visualization import render_attention_dominant_frequencies
+        from miscope.visualization import render_attention_dominant_frequencies
 
         fig = render_attention_dominant_frequencies(summary_data)
         assert isinstance(fig, go.Figure)
 
     def test_has_traces_per_head(self, summary_data):
-        from visualization import render_attention_dominant_frequencies
+        from miscope.visualization import render_attention_dominant_frequencies
 
         fig = render_attention_dominant_frequencies(summary_data)
         n_heads = summary_data["dominant_freq_per_head"].shape[1]
@@ -143,21 +143,21 @@ class TestRenderAttentionDominantFrequencies:
         assert len(scatter_traces) == n_heads
 
     def test_with_epoch_indicator(self, summary_data):
-        from visualization import render_attention_dominant_frequencies
+        from miscope.visualization import render_attention_dominant_frequencies
 
         fig = render_attention_dominant_frequencies(summary_data, current_epoch=500)
         vlines = [s for s in (fig.layout.shapes or []) if getattr(s, "x0", None) == 500]
         assert len(vlines) > 0
 
     def test_without_epoch_indicator(self, summary_data):
-        from visualization import render_attention_dominant_frequencies
+        from miscope.visualization import render_attention_dominant_frequencies
 
         fig = render_attention_dominant_frequencies(summary_data)
         shapes = fig.layout.shapes or []
         assert len(shapes) == 0
 
     def test_custom_title(self, summary_data):
-        from visualization import render_attention_dominant_frequencies
+        from miscope.visualization import render_attention_dominant_frequencies
 
         fig = render_attention_dominant_frequencies(summary_data, title="Custom")
         title_text = fig.layout.title.text if fig.layout.title else ""

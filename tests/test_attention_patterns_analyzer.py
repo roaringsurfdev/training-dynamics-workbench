@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 import torch
 
-from analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
-from analysis.library.activations import extract_attention_patterns
+from miscope.analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
+from miscope.analysis.library.activations import extract_attention_patterns
 
 # ── Library function tests ──────────────────────────────────────────────
 

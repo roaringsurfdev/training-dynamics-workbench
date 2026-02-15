@@ -9,10 +9,10 @@ import numpy as np
 import pytest
 import torch
 
-from analysis import AnalysisPipeline, Analyzer, ArtifactLoader
-from analysis.analyzers import CoarsenessAnalyzer
-from analysis.library.fourier import compute_neuron_coarseness
-from families import FamilyRegistry
+from miscope.analysis import AnalysisPipeline, Analyzer, ArtifactLoader
+from miscope.analysis.analyzers import CoarsenessAnalyzer
+from miscope.analysis.library.fourier import compute_neuron_coarseness
+from miscope.families import FamilyRegistry
 
 # ── Library function tests ──────────────────────────────────────────────
 

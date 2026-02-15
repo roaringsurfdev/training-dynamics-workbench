@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import pytest
 from PIL import Image
 
-from visualization.export import (
+from miscope.visualization.export import (
     export_animation,
     export_cross_epoch_animation,
     export_figure,
@@ -401,7 +401,7 @@ class TestExportVariantVisualization:
         mock_fig.add_trace(go.Bar(x=[1], y=[1]))
         mock_fig.update_layout(width=400, height=300)
 
-        with patch("visualization.export._get_renderer") as mock_get:
+        with patch("miscope.visualization.export._get_renderer") as mock_get:
             mock_get.return_value = lambda epoch_data, epoch, **kw: mock_fig
             path = export_variant_visualization(
                 mock_variant_dir,
@@ -425,7 +425,7 @@ class TestExportVariantVisualization:
             captured_epoch["epoch"] = epoch
             return mock_fig
 
-        with patch("visualization.export._get_renderer") as mock_get:
+        with patch("miscope.visualization.export._get_renderer") as mock_get:
             mock_get.return_value = capturing_renderer
             export_variant_visualization(
                 mock_variant_dir,
@@ -443,7 +443,7 @@ class TestExportVariantVisualization:
         mock_fig = go.Figure()
         mock_fig.update_layout(width=400, height=300)
 
-        with patch("visualization.export._get_renderer") as mock_get:
+        with patch("miscope.visualization.export._get_renderer") as mock_get:
             mock_get.return_value = lambda epoch_data, epoch, **kw: mock_fig
             path = export_variant_visualization(
                 mock_variant_dir,
@@ -462,7 +462,7 @@ class TestExportVariantVisualization:
         mock_fig.update_layout(width=400, height=300)
         nested = output_dir / "deep" / "nested" / "dir"
 
-        with patch("visualization.export._get_renderer") as mock_get:
+        with patch("miscope.visualization.export._get_renderer") as mock_get:
             mock_get.return_value = lambda epoch_data, epoch, **kw: mock_fig
             path = export_variant_visualization(
                 mock_variant_dir,
@@ -480,7 +480,7 @@ class TestExportVariantVisualization:
         mock_fig = go.Figure()
         mock_fig.update_layout(width=400, height=300)
 
-        with patch("visualization.export._get_renderer") as mock_get:
+        with patch("miscope.visualization.export._get_renderer") as mock_get:
             mock_get.return_value = lambda summary_data, current_epoch, **kw: mock_fig
             path = export_variant_visualization(
                 mock_variant_dir,
@@ -497,7 +497,7 @@ class TestExportVariantVisualization:
         empty_variant = output_dir / "empty_variant"
         (empty_variant / "artifacts" / "dominant_frequencies").mkdir(parents=True)
 
-        with patch("visualization.export._get_renderer") as mock_get:
+        with patch("miscope.visualization.export._get_renderer") as mock_get:
             mock_get.return_value = lambda *a, **kw: go.Figure()
             with pytest.raises(FileNotFoundError):
                 export_variant_visualization(
@@ -513,7 +513,7 @@ class TestExportVariantVisualization:
         mock_fig = go.Figure()
         mock_fig.update_layout(width=400, height=300)
 
-        with patch("visualization.export._get_renderer") as mock_get:
+        with patch("miscope.visualization.export._get_renderer") as mock_get:
             mock_get.return_value = lambda epoch_data, epoch, **kw: mock_fig
             path = export_variant_visualization(
                 mock_variant_dir,

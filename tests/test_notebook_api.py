@@ -10,9 +10,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from families import JsonModelFamily, Variant
-from tdw import LoadedFamily, list_families, load_family
-from tdw.config import AppConfig
+from miscope import LoadedFamily, list_families, load_family
+from miscope.config import AppConfig
+from miscope.families import JsonModelFamily, Variant
 
 # --- Fixtures ---
 
@@ -214,7 +214,7 @@ class TestVariantConvenience:
 
     def test_artifacts_returns_loader(self, test_config):
         """variant.artifacts returns an ArtifactLoader."""
-        from analysis.artifact_loader import ArtifactLoader
+        from miscope.analysis.artifact_loader import ArtifactLoader
 
         family = load_family("test_family", config=test_config)
         variant = family.get_variant(prime=113, seed=999)
@@ -296,7 +296,9 @@ class TestMakeProbe:
 
     def test_make_probe_modular_addition(self):
         """make_probe appends equals token for modular addition."""
-        from families.implementations.modulo_addition_1layer import ModuloAddition1LayerFamily
+        from miscope.families.implementations.modulo_addition_1layer import (
+            ModuloAddition1LayerFamily,
+        )
 
         # Create a minimal family instance for testing
         config = {
@@ -322,7 +324,9 @@ class TestMakeProbe:
 
     def test_make_probe_multiple_inputs(self):
         """make_probe handles multiple input pairs."""
-        from families.implementations.modulo_addition_1layer import ModuloAddition1LayerFamily
+        from miscope.families.implementations.modulo_addition_1layer import (
+            ModuloAddition1LayerFamily,
+        )
 
         config = {
             "name": "modulo_addition_1layer",
@@ -349,7 +353,9 @@ class TestMakeProbe:
 
     def test_variant_make_probe_delegates(self):
         """Variant.make_probe delegates to family."""
-        from families.implementations.modulo_addition_1layer import ModuloAddition1LayerFamily
+        from miscope.families.implementations.modulo_addition_1layer import (
+            ModuloAddition1LayerFamily,
+        )
 
         config = {
             "name": "modulo_addition_1layer",
@@ -374,7 +380,9 @@ class TestAnalysisDataset:
 
     def test_analysis_dataset_delegates(self):
         """Variant.analysis_dataset delegates to family."""
-        from families.implementations.modulo_addition_1layer import ModuloAddition1LayerFamily
+        from miscope.families.implementations.modulo_addition_1layer import (
+            ModuloAddition1LayerFamily,
+        )
 
         config = {
             "name": "modulo_addition_1layer",

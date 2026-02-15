@@ -11,12 +11,12 @@ import pytest
 import torch
 from transformer_lens import HookedTransformer, HookedTransformerConfig
 
-from analysis import AnalysisPipeline, Analyzer, ArtifactLoader
-from analysis.analyzers import LandscapeFlatnessAnalyzer
-from analysis.analyzers.landscape_flatness import FLATNESS_SUMMARY_KEYS
-from analysis.library.landscape import compute_landscape_flatness
-from families import FamilyRegistry
-from visualization.renderers.landscape_flatness import (
+from miscope.analysis import AnalysisPipeline, Analyzer, ArtifactLoader
+from miscope.analysis.analyzers import LandscapeFlatnessAnalyzer
+from miscope.analysis.analyzers.landscape_flatness import FLATNESS_SUMMARY_KEYS
+from miscope.analysis.library.landscape import compute_landscape_flatness
+from miscope.families import FamilyRegistry
+from miscope.visualization.renderers.landscape_flatness import (
     FLATNESS_METRICS,
     render_flatness_trajectory,
     render_perturbation_distribution,
@@ -145,7 +145,7 @@ class TestLandscapeFlatnessAnalyzerProtocol:
 
     def test_registered_in_registry(self):
         """Analyzer is registered in default registry."""
-        from analysis.analyzers import AnalyzerRegistry
+        from miscope.analysis.analyzers import AnalyzerRegistry
 
         assert AnalyzerRegistry.is_registered("landscape_flatness")
 

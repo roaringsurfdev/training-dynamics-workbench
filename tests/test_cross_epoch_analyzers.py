@@ -9,12 +9,16 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from analysis import AnalysisPipeline, ArtifactLoader, CrossEpochAnalyzer
-from analysis.analyzers import AnalyzerRegistry, ParameterSnapshotAnalyzer, ParameterTrajectoryPCA
-from analysis.analyzers.parameter_trajectory_pca import _GROUPS
-from analysis.library.trajectory import compute_parameter_velocity, compute_pca_trajectory
-from families import FamilyRegistry
-from visualization.renderers.parameter_trajectory import (
+from miscope.analysis import AnalysisPipeline, ArtifactLoader, CrossEpochAnalyzer
+from miscope.analysis.analyzers import (
+    AnalyzerRegistry,
+    ParameterSnapshotAnalyzer,
+    ParameterTrajectoryPCA,
+)
+from miscope.analysis.analyzers.parameter_trajectory_pca import _GROUPS
+from miscope.analysis.library.trajectory import compute_parameter_velocity, compute_pca_trajectory
+from miscope.families import FamilyRegistry
+from miscope.visualization.renderers.parameter_trajectory import (
     get_group_label,
     render_component_velocity,
     render_explained_variance,

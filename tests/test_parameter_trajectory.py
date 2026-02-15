@@ -9,20 +9,20 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from analysis import AnalysisPipeline, Analyzer, ArtifactLoader
-from analysis.analyzers import ParameterSnapshotAnalyzer
-from analysis.library.trajectory import (
+from miscope.analysis import AnalysisPipeline, Analyzer, ArtifactLoader
+from miscope.analysis.analyzers import ParameterSnapshotAnalyzer
+from miscope.analysis.library.trajectory import (
     compute_parameter_velocity,
     compute_pca_trajectory,
     flatten_snapshot,
 )
-from analysis.library.weights import (
+from miscope.analysis.library.weights import (
     COMPONENT_GROUPS,
     WEIGHT_MATRIX_NAMES,
     extract_parameter_snapshot,
 )
-from families import FamilyRegistry
-from visualization.renderers.parameter_trajectory import (
+from miscope.families import FamilyRegistry
+from miscope.visualization.renderers.parameter_trajectory import (
     get_group_label,
     render_component_velocity,
     render_explained_variance,
@@ -283,7 +283,7 @@ class TestParameterSnapshotAnalyzerProtocol:
 
     def test_registered_in_registry(self):
         """Analyzer is registered in default registry."""
-        from analysis.analyzers import AnalyzerRegistry
+        from miscope.analysis.analyzers import AnalyzerRegistry
 
         assert AnalyzerRegistry.is_registered("parameter_snapshot")
 

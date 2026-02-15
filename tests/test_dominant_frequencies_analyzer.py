@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 import torch
 
-from analysis import AnalysisPipeline, Analyzer
-from analysis.analyzers import DominantFrequenciesAnalyzer
-from families import FamilyRegistry
+from miscope.analysis import AnalysisPipeline, Analyzer
+from miscope.analysis.analyzers import DominantFrequenciesAnalyzer
+from miscope.families import FamilyRegistry
 
 
 class TestDominantFrequenciesAnalyzerProtocol:
@@ -186,7 +186,7 @@ class TestDominantFrequenciesAnalyzerIntegration:
 
     def test_artifact_contains_epochs(self, trained_variant):
         """Artifact loader discovers correct epochs."""
-        from analysis import ArtifactLoader
+        from miscope.analysis import ArtifactLoader
 
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
@@ -199,7 +199,7 @@ class TestDominantFrequenciesAnalyzerIntegration:
 
     def test_artifact_contains_coefficients(self, trained_variant):
         """Artifact contains coefficients array."""
-        from analysis import ArtifactLoader
+        from miscope.analysis import ArtifactLoader
 
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
@@ -211,7 +211,7 @@ class TestDominantFrequenciesAnalyzerIntegration:
 
     def test_artifact_coefficients_shape(self, trained_variant):
         """Artifact coefficients have correct shape."""
-        from analysis import ArtifactLoader
+        from miscope.analysis import ArtifactLoader
 
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())
@@ -232,7 +232,7 @@ class TestDominantFrequenciesAnalyzerIntegration:
 
     def test_coefficients_change_across_epochs(self, trained_variant):
         """Coefficients differ between epochs (training changes weights)."""
-        from analysis import ArtifactLoader
+        from miscope.analysis import ArtifactLoader
 
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(DominantFrequenciesAnalyzer())

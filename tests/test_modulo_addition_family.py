@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 import torch
 
-from analysis.analyzers import AnalyzerRegistry
-from families import FamilyRegistry, VariantState
-from families.implementations import ModuloAddition1LayerFamily
+from miscope.analysis.analyzers import AnalyzerRegistry
+from miscope.families import FamilyRegistry, VariantState
+from miscope.families.implementations import ModuloAddition1LayerFamily
 
 
 @pytest.fixture
@@ -358,7 +358,7 @@ class TestRealFamilyJson:
 
     def test_load_real_family_json(self):
         """Test loading the real family.json file."""
-        from families.implementations.modulo_addition_1layer import (
+        from miscope.families.implementations.modulo_addition_1layer import (
             load_modulo_addition_1layer_family,
         )
 

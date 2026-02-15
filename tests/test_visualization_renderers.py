@@ -33,7 +33,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_render_returns_figure(self, epoch_data):
         """Renderer returns a Plotly Figure."""
-        from visualization import render_dominant_frequencies
+        from miscope.visualization import render_dominant_frequencies
 
         fig = render_dominant_frequencies(epoch_data, epoch=0)
 
@@ -41,7 +41,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_render_with_threshold(self, epoch_data):
         """Threshold parameter affects visualization."""
-        from visualization import render_dominant_frequencies
+        from miscope.visualization import render_dominant_frequencies
 
         fig = render_dominant_frequencies(epoch_data, epoch=0, threshold=1.0)
 
@@ -54,7 +54,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_render_without_highlight(self, epoch_data):
         """Can disable dominance highlighting."""
-        from visualization import render_dominant_frequencies
+        from miscope.visualization import render_dominant_frequencies
 
         fig = render_dominant_frequencies(epoch_data, epoch=0, highlight_dominant=False)
 
@@ -62,7 +62,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_render_custom_title(self, epoch_data):
         """Can set custom title."""
-        from visualization import render_dominant_frequencies
+        from miscope.visualization import render_dominant_frequencies
 
         fig = render_dominant_frequencies(epoch_data, epoch=0, title="Custom Title")
 
@@ -70,7 +70,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_render_epoch_in_default_title(self, epoch_data):
         """Default title includes epoch number."""
-        from visualization import render_dominant_frequencies
+        from miscope.visualization import render_dominant_frequencies
 
         fig = render_dominant_frequencies(epoch_data, epoch=100)
 
@@ -78,7 +78,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_get_dominant_indices(self, epoch_data):
         """get_dominant_indices returns indices above threshold."""
-        from visualization import get_dominant_indices
+        from miscope.visualization import get_dominant_indices
 
         indices = get_dominant_indices(epoch_data["coefficients"], threshold=1.0)
 
@@ -88,7 +88,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_get_fourier_basis_names(self):
         """Fourier basis names are correctly generated."""
-        from visualization import get_fourier_basis_names
+        from miscope.visualization import get_fourier_basis_names
 
         names = get_fourier_basis_names(7)
 
@@ -99,7 +99,7 @@ class TestDominantFrequenciesRenderer:
 
     def test_render_over_time(self, stacked_artifact):
         """render_dominant_frequencies_over_time works with stacked data."""
-        from visualization import render_dominant_frequencies_over_time
+        from miscope.visualization import render_dominant_frequencies_over_time
 
         fig = render_dominant_frequencies_over_time(stacked_artifact, top_k=3)
 
@@ -130,7 +130,7 @@ class TestNeuronActivationsRenderer:
 
     def test_render_single_heatmap(self, epoch_data):
         """Single neuron heatmap renders correctly."""
-        from visualization import render_neuron_heatmap
+        from miscope.visualization import render_neuron_heatmap
 
         fig = render_neuron_heatmap(epoch_data, epoch=0, neuron_idx=0)
 
@@ -140,7 +140,7 @@ class TestNeuronActivationsRenderer:
 
     def test_heatmap_has_correct_shape(self, epoch_data):
         """Heatmap data has correct dimensions."""
-        from visualization import render_neuron_heatmap
+        from miscope.visualization import render_neuron_heatmap
 
         fig = render_neuron_heatmap(epoch_data, epoch=0, neuron_idx=0)
 
@@ -150,14 +150,14 @@ class TestNeuronActivationsRenderer:
 
     def test_heatmap_invalid_neuron(self, epoch_data):
         """Invalid neuron index raises error."""
-        from visualization import render_neuron_heatmap
+        from miscope.visualization import render_neuron_heatmap
 
         with pytest.raises(IndexError):
             render_neuron_heatmap(epoch_data, epoch=0, neuron_idx=100)
 
     def test_render_neuron_grid(self, epoch_data):
         """Grid of neurons renders correctly."""
-        from visualization import render_neuron_grid
+        from miscope.visualization import render_neuron_grid
 
         fig = render_neuron_grid(epoch_data, epoch=0, neuron_indices=[0, 1, 2, 3, 4])
 
@@ -166,7 +166,7 @@ class TestNeuronActivationsRenderer:
 
     def test_grid_custom_cols(self, epoch_data):
         """Grid respects column count."""
-        from visualization import render_neuron_grid
+        from miscope.visualization import render_neuron_grid
 
         fig = render_neuron_grid(epoch_data, epoch=0, neuron_indices=[0, 1, 2], cols=2)
 
@@ -174,7 +174,7 @@ class TestNeuronActivationsRenderer:
 
     def test_render_neuron_across_epochs(self, stacked_artifact):
         """Single neuron across epochs renders correctly."""
-        from visualization import render_neuron_across_epochs
+        from miscope.visualization import render_neuron_across_epochs
 
         fig = render_neuron_across_epochs(stacked_artifact, neuron_idx=0)
 
@@ -183,7 +183,7 @@ class TestNeuronActivationsRenderer:
 
     def test_get_most_active_neurons(self, epoch_data):
         """get_most_active_neurons returns list of indices."""
-        from visualization import get_most_active_neurons
+        from miscope.visualization import get_most_active_neurons
 
         neurons = get_most_active_neurons(epoch_data, top_k=5)
 
@@ -215,7 +215,7 @@ class TestFreqClustersRenderer:
 
     def test_render_freq_clusters(self, epoch_data):
         """Frequency clusters heatmap renders correctly."""
-        from visualization import render_freq_clusters
+        from miscope.visualization import render_freq_clusters
 
         fig = render_freq_clusters(epoch_data, epoch=0)
 
@@ -225,7 +225,7 @@ class TestFreqClustersRenderer:
 
     def test_heatmap_has_correct_shape(self, epoch_data):
         """Heatmap has correct dimensions."""
-        from visualization import render_freq_clusters
+        from miscope.visualization import render_freq_clusters
 
         fig = render_freq_clusters(epoch_data, epoch=0)
 
@@ -234,7 +234,7 @@ class TestFreqClustersRenderer:
 
     def test_sparse_labels(self, epoch_data):
         """Sparse labels are applied correctly."""
-        from visualization import render_freq_clusters
+        from miscope.visualization import render_freq_clusters
 
         fig = render_freq_clusters(epoch_data, epoch=0, sparse_labels=True, label_interval=2)
 
@@ -245,7 +245,7 @@ class TestFreqClustersRenderer:
 
     def test_full_labels(self, epoch_data):
         """Full labels can be shown."""
-        from visualization import render_freq_clusters
+        from miscope.visualization import render_freq_clusters
 
         fig = render_freq_clusters(epoch_data, epoch=0, sparse_labels=False)
 
@@ -254,7 +254,7 @@ class TestFreqClustersRenderer:
 
     def test_colorbar_optional(self, epoch_data):
         """Colorbar can be hidden."""
-        from visualization import render_freq_clusters
+        from miscope.visualization import render_freq_clusters
 
         fig = render_freq_clusters(epoch_data, epoch=0, show_colorbar=False)
 
@@ -262,7 +262,7 @@ class TestFreqClustersRenderer:
 
     def test_render_comparison(self, stacked_artifact):
         """Comparison view renders multiple epochs."""
-        from visualization import render_freq_clusters_comparison
+        from miscope.visualization import render_freq_clusters_comparison
 
         fig = render_freq_clusters_comparison(stacked_artifact, epoch_indices=[0, 1, 2])
 
@@ -271,7 +271,7 @@ class TestFreqClustersRenderer:
 
     def test_get_specialized_neurons(self, epoch_data):
         """get_specialized_neurons returns correct neurons."""
-        from visualization import get_specialized_neurons
+        from miscope.visualization import get_specialized_neurons
 
         # Set one neuron to be clearly specialized for frequency 1
         epoch_data["norm_matrix"][0, 5] = 0.95
@@ -282,7 +282,7 @@ class TestFreqClustersRenderer:
 
     def test_get_neuron_specialization(self, epoch_data):
         """get_neuron_specialization returns dominant frequency."""
-        from visualization import get_neuron_specialization
+        from miscope.visualization import get_neuron_specialization
 
         # Set neuron 3 to be specialized for frequency 5
         epoch_data["norm_matrix"][:, 3] = 0.1
@@ -338,8 +338,8 @@ class TestVisualizationIntegration:
 
     def test_load_epoch_and_render_dominant_frequencies(self, realistic_artifacts):
         """Can load single epoch and render dominant frequencies."""
-        from analysis import ArtifactLoader
-        from visualization import render_dominant_frequencies
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import render_dominant_frequencies
 
         loader = ArtifactLoader(str(realistic_artifacts))
         epoch_data = loader.load_epoch("dominant_frequencies", 0)
@@ -349,8 +349,8 @@ class TestVisualizationIntegration:
 
     def test_load_epoch_and_render_neuron_heatmap(self, realistic_artifacts):
         """Can load single epoch and render neuron heatmap."""
-        from analysis import ArtifactLoader
-        from visualization import render_neuron_heatmap
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import render_neuron_heatmap
 
         loader = ArtifactLoader(str(realistic_artifacts))
         epoch_data = loader.load_epoch("neuron_activations", 0)
@@ -360,8 +360,8 @@ class TestVisualizationIntegration:
 
     def test_load_epoch_and_render_freq_clusters(self, realistic_artifacts):
         """Can load single epoch and render frequency clusters."""
-        from analysis import ArtifactLoader
-        from visualization import render_freq_clusters
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import render_freq_clusters
 
         loader = ArtifactLoader(str(realistic_artifacts))
         epoch_data = loader.load_epoch("neuron_freq_norm", 0)
@@ -371,8 +371,8 @@ class TestVisualizationIntegration:
 
     def test_all_renderers_no_exceptions(self, realistic_artifacts):
         """All renderers work without exceptions on realistic data."""
-        from analysis import ArtifactLoader
-        from visualization import (
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import (
             get_dominant_indices,
             get_most_active_neurons,
             get_neuron_specialization,
@@ -433,21 +433,21 @@ class TestCoarsenessTrajectoryRenderer:
 
     def test_render_returns_figure(self, summary_data):
         """Renderer returns a Plotly Figure."""
-        from visualization import render_coarseness_trajectory
+        from miscope.visualization import render_coarseness_trajectory
 
         fig = render_coarseness_trajectory(summary_data, current_epoch=500)
         assert isinstance(fig, go.Figure)
 
     def test_render_custom_title(self, summary_data):
         """Can set custom title."""
-        from visualization import render_coarseness_trajectory
+        from miscope.visualization import render_coarseness_trajectory
 
         fig = render_coarseness_trajectory(summary_data, current_epoch=500, title="Custom Title")
         assert fig.layout.title.text == "Custom Title"
 
     def test_render_has_mean_trace(self, summary_data):
         """Figure contains the mean coarseness trace."""
-        from visualization import render_coarseness_trajectory
+        from miscope.visualization import render_coarseness_trajectory
 
         fig = render_coarseness_trajectory(summary_data, current_epoch=500)
         trace_names = [t.name for t in fig.data]
@@ -455,7 +455,7 @@ class TestCoarsenessTrajectoryRenderer:
 
     def test_render_has_percentile_band(self, summary_data):
         """Figure contains the p25-p75 band."""
-        from visualization import render_coarseness_trajectory
+        from miscope.visualization import render_coarseness_trajectory
 
         fig = render_coarseness_trajectory(summary_data, current_epoch=500)
         # Band uses 3 traces: lower bound (no name), upper bound (p25-p75), mean
@@ -463,7 +463,7 @@ class TestCoarsenessTrajectoryRenderer:
 
     def test_render_has_epoch_indicator(self, summary_data):
         """Figure contains vertical line at current epoch."""
-        from visualization import render_coarseness_trajectory
+        from miscope.visualization import render_coarseness_trajectory
 
         fig = render_coarseness_trajectory(summary_data, current_epoch=500)
         # Check for vertical line shapes
@@ -473,7 +473,7 @@ class TestCoarsenessTrajectoryRenderer:
 
     def test_render_has_blob_threshold(self, summary_data):
         """Figure contains horizontal reference line for blob threshold."""
-        from visualization import render_coarseness_trajectory
+        from miscope.visualization import render_coarseness_trajectory
 
         fig = render_coarseness_trajectory(summary_data, current_epoch=500, blob_threshold=0.7)
         shapes = fig.to_dict().get("layout", {}).get("shapes", [])
@@ -482,7 +482,7 @@ class TestCoarsenessTrajectoryRenderer:
 
     def test_y_axis_range(self, summary_data):
         """Y-axis is fixed to [0, 1] range."""
-        from visualization import render_coarseness_trajectory
+        from miscope.visualization import render_coarseness_trajectory
 
         fig = render_coarseness_trajectory(summary_data, current_epoch=500)
         assert list(fig.layout.yaxis.range) == [0, 1]
@@ -501,28 +501,28 @@ class TestCoarsenessDistributionRenderer:
 
     def test_render_returns_figure(self, epoch_data):
         """Renderer returns a Plotly Figure."""
-        from visualization import render_coarseness_distribution
+        from miscope.visualization import render_coarseness_distribution
 
         fig = render_coarseness_distribution(epoch_data, epoch=100)
         assert isinstance(fig, go.Figure)
 
     def test_render_custom_title(self, epoch_data):
         """Can set custom title."""
-        from visualization import render_coarseness_distribution
+        from miscope.visualization import render_coarseness_distribution
 
         fig = render_coarseness_distribution(epoch_data, epoch=100, title="Custom Title")
         assert fig.layout.title.text == "Custom Title"
 
     def test_render_epoch_in_default_title(self, epoch_data):
         """Default title includes epoch number."""
-        from visualization import render_coarseness_distribution
+        from miscope.visualization import render_coarseness_distribution
 
         fig = render_coarseness_distribution(epoch_data, epoch=100)
         assert "100" in fig.layout.title.text
 
     def test_render_has_threshold_lines(self, epoch_data):
         """Figure has vertical threshold reference lines."""
-        from visualization import render_coarseness_distribution
+        from miscope.visualization import render_coarseness_distribution
 
         fig = render_coarseness_distribution(
             epoch_data, epoch=100, blob_threshold=0.7, plaid_threshold=0.5
@@ -533,7 +533,7 @@ class TestCoarsenessDistributionRenderer:
 
     def test_render_has_histogram_traces(self, epoch_data):
         """Figure has histogram traces for the three regions."""
-        from visualization import render_coarseness_distribution
+        from miscope.visualization import render_coarseness_distribution
 
         fig = render_coarseness_distribution(epoch_data, epoch=100)
         # Should have up to 3 histogram traces (plaid, transitional, blob)
@@ -542,14 +542,14 @@ class TestCoarsenessDistributionRenderer:
 
     def test_render_stacked_barmode(self, epoch_data):
         """Histogram uses stacked bar mode."""
-        from visualization import render_coarseness_distribution
+        from miscope.visualization import render_coarseness_distribution
 
         fig = render_coarseness_distribution(epoch_data, epoch=100)
         assert fig.layout.barmode == "stack"
 
     def test_blob_count_in_title(self):
         """Default title includes blob count."""
-        from visualization import render_coarseness_distribution
+        from miscope.visualization import render_coarseness_distribution
 
         # 3 neurons above 0.7
         data = {"coarseness": np.array([0.1, 0.3, 0.5, 0.75, 0.8, 0.9])}
@@ -570,14 +570,14 @@ class TestBlobCountTrajectoryRenderer:
 
     def test_render_returns_figure(self, summary_data):
         """Renderer returns a Plotly Figure."""
-        from visualization import render_blob_count_trajectory
+        from miscope.visualization import render_blob_count_trajectory
 
         fig = render_blob_count_trajectory(summary_data)
         assert isinstance(fig, go.Figure)
 
     def test_render_with_epoch_indicator(self, summary_data):
         """Optional epoch indicator is added when specified."""
-        from visualization import render_blob_count_trajectory
+        from miscope.visualization import render_blob_count_trajectory
 
         fig = render_blob_count_trajectory(summary_data, current_epoch=100)
         shapes = fig.to_dict().get("layout", {}).get("shapes", [])
@@ -586,7 +586,7 @@ class TestBlobCountTrajectoryRenderer:
 
     def test_render_without_epoch_indicator(self, summary_data):
         """No indicator when current_epoch is None."""
-        from visualization import render_blob_count_trajectory
+        from miscope.visualization import render_blob_count_trajectory
 
         fig = render_blob_count_trajectory(summary_data)
         shapes = fig.to_dict().get("layout", {}).get("shapes", [])
@@ -606,14 +606,14 @@ class TestCoarsenessByNeuronRenderer:
 
     def test_render_returns_figure(self, epoch_data):
         """Renderer returns a Plotly Figure."""
-        from visualization import render_coarseness_by_neuron
+        from miscope.visualization import render_coarseness_by_neuron
 
         fig = render_coarseness_by_neuron(epoch_data, epoch=100)
         assert isinstance(fig, go.Figure)
 
     def test_render_has_bar_trace(self, epoch_data):
         """Figure contains a bar trace."""
-        from visualization import render_coarseness_by_neuron
+        from miscope.visualization import render_coarseness_by_neuron
 
         fig = render_coarseness_by_neuron(epoch_data, epoch=100)
         bar_traces = [t for t in fig.data if isinstance(t, go.Bar)]
@@ -621,7 +621,7 @@ class TestCoarsenessByNeuronRenderer:
 
     def test_bar_count_matches_neurons(self, epoch_data):
         """Number of bars matches number of neurons."""
-        from visualization import render_coarseness_by_neuron
+        from miscope.visualization import render_coarseness_by_neuron
 
         fig = render_coarseness_by_neuron(epoch_data, epoch=100)
         bar_trace = fig.data[0]
@@ -629,14 +629,14 @@ class TestCoarsenessByNeuronRenderer:
 
     def test_render_epoch_in_default_title(self, epoch_data):
         """Default title includes epoch number."""
-        from visualization import render_coarseness_by_neuron
+        from miscope.visualization import render_coarseness_by_neuron
 
         fig = render_coarseness_by_neuron(epoch_data, epoch=100)
         assert "100" in fig.layout.title.text
 
     def test_render_has_threshold_lines(self, epoch_data):
         """Figure has horizontal threshold reference lines."""
-        from visualization import render_coarseness_by_neuron
+        from miscope.visualization import render_coarseness_by_neuron
 
         fig = render_coarseness_by_neuron(epoch_data, epoch=100)
         shapes = fig.to_dict().get("layout", {}).get("shapes", [])
@@ -684,8 +684,8 @@ class TestCoarsenessVisualizationIntegration:
 
     def test_load_epoch_and_render_distribution(self, coarseness_artifacts):
         """Can load single epoch and render coarseness distribution."""
-        from analysis import ArtifactLoader
-        from visualization import render_coarseness_distribution
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import render_coarseness_distribution
 
         loader = ArtifactLoader(str(coarseness_artifacts))
         epoch_data = loader.load_epoch("coarseness", 0)
@@ -694,8 +694,8 @@ class TestCoarsenessVisualizationIntegration:
 
     def test_load_summary_and_render_trajectory(self, coarseness_artifacts):
         """Can load summary and render coarseness trajectory."""
-        from analysis import ArtifactLoader
-        from visualization import render_coarseness_trajectory
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import render_coarseness_trajectory
 
         loader = ArtifactLoader(str(coarseness_artifacts))
         summary = loader.load_summary("coarseness")
@@ -704,8 +704,8 @@ class TestCoarsenessVisualizationIntegration:
 
     def test_load_summary_and_render_blob_count(self, coarseness_artifacts):
         """Can load summary and render blob count trajectory."""
-        from analysis import ArtifactLoader
-        from visualization import render_blob_count_trajectory
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import render_blob_count_trajectory
 
         loader = ArtifactLoader(str(coarseness_artifacts))
         summary = loader.load_summary("coarseness")
@@ -714,8 +714,8 @@ class TestCoarsenessVisualizationIntegration:
 
     def test_load_epoch_and_render_by_neuron(self, coarseness_artifacts):
         """Can load single epoch and render coarseness by neuron."""
-        from analysis import ArtifactLoader
-        from visualization import render_coarseness_by_neuron
+        from miscope.analysis import ArtifactLoader
+        from miscope.visualization import render_coarseness_by_neuron
 
         loader = ArtifactLoader(str(coarseness_artifacts))
         epoch_data = loader.load_epoch("coarseness", 0)

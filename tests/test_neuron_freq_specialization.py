@@ -7,7 +7,7 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
+from miscope.analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
 
 # ── Analyzer Summary Methods ─────────────────────────────────────────
 
@@ -210,20 +210,20 @@ class TestRenderSpecializationTrajectory:
         }
 
     def test_returns_figure(self, summary_data):
-        from visualization import render_specialization_trajectory
+        from miscope.visualization import render_specialization_trajectory
 
         fig = render_specialization_trajectory(summary_data, current_epoch=500)
         assert isinstance(fig, go.Figure)
 
     def test_has_four_traces(self, summary_data):
-        from visualization import render_specialization_trajectory
+        from miscope.visualization import render_specialization_trajectory
 
         fig = render_specialization_trajectory(summary_data, current_epoch=500)
         scatter_traces = [t for t in fig.data if isinstance(t, go.Scatter)]
         assert len(scatter_traces) == 4  # total, low, mid, high
 
     def test_trace_names(self, summary_data):
-        from visualization import render_specialization_trajectory
+        from miscope.visualization import render_specialization_trajectory
 
         fig = render_specialization_trajectory(summary_data, current_epoch=500)
         names = [t.name for t in fig.data if isinstance(t, go.Scatter)]
@@ -233,14 +233,14 @@ class TestRenderSpecializationTrajectory:
         assert "High freq" in names
 
     def test_has_epoch_indicator(self, summary_data):
-        from visualization import render_specialization_trajectory
+        from miscope.visualization import render_specialization_trajectory
 
         fig = render_specialization_trajectory(summary_data, current_epoch=500)
         vlines = [s for s in (fig.layout.shapes or []) if getattr(s, "x0", None) == 500]
         assert len(vlines) > 0
 
     def test_custom_title(self, summary_data):
-        from visualization import render_specialization_trajectory
+        from miscope.visualization import render_specialization_trajectory
 
         fig = render_specialization_trajectory(
             summary_data, current_epoch=500, title="Custom Title"
@@ -249,7 +249,7 @@ class TestRenderSpecializationTrajectory:
         assert title_text == "Custom Title"
 
     def test_default_title(self, summary_data):
-        from visualization import render_specialization_trajectory
+        from miscope.visualization import render_specialization_trajectory
 
         fig = render_specialization_trajectory(summary_data, current_epoch=500)
         title_text = fig.layout.title.text if fig.layout.title else ""
@@ -275,48 +275,48 @@ class TestRenderSpecializationByFrequency:
         }
 
     def test_returns_figure(self, summary_data):
-        from visualization import render_specialization_by_frequency
+        from miscope.visualization import render_specialization_by_frequency
 
         fig = render_specialization_by_frequency(summary_data)
         assert isinstance(fig, go.Figure)
 
     def test_has_heatmap_trace(self, summary_data):
-        from visualization import render_specialization_by_frequency
+        from miscope.visualization import render_specialization_by_frequency
 
         fig = render_specialization_by_frequency(summary_data)
         heatmap_traces = [t for t in fig.data if isinstance(t, go.Heatmap)]
         assert len(heatmap_traces) == 1
 
     def test_with_epoch_indicator(self, summary_data):
-        from visualization import render_specialization_by_frequency
+        from miscope.visualization import render_specialization_by_frequency
 
         fig = render_specialization_by_frequency(summary_data, current_epoch=500)
         vlines = [s for s in (fig.layout.shapes or []) if getattr(s, "x0", None) == 500]
         assert len(vlines) > 0
 
     def test_without_epoch_indicator(self, summary_data):
-        from visualization import render_specialization_by_frequency
+        from miscope.visualization import render_specialization_by_frequency
 
         fig = render_specialization_by_frequency(summary_data)
         shapes = fig.layout.shapes or []
         assert len(shapes) == 0
 
     def test_custom_title(self, summary_data):
-        from visualization import render_specialization_by_frequency
+        from miscope.visualization import render_specialization_by_frequency
 
         fig = render_specialization_by_frequency(summary_data, title="Custom")
         title_text = fig.layout.title.text if fig.layout.title else ""
         assert title_text == "Custom"
 
     def test_default_title(self, summary_data):
-        from visualization import render_specialization_by_frequency
+        from miscope.visualization import render_specialization_by_frequency
 
         fig = render_specialization_by_frequency(summary_data)
         title_text = fig.layout.title.text if fig.layout.title else ""
         assert "Specialized" in title_text
 
     def test_freq_labels_on_y_axis(self, summary_data):
-        from visualization import render_specialization_by_frequency
+        from miscope.visualization import render_specialization_by_frequency
 
         fig = render_specialization_by_frequency(summary_data)
         n_freq = summary_data["specialized_count_per_freq"].shape[1]
