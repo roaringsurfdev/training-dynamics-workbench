@@ -12,6 +12,7 @@ from miscope.analysis.analyzers.dominant_frequencies import DominantFrequenciesA
 from miscope.analysis.analyzers.effective_dimensionality import EffectiveDimensionalityAnalyzer
 from miscope.analysis.analyzers.landscape_flatness import LandscapeFlatnessAnalyzer
 from miscope.analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
+from miscope.analysis.analyzers.neuron_dynamics import NeuronDynamicsAnalyzer
 from miscope.analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
 from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
 from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
@@ -26,6 +27,7 @@ __all__ = [
     "EffectiveDimensionalityAnalyzer",
     "LandscapeFlatnessAnalyzer",
     "NeuronActivationsAnalyzer",
+    "NeuronDynamicsAnalyzer",
     "NeuronFreqClustersAnalyzer",
     "ParameterSnapshotAnalyzer",
     "ParameterTrajectoryPCA",
