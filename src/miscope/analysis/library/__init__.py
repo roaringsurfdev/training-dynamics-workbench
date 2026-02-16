@@ -14,9 +14,19 @@ from miscope.analysis.library.activations import (
     compute_grid_size_from_dataset,
     extract_attention_patterns,
     extract_mlp_activations,
+    extract_residual_stream,
     get_embedding_weights,
     reshape_to_grid,
     run_with_cache,
+)
+from miscope.analysis.library.geometry import (
+    compute_center_spread,
+    compute_circularity,
+    compute_class_centroids,
+    compute_class_dimensionality,
+    compute_class_radii,
+    compute_fisher_discriminant,
+    compute_fourier_alignment,
 )
 from miscope.analysis.library.fourier import (
     compute_2d_fourier_transform,
@@ -51,10 +61,19 @@ __all__ = [
     # Activation functions
     "extract_attention_patterns",
     "extract_mlp_activations",
+    "extract_residual_stream",
     "reshape_to_grid",
     "get_embedding_weights",
     "run_with_cache",
     "compute_grid_size_from_dataset",
+    # Geometry functions
+    "compute_class_centroids",
+    "compute_class_radii",
+    "compute_class_dimensionality",
+    "compute_center_spread",
+    "compute_circularity",
+    "compute_fourier_alignment",
+    "compute_fisher_discriminant",
     # Weight matrix functions
     "extract_parameter_snapshot",
     "compute_weight_singular_values",

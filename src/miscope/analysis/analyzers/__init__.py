@@ -17,6 +17,7 @@ from miscope.analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAn
 from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
 from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
 from miscope.analysis.analyzers.registry import AnalyzerRegistry
+from miscope.analysis.analyzers.repr_geometry import RepresentationalGeometryAnalyzer
 
 __all__ = [
     "AnalyzerRegistry",
@@ -31,4 +32,5 @@ __all__ = [
     "NeuronFreqClustersAnalyzer",
     "ParameterSnapshotAnalyzer",
     "ParameterTrajectoryPCA",
+    "RepresentationalGeometryAnalyzer",
 ]
