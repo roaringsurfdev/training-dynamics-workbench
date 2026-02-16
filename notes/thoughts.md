@@ -624,3 +624,57 @@ The singular value spectrum is already captured per-epoch by `EffectiveDimension
 ---
 
 *Dimensionality compression to a consistent threshold (~PR 25-30) appears to be a precondition for grokking. Spectral gap may be a finer-grained predictor. Both connect to subnetwork competition through the lens of weight space separating into signal vs noise subspaces.*
+
+---
+
+## 2026-02-15: p59/485 — Second Open-Loop Anomaly
+
+### Discovery
+
+p59/seed485 is the second model (after p101/999) to show an open PC2/PC3 trajectory and anomalous grokking behavior. p59/seed999 looks normal — clean self-intersecting loop, grokked by epoch ~8K, robust specialization.
+
+### Key Metrics
+
+| Metric | p59/999 (normal) | p59/485 (anomalous) |
+|--------|------------------|---------------------|
+| Grokking onset (test_loss < 0.1) | Epoch 8,058 | Epoch 24,248 |
+| Final test loss | 0.000000 | 0.020680 |
+| Specialized neurons at 25K | ~460 (plateau) | ~180 (still climbing) |
+| Frequency bands used | 3 (5, 15, 21) | 2 (5, 21 only) |
+| PC2/PC3 loop | Self-intersecting | Open |
+
+### What's Distinct About This Anomaly
+
+**Missing frequency band.** p59/485 only developed neuron specialization for frequencies 5 and 21. Frequency 15 is completely absent — zero neurons specialized to it across the entire training run. p59/999 uses all three bands (5, 15, 21) with robust neuron counts in each.
+
+**Nothing converged.** At epoch 25K, dominant Fourier norms are still climbing, neuron counts still rising, effective dimensionality still dropping, attention heads still specializing. The model was caught mid-transition — it barely crossed the grokking threshold 750 epochs before training ended.
+
+**Low velocity throughout.** Component velocity drops to near-zero early and stays there. The model moved through weight space extremely slowly — it wasn't that it tried and failed, it was barely moving. The initialization put it on a gradient-poor path.
+
+**Landscape flatness still noisy.** Oscillations persist past epoch 15K (p59/999 settles by ~8K). Baseline loss only recently approached zero.
+
+### Comparison with Other Anomalies
+
+| Property | p101/999 | p107/999 | p59/485 |
+|----------|----------|----------|---------|
+| PC2/PC3 loop | Open | Not yet characterized | Open |
+| Grokking quality | Degenerate (cos/sin imbalance) | Post-grokking instability | Incomplete (missing freq band) |
+| Seed | 999 | 999 | 485 |
+| Root cause hypothesis | Overshooting generalizing manifold | Consensus-then-diversification | Gradient-poor initialization path |
+
+**Notable: p59/485 is the first seed=485 anomaly**, breaking the pattern where only seed=999 produced pathological variants. This suggests the anomaly mechanism isn't specific to one seed — it's about the interaction between prime and seed producing an unlucky initialization.
+
+### Implications for Cross-Variant Analysis
+
+With three anomalous models now identified (p101/999, p107/999, p59/485), quantitative cross-variant comparison becomes increasingly valuable. Four metrics that would cleanly separate normal from anomalous:
+
+1. **Loop closure** — does the PC2/PC3 path self-intersect?
+2. **Grokking timing** — when does test loss cross threshold?
+3. **Frequency coverage** — how many expected frequency bands developed specialized neurons?
+4. **Convergence status** — have dimensionality/specialization/norms plateaued by training end?
+
+These could form the basis of a "variant health dashboard" in the cross-variant analysis requirement.
+
+---
+
+*p59/485 is a second open-loop anomaly with distinct pathology (missing frequency band, gradient-poor path). First seed=485 anomaly — mechanism is prime×seed interaction, not seed-specific.*
