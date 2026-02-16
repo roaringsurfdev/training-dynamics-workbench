@@ -17,6 +17,7 @@ def create_navbar() -> dbc.NavbarSimple:
     return dbc.NavbarSimple(
         children=[
             dbc.NavItem(dbc.NavLink("Visualization", href="/")),
+            dbc.NavItem(dbc.NavLink("Summary", href="/summary")),
             dbc.NavItem(dbc.NavLink("Training", href="/training")),
             dbc.NavItem(dbc.NavLink("Analysis Run", href="/analysis-run")),
         ],
@@ -32,6 +33,7 @@ def register_routing_callbacks(app: Dash) -> None:
     """Register URL routing callback."""
     from dashboard_v2.layout import create_visualization_layout
     from dashboard_v2.pages.analysis_run import create_analysis_run_layout
+    from dashboard_v2.pages.summary import create_summary_layout
     from dashboard_v2.pages.training import create_training_layout
 
     @app.callback(
@@ -43,4 +45,6 @@ def register_routing_callbacks(app: Dash) -> None:
             return create_training_layout()
         elif pathname == "/analysis-run":
             return create_analysis_run_layout()
+        elif pathname == "/summary":
+            return create_summary_layout()
         return create_visualization_layout()

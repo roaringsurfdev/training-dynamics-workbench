@@ -14,6 +14,7 @@ from dashboard_v2.callbacks import register_callbacks
 from dashboard_v2.layout import create_layout
 from dashboard_v2.navigation import register_routing_callbacks
 from dashboard_v2.pages.analysis_run import register_analysis_callbacks
+from dashboard_v2.pages.summary import register_summary_callbacks
 from dashboard_v2.pages.training import register_training_callbacks
 
 
@@ -28,6 +29,7 @@ def create_app() -> Dash:
     app.layout = create_layout()
     register_routing_callbacks(app)
     register_callbacks(app)
+    register_summary_callbacks(app)
     register_training_callbacks(app)
     register_analysis_callbacks(app)
     return app
