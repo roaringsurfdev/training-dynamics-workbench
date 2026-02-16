@@ -732,3 +732,37 @@ These could be computed from existing neuron_dynamics cross-epoch data without n
 ---
 
 *The competition-resolution dynamics may be the mechanistic core of grokking. Too much competition (overshoot), too little (undershoot), or just right (basin landing). Causal direction between thrashing and momentum is the key open question.*
+
+---
+
+## 2026-02-16: p59/485 Extended Training — Settling With Damage
+
+### Follow-Up Experiment
+
+Extended p59/485 training from 25K to 35K epochs.
+
+### Results
+
+1. **The thrashing did settle.** The chaotic frequency switching resolved shortly after 25K. The model was not stuck in a fundamentally different attractor landscape — it just needed more damping time.
+2. **The PCA loop tightened.** Recomputing parameter trajectory with 35K epochs reduced the original overshoot. The trajectory geometry moved toward the self-intersecting pattern seen in normal variants.
+3. **Test loss remains underperformant.** Despite settling, the model did not achieve clean grokking performance.
+
+### Interpretation: Arrival State Matters
+
+Settling late is not the same as settling well. By the time p59/485 resolved its thrashing, it had already committed to an impoverished frequency allocation (2 bands instead of 3 — frequency 15 never developed). The model landed in *a* basin, just not the optimal one.
+
+This suggests the **competition window is not just about duration but about timing**. The productive phase — where subnetwork competition shapes which frequency bands develop — has a finite window. What the model brings with it when it finally settles determines solution quality:
+
+| Variant | Arrival state | Outcome |
+|---------|--------------|---------|
+| p109/485 | 3 frequency bands differentiating, right momentum | Clean grokking |
+| p59/485 | Missing frequency band, late arrival after extended chaos | Suboptimal convergence |
+| p101/999 | Premature commitment, degenerate cos/sin ratio | Degenerate solution |
+
+### Refinement to Basin Landing Hypothesis
+
+The basin exists for p59/485 — the model eventually found it. But the basin has structure: arriving with incomplete frequency coverage means settling into a suboptimal region of the basin. The competition window doesn't just determine *whether* you reach the basin, but *where in the basin* you land.
+
+---
+
+*Extended training confirmed p59/485's chaos was temporary but damaging. The competition window shapes what structure the model carries into convergence. Late settling = impoverished solution, even if the model eventually stabilizes.*
