@@ -678,3 +678,91 @@ These could form the basis of a "variant health dashboard" in the cross-variant 
 ---
 
 *p59/485 is a second open-loop anomaly with distinct pathology (missing frequency band, gradient-poor path). First seed=485 anomaly — mechanism is prime×seed interaction, not seed-specific.*
+
+---
+
+## 2026-02-16: Competition Window and Basin Landing — Thrashing as Momentum
+
+*Note: "thrashing" = neurons repeatedly switching dominant frequency across epochs.*
+
+### The Triad
+
+Three variants illustrate a spectrum of subnetwork competition dynamics, visible in both the PC2/PC3 trajectory loop and neuron frequency thrashing (REQ_042):
+
+| Variant | Loop Geometry | Thrashing Pattern | Grokking | Interpretation |
+|---------|--------------|-------------------|----------|----------------|
+| p59/485 | Open (overshoot) | Thrashes throughout training, never fully resolves | Never groks cleanly | Too much momentum — overshoots the basin |
+| p101/999 | Open (undershoot) | Stops thrashing early, commits prematurely | Slow, degenerate solution | Too little momentum — undershoots the basin |
+| p109/485 | Self-intersecting (sweet spot) | Competition resolves productively | Early grokker (5.5K) | Right momentum — lands in the basin |
+
+### The Basin Landing Hypothesis
+
+There appears to be a basin in weight space that the model must reach for clean grokking. The dynamics look like a momentum problem:
+
+1. The model needs **enough competition** (thrashing) to build momentum toward the generalizing basin
+2. But **not so much** that it overshoots and can't settle
+
+This frames grokking as a landing problem: the training trajectory must arrive at the generalizing basin with the right velocity — fast enough to reach it, slow enough to stay.
+
+### Causal Direction: Open Question
+
+Two plausible framings:
+
+**A. Thrashing drives momentum.** Subnetwork competition generates the gradient signal that pushes the model through weight space. Early commitment (p101/999) means losing the gradient signal from competition too soon — the model stalls. Persistent thrashing (p59/485) means the gradient signal never coherently points toward the basin — the model wanders.
+
+**B. Momentum drives thrashing.** The initialization determines the trajectory through weight space. Trajectories that pass near the basin at the right speed naturally resolve competition (neurons commit because the basin is attractive). Trajectories that miss the basin keep thrashing because there's no attractor to settle into.
+
+These aren't mutually exclusive — thrashing and trajectory likely co-determine each other. But the causal priority matters for intervention design: if (A), you'd want to modulate competition directly; if (B), you'd want to modulate trajectory (e.g., LR scheduling).
+
+### Supporting Evidence
+
+- **p59/485** chooses frequencies and follows a "somewhat normal path" on some metrics, yet thrashes throughout. This suggests the thrashing isn't just about *finding* frequencies — it's about the dynamics of *settling* into them. The model found frequencies but couldn't commit. (Supports framing B: trajectory determines commitment.)
+- **p101/999** stops thrashing early and underperforms. If thrashing were purely noise, early cessation should be beneficial. Instead, it correlates with a degenerate solution. (Supports framing A: competition is productive signal.)
+- **p109/485** shows the sweet spot: enough competition to explore, decisive enough commitment to converge. The loop closes at the right moment.
+
+### Potential Metrics
+
+- **Competition window duration**: epoch range where >50% of neurons are actively switching
+- **Resolution sharpness**: rate of commitment (sigmoid-like vs gradual)
+- **Terminal commitment fraction**: what % of neurons are committed at training end
+- **Commitment timing relative to grokking onset**: does commitment precede, coincide with, or follow the test loss drop?
+
+These could be computed from existing neuron_dynamics cross-epoch data without new analyzers.
+
+---
+
+*The competition-resolution dynamics may be the mechanistic core of grokking. Too much competition (overshoot), too little (undershoot), or just right (basin landing). Causal direction between thrashing and momentum is the key open question.*
+
+---
+
+## 2026-02-16: p59/485 Extended Training — Settling With Damage
+
+### Follow-Up Experiment
+
+Extended p59/485 training from 25K to 35K epochs.
+
+### Results
+
+1. **The thrashing did settle.** The chaotic frequency switching resolved shortly after 25K. The model was not stuck in a fundamentally different attractor landscape — it just needed more damping time.
+2. **The PCA loop tightened.** Recomputing parameter trajectory with 35K epochs reduced the original overshoot. The trajectory geometry moved toward the self-intersecting pattern seen in normal variants.
+3. **Test loss remains underperformant.** Despite settling, the model did not achieve clean grokking performance.
+
+### Interpretation: Arrival State Matters
+
+Settling late is not the same as settling well. By the time p59/485 resolved its thrashing, it had already committed to an impoverished frequency allocation (2 bands instead of 3 — frequency 15 never developed). The model landed in *a* basin, just not the optimal one.
+
+This suggests the **competition window is not just about duration but about timing**. The productive phase — where subnetwork competition shapes which frequency bands develop — has a finite window. What the model brings with it when it finally settles determines solution quality:
+
+| Variant | Arrival state | Outcome |
+|---------|--------------|---------|
+| p109/485 | 3 frequency bands differentiating, right momentum | Clean grokking |
+| p59/485 | Missing frequency band, late arrival after extended chaos | Suboptimal convergence |
+| p101/999 | Premature commitment, degenerate cos/sin ratio | Degenerate solution |
+
+### Refinement to Basin Landing Hypothesis
+
+The basin exists for p59/485 — the model eventually found it. But the basin has structure: arriving with incomplete frequency coverage means settling into a suboptimal region of the basin. The competition window doesn't just determine *whether* you reach the basin, but *where in the basin* you land.
+
+---
+
+*Extended training confirmed p59/485's chaos was temporary but damaging. The competition window shapes what structure the model carries into convergence. Late settling = impoverished solution, even if the model eventually stabilizes.*

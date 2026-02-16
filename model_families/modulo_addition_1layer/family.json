@@ -41,7 +41,8 @@
   ],
 
   "cross_epoch_analyzers": [
-    "parameter_trajectory"
+    "parameter_trajectory",
+    "neuron_dynamics"
   ],
 
   "visualizations": [
