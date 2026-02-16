@@ -15,4 +15,4 @@ Phase markers:
 - 1.0.0: First stable release
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
