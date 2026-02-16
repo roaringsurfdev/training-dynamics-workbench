@@ -15,6 +15,7 @@ from dashboard_v2.layout import create_layout
 from dashboard_v2.navigation import register_routing_callbacks
 from dashboard_v2.pages.analysis_run import register_analysis_callbacks
 from dashboard_v2.pages.neuron_dynamics import register_neuron_dynamics_callbacks
+from dashboard_v2.pages.repr_geometry import register_repr_geometry_callbacks
 from dashboard_v2.pages.summary import register_summary_callbacks
 from dashboard_v2.pages.training import register_training_callbacks
 
@@ -32,6 +33,7 @@ def create_app() -> Dash:
     register_callbacks(app)
     register_summary_callbacks(app)
     register_neuron_dynamics_callbacks(app)
+    register_repr_geometry_callbacks(app)
     register_training_callbacks(app)
     register_analysis_callbacks(app)
     return app

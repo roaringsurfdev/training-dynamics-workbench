@@ -21,6 +21,11 @@ from miscope.visualization.renderers.neuron_freq_clusters import (
     render_neuron_freq_trajectory,
     render_switch_count_distribution,
 )
+from miscope.visualization.renderers.repr_geometry import (
+    render_centroid_distances,
+    render_centroid_pca,
+    render_geometry_timeseries,
+)
 
 __all__ = [
     # REQ_004: Dominant frequencies
@@ -42,4 +47,8 @@ __all__ = [
     "render_neuron_freq_trajectory",
     "render_switch_count_distribution",
     "render_commitment_timeline",
+    # REQ_044: Representational geometry
+    "render_geometry_timeseries",
+    "render_centroid_pca",
+    "render_centroid_distances",
 ]
