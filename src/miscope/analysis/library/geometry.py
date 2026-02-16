@@ -119,8 +119,15 @@ def compute_circularity(centroids: np.ndarray) -> float:
     """Compute how well centroids lie on a circle in their top-2 PCA subspace.
 
     Projects centroids into top-2 PCs, fits a circle using the algebraic
-    Kåsa method, and returns a score:
-        score = 1 - (mean_squared_residual / variance_in_2d_plane)
+    Kåsa method, and returns a score weighted by how much variance the
+    top-2 PCs capture:
+
+        raw_score = 1 - (mean_squared_residual / variance_in_2d_plane)
+        score = raw_score * variance_explained_ratio
+
+    The weighting ensures that data which is essentially 1D (collinear)
+    or high-dimensional (random cloud) scores low even if the 2D
+    projection happens to look circular.
 
     Score of 1.0 means perfect circle, 0.0 means no circular structure.
     Clamped to [0, 1].
@@ -131,7 +138,7 @@ def compute_circularity(centroids: np.ndarray) -> float:
     Returns:
         Circularity score in [0, 1]
     """
-    projected = _pca_project_2d(centroids)
+    projected, var_explained = _pca_project_2d(centroids)
     cx, cy, radius = _kasa_circle_fit(projected)
     distances = np.sqrt((projected[:, 0] - cx) ** 2 + (projected[:, 1] - cy) ** 2)
     residuals = distances - radius
@@ -139,7 +146,8 @@ def compute_circularity(centroids: np.ndarray) -> float:
     variance = np.var(projected[:, 0]) + np.var(projected[:, 1])
     if variance < 1e-12:
         return 0.0
-    score = 1.0 - msr / variance
+    raw_score = 1.0 - msr / variance
+    score = raw_score * var_explained
     return float(np.clip(score, 0.0, 1.0))
 
 
@@ -157,7 +165,7 @@ def compute_fourier_alignment(centroids: np.ndarray, p: int) -> float:
     Returns:
         Fourier alignment R^2 in [0, 1]
     """
-    projected = _pca_project_2d(centroids)
+    projected, _ = _pca_project_2d(centroids)
     cx, cy, _ = _kasa_circle_fit(projected)
     angles = np.arctan2(projected[:, 1] - cy, projected[:, 0] - cx)
 
@@ -228,21 +236,39 @@ def compute_fisher_discriminant(
 # --- Private helpers ---
 
 
-def _pca_project_2d(points: np.ndarray) -> np.ndarray:
+def _pca_project_2d(points: np.ndarray) -> tuple[np.ndarray, float]:
     """Project points into their top-2 principal components.
+
+    Returns a quality score that combines two factors:
+    - How much variance the top-2 PCs capture (low for high-D random data)
+    - How balanced the two PCs are (low for 1D/collinear data)
+
+    This ensures circular structure is only reported when the data
+    genuinely lives in a 2D subspace.
 
     Args:
         points: Matrix of shape (n, d)
 
     Returns:
-        Projected points of shape (n, 2)
+        Tuple of (projected points of shape (n, 2),
+                  2D quality score in [0, 1])
     """
     centered = points - points.mean(axis=0)
     cov = centered.T @ centered / centered.shape[0]
     eigenvalues, eigenvectors = np.linalg.eigh(cov)
     # eigh returns ascending order; take last 2
-    top2 = eigenvectors[:, -2:][:, ::-1]
-    return centered @ top2
+    top2_vecs = eigenvectors[:, -2:][:, ::-1]
+    total_var = eigenvalues.sum()
+    if total_var < 1e-12:
+        return centered @ top2_vecs, 0.0
+    top2_var = eigenvalues[-2:].sum()
+    var_explained = top2_var / total_var
+    # Balance: ratio of PC2/PC1 variance (1.0 for circle, 0.0 for line)
+    ev1 = eigenvalues[-1]
+    ev2 = eigenvalues[-2]
+    balance = float(ev2 / ev1) if ev1 > 1e-12 else 0.0
+    quality = float(var_explained * balance)
+    return centered @ top2_vecs, quality
 
 
 def _kasa_circle_fit(points: np.ndarray) -> tuple[float, float, float]:
