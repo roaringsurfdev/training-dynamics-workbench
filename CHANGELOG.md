@@ -5,16 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Changed
-
-- **Project renamed to MIScope** — namespace `tdw` → `miscope` throughout
-- **Source layout restructuring** (REQ_039): core packages (`analysis/`, `families/`, `visualization/`) moved to `src/miscope/`, establishing standard Python src-layout
-- **Gradio dashboard decommissioned** — `dashboard/` removed, shared components migrated to `dashboard_v2/`
-- **Package name** updated to `miscope` in pyproject.toml
-
-## [0.6.0] - 2026-02-13
+## [0.6.0] - 2026-02-15
 
 ### Added
 
@@ -26,8 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ArtifactLoader.load_cross_epoch()` / `has_cross_epoch()` for loading precomputed results
   - Skip-if-exists logic with `force=True` override for recomputation
 
+- **Dash Job Management UI** (REQ_040)
+  - Training page: family selection, domain parameters, training config, checkpoint scheduling
+  - Analysis Run page: variant selection, analyzer selection, run triggering
+  - Site-level navigation via `create_navbar()` with multi-page routing
+  - `ServerState` singleton for server-side training/analysis job management
+
 ### Changed
 
+- **Project renamed to MIScope** — namespace `tdw` → `miscope` throughout (REQ_039)
+- **Source layout restructuring**: core packages moved to `src/miscope/`, standard Python src-layout
+- **Gradio dashboard decommissioned** — `dashboard/` removed, shared components migrated to `dashboard_v2/`
+- **Package name** updated to `miscope` in pyproject.toml
 - **Trajectory renderers** accept precomputed PCA data instead of raw weight snapshots — no computation at render time
 - **Dashboard v2** loads trajectory data from cross-epoch artifacts, significantly faster epoch navigation
 - **Export module** supports new data patterns (`cross_epoch_pca`, `cross_epoch_velocity`, etc.)
@@ -36,15 +37,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Architecture
 
 ```
-analysis/
-  protocols.py                        # + CrossEpochAnalyzer protocol
-  pipeline.py                         # Two-phase execution
-  analyzers/
-    parameter_trajectory_pca.py       # New: first cross-epoch analyzer
-  artifact_loader.py                  # + load_cross_epoch, has_cross_epoch
-visualization/renderers/
-  parameter_trajectory.py             # Refactored: precomputed data input
+src/miscope/                          # Installable API (import miscope.*)
+  analysis/
+    protocols.py                      # + CrossEpochAnalyzer protocol
+    pipeline.py                       # Two-phase execution
+    analyzers/
+      parameter_trajectory_pca.py     # First cross-epoch analyzer
+    artifact_loader.py                # + load_cross_epoch, has_cross_epoch
+  visualization/renderers/
+    parameter_trajectory.py           # Refactored: precomputed data input
+dashboard_v2/
+  pages/training.py                   # New: Training page
+  pages/analysis_run.py               # New: Analysis Run page
+  navigation.py                       # New: site-level navigation
+  state.py                            # + ServerState
 ```
+
+### References
+
+- Archived requirements: `requirements/archive/v0.6.0-miscope/`
+- Milestone summary: `requirements/archive/v0.6.0-miscope/MILESTONE_SUMMARY.md`
 
 ## [0.5.0] - 2026-02-13
 
