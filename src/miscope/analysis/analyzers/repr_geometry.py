@@ -24,6 +24,7 @@ from miscope.analysis.library.geometry import (
     compute_class_dimensionality,
     compute_class_radii,
     compute_fisher_discriminant,
+    compute_fisher_matrix,
     compute_fourier_alignment,
 )
 
@@ -35,7 +36,7 @@ _SITES = {
     "resid_post": {"extractor": "residual", "location": "resid_post"},
 }
 
-# Summary keys: 8 scalar measures per site
+# Summary keys: 11 scalar measures per site
 _SCALAR_KEYS = [
     "mean_radius",
     "mean_dim",
@@ -45,6 +46,9 @@ _SCALAR_KEYS = [
     "fourier_alignment",
     "fisher_mean",
     "fisher_min",
+    "fisher_argmin_r",
+    "fisher_argmin_s",
+    "fisher_argmin_diff",
 ]
 
 
@@ -157,6 +161,20 @@ class RepresentationalGeometryAnalyzer:
             activations, labels, centroids
         )
 
+        # Find the argmin pair (weakest separation) from the full Fisher matrix
+        fisher_mat = compute_fisher_matrix(centroids, radii)
+        r_idx, s_idx = np.triu_indices(p, k=1)
+        fisher_upper = fisher_mat[r_idx, s_idx]
+        if len(fisher_upper) > 0:
+            argmin_idx = int(np.argmin(fisher_upper))
+            argmin_r = int(r_idx[argmin_idx])
+            argmin_s = int(s_idx[argmin_idx])
+            # Circular distance in residue space
+            raw_diff = abs(argmin_s - argmin_r)
+            argmin_diff = min(raw_diff, p - raw_diff)
+        else:
+            argmin_r, argmin_s, argmin_diff = 0, 0, 0
+
         return {
             "centroids": centroids,
             "radii": radii,
@@ -169,4 +187,7 @@ class RepresentationalGeometryAnalyzer:
             "fourier_alignment": np.float64(fourier_align),
             "fisher_mean": np.float64(fisher_mean),
             "fisher_min": np.float64(fisher_min),
+            "fisher_argmin_r": np.float64(argmin_r),
+            "fisher_argmin_s": np.float64(argmin_s),
+            "fisher_argmin_diff": np.float64(argmin_diff),
         }

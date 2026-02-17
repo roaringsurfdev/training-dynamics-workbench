@@ -14,6 +14,7 @@ Functions:
 - compute_circularity: How well centroids lie on a circle (Kåsa circle fit)
 - compute_fourier_alignment: Whether angular ordering matches residue class ordering
 - compute_fisher_discriminant: Pairwise Fisher discriminant ratio statistics
+- compute_fisher_matrix: Full pairwise Fisher discriminant matrix from stored data
 """
 
 import numpy as np
@@ -260,6 +261,39 @@ def compute_fisher_discriminant(
     mean_fisher = float(np.mean(fisher_values[finite_mask]))
     min_fisher = float(np.min(fisher_values[finite_mask]))
     return mean_fisher, min_fisher
+
+
+def compute_fisher_matrix(
+    centroids: np.ndarray,
+    radii: np.ndarray,
+) -> np.ndarray:
+    """Compute full pairwise Fisher discriminant matrix from stored data.
+
+    J(r, s) = ||mu_r - mu_s||^2 / (radius_r^2 + radius_s^2)
+
+    This function operates on pre-computed centroids and radii (as stored
+    in per-epoch artifacts), enabling render-time computation without
+    needing raw activations. radii^2 equals within-class variance.
+
+    Args:
+        centroids: Class centroid matrix, shape (n_classes, d)
+        radii: RMS radius per class, shape (n_classes,)
+
+    Returns:
+        Fisher discriminant matrix, shape (n_classes, n_classes).
+        Symmetric with zero diagonal.
+    """
+    variances = radii**2
+    diffs = centroids[:, np.newaxis, :] - centroids[np.newaxis, :, :]
+    pairwise_sq_dists = np.sum(diffs**2, axis=2)
+    pairwise_within = variances[:, np.newaxis] + variances[np.newaxis, :]
+    fisher_matrix = np.where(
+        pairwise_within > 0,
+        pairwise_sq_dists / np.maximum(pairwise_within, 1e-12),
+        0.0,
+    )
+    np.fill_diagonal(fisher_matrix, 0.0)
+    return fisher_matrix
 
 
 # --- Private helpers ---
