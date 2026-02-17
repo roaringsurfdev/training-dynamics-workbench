@@ -218,14 +218,14 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
             no_data = _empty_figure(msg)
             return no_data, no_data, no_data, 1, 0, msg
 
-        # Time-series from summary
-        site = None if site_value == "all" else site_value
-        timeseries = _render_timeseries(loader, site)
-
         # Centroid snapshot at first epoch
         epochs = loader.get_epochs("repr_geometry")
         slider_max = max(len(epochs) - 1, 1)
         epoch = epochs[0] if epochs else 0
+
+        # Time-series from summary (with epoch indicator)
+        site = None if site_value == "all" else site_value
+        timeseries = _render_timeseries(loader, site, current_epoch=epoch)
         prime = server_state.model_config.get("prime", 113)
         snapshot_site = "resid_post" if site_value == "all" else site_value
         pca_fig, dist_fig = _render_snapshot(loader, epoch, snapshot_site, prime)
@@ -236,18 +236,20 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
     @app.callback(
         Output("rg-timeseries-plot", "figure", allow_duplicate=True),
         Input("rg-site-dropdown", "value"),
+        State("rg-epoch-slider", "value"),
         prevent_initial_call=True,
     )
-    def on_rg_site_change(site_value: str):
+    def on_rg_site_change(site_value: str, epoch_idx: int):
         loader = server_state.get_loader()
         if loader is None or "repr_geometry" not in server_state.available_analyzers:
             return _empty_figure("No data")
         site = None if site_value == "all" else site_value
-        return _render_timeseries(loader, site)
+        epochs = loader.get_epochs("repr_geometry")
+        epoch = epochs[epoch_idx] if epochs and epoch_idx < len(epochs) else None
+        return _render_timeseries(loader, site, current_epoch=epoch)
 
     @app.callback(
-        Output("rg-centroid-pca-plot", "figure", allow_duplicate=True),
-        Output("rg-centroid-dist-plot", "figure", allow_duplicate=True),
+        *[Output(pid, "figure", allow_duplicate=True) for pid in _PLOT_IDS],
         Input("rg-epoch-slider", "value"),
         State("rg-site-dropdown", "value"),
         prevent_initial_call=True,
@@ -256,26 +258,34 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         loader = server_state.get_loader()
         if loader is None or "repr_geometry" not in server_state.available_analyzers:
             empty = _empty_figure("No data")
-            return empty, empty
+            return empty, empty, empty
 
         epochs = loader.get_epochs("repr_geometry")
         if not epochs or epoch_idx >= len(epochs):
             empty = _empty_figure("Invalid epoch")
-            return empty, empty
+            return empty, empty, empty
 
         epoch = epochs[epoch_idx]
         prime = server_state.model_config.get("prime", 113)
+        site = None if site_value == "all" else site_value
         snapshot_site = "resid_post" if site_value == "all" else site_value
-        return _render_snapshot(loader, epoch, snapshot_site, prime)
+
+        timeseries = _render_timeseries(loader, site, current_epoch=epoch)
+        pca_fig, dist_fig = _render_snapshot(loader, epoch, snapshot_site, prime)
+        return timeseries, pca_fig, dist_fig
 
 
-def _render_timeseries(loader, site: str | None) -> go.Figure:
+def _render_timeseries(
+    loader, site: str | None, current_epoch: int | None = None
+) -> go.Figure:
     """Render time-series from summary data."""
     if not loader.has_summary("repr_geometry"):
         return _empty_figure("No summary data. Run analysis pipeline first.")
     try:
         summary = loader.load_summary("repr_geometry")
-        return render_geometry_timeseries(summary, site=site)
+        return render_geometry_timeseries(
+            summary, site=site, current_epoch=current_epoch
+        )
     except FileNotFoundError:
         return _empty_figure("No summary data")
 
