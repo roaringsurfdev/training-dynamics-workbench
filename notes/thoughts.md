@@ -766,3 +766,70 @@ The basin exists for p59/485 — the model eventually found it. But the basin ha
 ---
 
 *Extended training confirmed p59/485's chaos was temporary but damaging. The competition window shapes what structure the model carries into convergence. Late settling = impoverished solution, even if the model eventually stabilizes.*
+
+---
+
+## 2026-02-16: Representational Geometry — Activation-Space Confirmation of Weight-Space Story
+
+### Three-Variant Comparison (REQ_044 Visualizations)
+
+The representational geometry analyzer (centroid PCA, distance heatmaps, time-series metrics) provides activation-space evidence that directly confirms and extends the weight-space observations from parameter trajectory analysis.
+
+| Metric | p113/999 (control) | p101/485 (slow) | p101/999 (anomalous) |
+|--------|-------------------|-----------------|---------------------|
+| Circle formation epoch | ~9K (grokking turn) | ~16K+ (delayed) | ~18K (transient) |
+| Var explained (top-2 PCs) | 76% → 57% (stable) | 30% → 39% (slowly improving) | 30% → 29% (lost) |
+| Circle quality | Tight, evenly spaced | Wobbly, less crisp | Momentary then collapsed |
+| Distance heatmap banding | Clean diagonal stripes | Faint then moderate | Brief structure, then muddy |
+| Fisher discriminant (Resid Post) | ~13 (strong) | ~10 (moderate) | ~6.5 (weak) |
+| Dimensionality collapse | Sharp at ~9K | Gradual at ~15K | Gradual, never fully resolves |
+| Circularity time-series | Clean transition | Noisy oscillation 8-15K | Violent oscillation 8-20K, never settles |
+
+### Key Insight: Variance Explained as Compression Proxy
+
+The top-2 PCA variance explained tracks how well the model has compressed its class representations into a 2D Fourier subspace. This is the **activation-space mirror** of the weight-space dimensionality compression (participation ratio ~25-30 threshold) observed earlier:
+
+- **p113/999**: 76% at epoch 9K → the model has already packed most class structure into 2 dimensions. This is a *compressed* representation.
+- **p101/485**: Only 39% even at 25K → class structure is spread across more dimensions. The model is working but inefficiently.
+- **p101/999**: 30% and declining → the model briefly found 2D structure but couldn't maintain it. The representations are *expanding* back into higher dimensions.
+
+### Connection to Basin Landing Hypothesis
+
+The momentary circle at epoch 18K in p101/999 is the geometric manifestation of the "transient approach to the generalizing manifold" from the basin landing hypothesis. The model's activation-space centroids briefly arrange into the Fourier circle — the model *found* the solution — but couldn't maintain it because the weight-space dynamics (degenerate cos/sin ratio, premature neuron commitment) don't support stable circular structure.
+
+This provides a new way to think about grokking failure: it's not that p101/999 never discovers the algorithm, it's that the algorithm is **transiently expressed but not consolidated**. The weight-space substrate can't hold the activation-space geometry.
+
+### Circularity Time-Series as Diagnostic
+
+The circularity & Fourier alignment panel in the time-series view turns out to be an excellent diagnostic for grokking health:
+- **Clean transition** (p113/999): single sharp rise, stable plateau → healthy grokking
+- **Noisy oscillation** (p101/485): oscillations that eventually settle → delayed but viable
+- **Violent persistent oscillation** (p101/999): never settles → pathological
+
+This could be a strong candidate metric for the "variant health dashboard" concept from the cross-variant analysis discussion.
+
+---
+
+*Representational geometry provides activation-space confirmation of the weight-space grokking story. Variance explained tracks compression quality; circularity time-series tracks grokking health. The transient circle in p101/999 shows the model found but couldn't hold the solution.*
+
+### p59/485 — Overshooter Lands Late But Sticks
+
+p59/485 adds the critical fourth comparison point:
+
+| Metric | p113/999 | p101/485 | p101/999 | p59/485 |
+|--------|----------|----------|----------|---------|
+| Circle at training end | Solid (57%) | Wobbly (39%) | Lost (29%) | Solid (56%) |
+| Fisher discriminant | ~13 | ~10 | ~6.5 | ~20 (highest) |
+| Center spread (Resid Post) | ~50, plateaued | ~40, plateaued | ~35 | ~120, still climbing |
+| Centroid scale (PC axes) | ±50 | ±30 | ±20 | ±100 |
+| Grokking onset | ~9K | ~15K | Never clean | ~24K |
+
+**Key finding**: p59/485 arrives late to the generalizing basin but builds the strongest separation of any variant observed. Its Fisher discriminant (~20) exceeds even p113/999 (~13). The centroid scale is enormous (±100 vs ±50) — the model appears to be *overcompensating* for having only 2 frequency bands instead of 3 by pushing centroids further apart.
+
+**Contrast with p101/999**: Both have open PC2/PC3 loops. Both are anomalous. But p59/485 eventually forms a solid circle (56% var explained, rising), while p101/999 loses its circle (29%, declining). The difference: p59/485 had enough momentum to stick when it arrived; p101/999 committed too early and bounced off.
+
+**Refinement to basin landing hypothesis**: Arrival velocity matters more than arrival timing. Late arrivals can succeed if they carry enough momentum. Early arrivals fail if they lack the dynamical structure (frequency balance, neuron competition) to sustain the solution. The basin is sticky for well-prepared models and slippery for under-prepared ones.
+
+---
+
+*p59/485 proves the basin is reachable even via the overshoot path. The overshooter compensates with massive scale. The undershooter (p101/999) fails not because it can't find the basin, but because it can't stay.*

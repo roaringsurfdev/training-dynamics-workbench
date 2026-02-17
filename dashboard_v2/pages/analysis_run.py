@@ -119,10 +119,11 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         EffectiveDimensionalityAnalyzer,
         LandscapeFlatnessAnalyzer,
         NeuronActivationsAnalyzer,
+        NeuronDynamicsAnalyzer,
         NeuronFreqClustersAnalyzer,
         ParameterSnapshotAnalyzer,
-        NeuronDynamicsAnalyzer,
         ParameterTrajectoryPCA,
+        RepresentationalGeometryAnalyzer,
     )
 
     try:
@@ -157,6 +158,7 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         pipeline.register(ParameterSnapshotAnalyzer())
         pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.register(LandscapeFlatnessAnalyzer())
+        pipeline.register(RepresentationalGeometryAnalyzer())
         pipeline.register_cross_epoch(NeuronDynamicsAnalyzer())
         pipeline.register_cross_epoch(ParameterTrajectoryPCA())
         pipeline.run(progress_callback=progress_callback)

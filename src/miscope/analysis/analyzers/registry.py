@@ -143,10 +143,11 @@ def register_default_analyzers() -> None:
     from miscope.analysis.analyzers.effective_dimensionality import EffectiveDimensionalityAnalyzer
     from miscope.analysis.analyzers.landscape_flatness import LandscapeFlatnessAnalyzer
     from miscope.analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
+    from miscope.analysis.analyzers.neuron_dynamics import NeuronDynamicsAnalyzer
     from miscope.analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
     from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
-    from miscope.analysis.analyzers.neuron_dynamics import NeuronDynamicsAnalyzer
     from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
+    from miscope.analysis.analyzers.repr_geometry import RepresentationalGeometryAnalyzer
 
     AnalyzerRegistry.register(AttentionFreqAnalyzer)
     AnalyzerRegistry.register(AttentionPatternsAnalyzer)
@@ -157,6 +158,7 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register(ParameterSnapshotAnalyzer)
     AnalyzerRegistry.register(EffectiveDimensionalityAnalyzer)
     AnalyzerRegistry.register(LandscapeFlatnessAnalyzer)
+    AnalyzerRegistry.register(RepresentationalGeometryAnalyzer)
 
     AnalyzerRegistry.register_cross_epoch(ParameterTrajectoryPCA)
     AnalyzerRegistry.register_cross_epoch(NeuronDynamicsAnalyzer)

@@ -19,6 +19,7 @@ def create_navbar() -> dbc.NavbarSimple:
             dbc.NavItem(dbc.NavLink("Visualization", href="/")),
             dbc.NavItem(dbc.NavLink("Summary", href="/summary")),
             dbc.NavItem(dbc.NavLink("Neuron Dynamics", href="/neuron-dynamics")),
+            dbc.NavItem(dbc.NavLink("Repr Geometry", href="/repr-geometry")),
             dbc.NavItem(dbc.NavLink("Training", href="/training")),
             dbc.NavItem(dbc.NavLink("Analysis Run", href="/analysis-run")),
         ],
@@ -35,6 +36,7 @@ def register_routing_callbacks(app: Dash) -> None:
     from dashboard_v2.layout import create_visualization_layout
     from dashboard_v2.pages.analysis_run import create_analysis_run_layout
     from dashboard_v2.pages.neuron_dynamics import create_neuron_dynamics_layout
+    from dashboard_v2.pages.repr_geometry import create_repr_geometry_layout
     from dashboard_v2.pages.summary import create_summary_layout
     from dashboard_v2.pages.training import create_training_layout
 
@@ -51,4 +53,6 @@ def register_routing_callbacks(app: Dash) -> None:
             return create_summary_layout()
         elif pathname == "/neuron-dynamics":
             return create_neuron_dynamics_layout()
+        elif pathname == "/repr-geometry":
+            return create_repr_geometry_layout()
         return create_visualization_layout()
