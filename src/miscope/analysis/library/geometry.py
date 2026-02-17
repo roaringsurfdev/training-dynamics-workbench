@@ -3,6 +3,9 @@
 Pure numpy functions for computing geometric properties of class manifolds
 in activation space. No torch dependency — all inputs are numpy arrays.
 
+Functions are vectorized where possible to minimize Python loop overhead
+when computing across many classes (p can be 113+).
+
 Functions:
 - compute_class_centroids: Mean activation vector per output class
 - compute_class_radii: RMS distance from centroid per class
@@ -23,6 +26,8 @@ def compute_class_centroids(
 ) -> np.ndarray:
     """Compute mean activation vector per output class.
 
+    Vectorized: uses np.add.at for scatter-add, no Python loop.
+
     Args:
         activations: Activation matrix, shape (n_samples, d)
         labels: Integer class labels, shape (n_samples,)
@@ -33,9 +38,10 @@ def compute_class_centroids(
     """
     d = activations.shape[1]
     centroids = np.zeros((n_classes, d))
-    for r in range(n_classes):
-        mask = labels == r
-        centroids[r] = activations[mask].mean(axis=0)
+    np.add.at(centroids, labels, activations)
+    counts = np.bincount(labels, minlength=n_classes).reshape(-1, 1)
+    counts = np.maximum(counts, 1)  # avoid division by zero
+    centroids /= counts
     return centroids
 
 
@@ -46,6 +52,9 @@ def compute_class_radii(
 ) -> np.ndarray:
     """Compute RMS distance from centroid for each class.
 
+    Vectorized: broadcasts centroids[labels] across all samples,
+    then aggregates per class with bincount.
+
     Args:
         activations: Activation matrix, shape (n_samples, d)
         labels: Integer class labels, shape (n_samples,)
@@ -55,12 +64,14 @@ def compute_class_radii(
         Radii array, shape (n_classes,)
     """
     n_classes = centroids.shape[0]
-    radii = np.zeros(n_classes)
-    for r in range(n_classes):
-        mask = labels == r
-        diffs = activations[mask] - centroids[r]
-        radii[r] = np.sqrt(np.mean(np.sum(diffs**2, axis=1)))
-    return radii
+    # Compute squared distances from each sample to its class centroid
+    diffs = activations - centroids[labels]
+    sq_dists = np.sum(diffs**2, axis=1)  # (n_samples,)
+    # Sum squared distances per class
+    sum_sq = np.bincount(labels, weights=sq_dists, minlength=n_classes)
+    counts = np.bincount(labels, minlength=n_classes).astype(float)
+    counts = np.maximum(counts, 1)
+    return np.sqrt(sum_sq / counts)
 
 
 def compute_class_dimensionality(
@@ -70,11 +81,16 @@ def compute_class_dimensionality(
 ) -> np.ndarray:
     """Compute effective dimensionality (participation ratio) per class.
 
-    For each class, runs PCA on centered activations and computes:
+    For each class, computes participation ratio from eigenvalues of
+    the class covariance matrix:
         D_eff = (sum(eigenvalues))^2 / sum(eigenvalues^2)
 
     This equals 1 if all variance is on one axis, and d if variance
     is uniform across d dimensions.
+
+    Note: This function retains a per-class loop for the eigendecomposition
+    since numpy does not support batched eigvalsh. The loop body is kept
+    minimal — covariance via matrix multiply, eigvalsh, two reductions.
 
     Args:
         activations: Activation matrix, shape (n_samples, d)
@@ -89,7 +105,11 @@ def compute_class_dimensionality(
     for r in range(n_classes):
         mask = labels == r
         centered = activations[mask] - centroids[r]
-        cov = centered.T @ centered / centered.shape[0]
+        n = centered.shape[0]
+        if n < 2:
+            dims[r] = 0.0
+            continue
+        cov = centered.T @ centered / n
         eigenvalues = np.linalg.eigvalsh(cov)
         eigenvalues = np.maximum(eigenvalues, 0.0)
         sum_ev = eigenvalues.sum()
@@ -158,6 +178,8 @@ def compute_fourier_alignment(centroids: np.ndarray, p: int) -> float:
     frequency k that best explains the angular positions as theta_r = 2*pi*k*r/p.
     Returns R^2 of the best fit.
 
+    Vectorized: tests all frequencies k in one broadcast operation.
+
     Args:
         centroids: Centroid matrix, shape (p, d) where rows are ordered by class
         p: Prime (number of classes, should equal centroids.shape[0])
@@ -169,20 +191,16 @@ def compute_fourier_alignment(centroids: np.ndarray, p: int) -> float:
     cx, cy, _ = _kasa_circle_fit(projected)
     angles = np.arctan2(projected[:, 1] - cy, projected[:, 0] - cx)
 
-    residue_indices = np.arange(p)
-    best_r2 = 0.0
-
-    for k in range(1, p):
-        expected_angles = 2 * np.pi * k * residue_indices / p
-        # Fit: angles ≈ expected_angles + offset (mod 2pi)
-        # Use circular correlation via complex exponentials
-        z_observed = np.exp(1j * angles)
-        z_expected = np.exp(1j * expected_angles)
-        correlation = np.abs(np.mean(z_observed * np.conj(z_expected))) ** 2
-        if correlation > best_r2:
-            best_r2 = correlation
-
-    return float(best_r2)
+    # Test all frequencies k=1..p-1 in one vectorized operation
+    z_observed = np.exp(1j * angles)  # (p,)
+    k_values = np.arange(1, p)  # (p-1,)
+    residue_indices = np.arange(p)  # (p,)
+    # Expected angles for each k: (p-1, p)
+    expected = 2 * np.pi * k_values[:, np.newaxis] * residue_indices[np.newaxis, :] / p
+    z_expected = np.exp(1j * expected)  # (p-1, p)
+    # Circular correlation for each k
+    correlations = np.abs(np.mean(z_observed[np.newaxis, :] * np.conj(z_expected), axis=1)) ** 2
+    return float(np.max(correlations))
 
 
 def compute_fisher_discriminant(
@@ -197,6 +215,9 @@ def compute_fisher_discriminant(
 
     where sigma_r^2 is the mean within-class variance for class r.
 
+    Vectorized: within-class variances via bincount, pairwise distances
+    and Fisher ratios via scipy-style pdist broadcasting.
+
     Args:
         activations: Activation matrix, shape (n_samples, d)
         labels: Integer class labels, shape (n_samples,)
@@ -206,30 +227,38 @@ def compute_fisher_discriminant(
         Tuple of (mean_fisher, min_fisher) across all class pairs
     """
     n_classes = centroids.shape[0]
-    # Compute within-class variance for each class
-    variances = np.zeros(n_classes)
-    for r in range(n_classes):
-        mask = labels == r
-        diffs = activations[mask] - centroids[r]
-        variances[r] = np.mean(np.sum(diffs**2, axis=1))
 
-    fisher_values = []
-    for r in range(n_classes):
-        for s in range(r + 1, n_classes):
-            between = np.sum((centroids[r] - centroids[s]) ** 2)
-            within = variances[r] + variances[s]
-            if within > 0:
-                fisher_values.append(between / within)
-            else:
-                fisher_values.append(float("inf"))
+    # Within-class variance per class (vectorized)
+    diffs = activations - centroids[labels]
+    sq_dists = np.sum(diffs**2, axis=1)
+    sum_sq = np.bincount(labels, weights=sq_dists, minlength=n_classes)
+    counts = np.bincount(labels, minlength=n_classes).astype(float)
+    counts = np.maximum(counts, 1)
+    variances = sum_sq / counts  # (n_classes,)
 
-    fisher_arr = np.array(fisher_values)
-    # Replace inf with finite max for mean computation
-    finite_mask = np.isfinite(fisher_arr)
+    # Pairwise between-class distances (vectorized)
+    # ||mu_r - mu_s||^2 for all pairs using broadcasting
+    centroid_diffs = centroids[:, np.newaxis, :] - centroids[np.newaxis, :, :]
+    pairwise_sq_dists = np.sum(centroid_diffs**2, axis=2)  # (n_classes, n_classes)
+
+    # Pairwise within-class variance sums
+    pairwise_within = variances[:, np.newaxis] + variances[np.newaxis, :]
+
+    # Fisher ratios (upper triangle only)
+    r_idx, s_idx = np.triu_indices(n_classes, k=1)
+    between = pairwise_sq_dists[r_idx, s_idx]
+    within = pairwise_within[r_idx, s_idx]
+
+    # Compute ratios, handling zero within-class variance
+    valid = within > 0
+    if not valid.any():
+        return 0.0, 0.0
+    fisher_values = np.where(valid, between / np.maximum(within, 1e-12), np.inf)
+    finite_mask = np.isfinite(fisher_values)
     if not finite_mask.any():
         return 0.0, 0.0
-    mean_fisher = float(np.mean(fisher_arr[finite_mask]))
-    min_fisher = float(np.min(fisher_arr[finite_mask]))
+    mean_fisher = float(np.mean(fisher_values[finite_mask]))
+    min_fisher = float(np.min(fisher_values[finite_mask]))
     return mean_fisher, min_fisher
 
 
