@@ -1,0 +1,21 @@
+## Roadmap Rough Draft
+*This is a landing place for a high-level collection of future **infrastructure** work. This is not meant to store future research ideas. It is not in any particular order and it is not meant to be authorative. As items are completed, they may be removed from this document.*
+
+
+### Context-Aware Navigation (context_aware_navigation.md)
+It would be helpful to have a consistent left navigation that stays consistent across the application. The context of the left navigation can change based on context and it has expand/collapse behavior.
+
+### Consistent-Time Series Visualization Behavior
+It is incredibly helpful to be able to click on a Visualization to navigate to an epoch of interest. For any time-series visualization with epochs along the x-axis, it would be ideal if they all shared the default behavior such that clicking on the visualization navigates to the epoch.
+
+I'm not sure whether it would be necessary or useful to also provide the checkpoints on every visualization. I think this could either be informative or over-kill. Interpretation of time-series might change if the checkpoints are made clear.
+
+*Note: There is an older requirement in the future bin that is related to this and may be outdated: REQ_014. I think it's actually completed and could be moved to the archive.*
+
+### Asynchronous Job Support
+As we add more Variants and Analyzers, it would be nice to kick of Analysis runs as asynchronous jobs so that (1) the user can continue using the application and (2) the user can return to the Analysis Job Manager to check on the status of runs.
+
+Once this capability is created for Analysis, it would be ideal to add Asynchronous Job Support for Training models. A use case for kicking off batches of Training runs would be if we wanted to add a new random seed across multiple Variants.
+
+### Support for Choosing Subset for Analysis Runs
+The Representational Geometry Analyzer is incredibly powerful and useful. However, it is a long-running Analyzer compared to the others. We may have other Analyzers that are similarly long-running. This might create friction for creating and exploring new Variants, since all Analyzers must run in order to Analyze a Variant. It would be nice to be able to choose which Analyzers to run.
