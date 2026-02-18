@@ -335,9 +335,7 @@ def render_centroid_pca(
     )
 
     positions = [(1, 1), (1, 2), (2, 1)]
-    for (pc_a, pc_b), (xl, yl), (row, col) in zip(
-        pc_pairs, pair_labels, positions
-    ):
+    for (pc_a, pc_b), (xl, yl), (row, col) in zip(pc_pairs, pair_labels, positions):
         fig.add_trace(
             go.Scatter(
                 x=projected[:, pc_a],
@@ -353,8 +351,7 @@ def render_centroid_pca(
                 textposition="top center",
                 textfont=dict(size=7),
                 hovertemplate=(
-                    f"Residue %{{text}}<br>{xl}: %{{x:.3f}}"
-                    f"<br>{yl}: %{{y:.3f}}<extra></extra>"
+                    f"Residue %{{text}}<br>{xl}: %{{x:.3f}}<br>{yl}: %{{y:.3f}}<extra></extra>"
                 ),
                 showlegend=False,
             ),
@@ -386,8 +383,7 @@ def render_centroid_pca(
             text=labels,
             textfont=dict(size=6),
             hovertemplate=(
-                "Residue %{text}<br>PC1: %{x:.3f}"
-                "<br>PC2: %{y:.3f}<br>PC3: %{z:.3f}<extra></extra>"
+                "Residue %{text}<br>PC1: %{x:.3f}<br>PC2: %{y:.3f}<br>PC3: %{z:.3f}<extra></extra>"
             ),
             showlegend=False,
         ),

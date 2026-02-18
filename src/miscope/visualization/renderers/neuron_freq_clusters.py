@@ -446,9 +446,7 @@ def _build_freq_colorscale(n_freq: int) -> list[list]:
     for i in range(n_freq):
         hue = i / n_freq
         r, g, b = colorsys.hls_to_rgb(hue, 0.55, 0.5)
-        colorscale.append(
-            [i / (n_freq - 1), f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"]
-        )
+        colorscale.append([i / (n_freq - 1), f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"])
     return colorscale
 
 
@@ -492,10 +490,12 @@ def render_neuron_freq_trajectory(
 
     # Apply sort if requested
     if sorted_by_final:
-        sort_order = np.lexsort((
-            -max_frac[-1],
-            dominant_freq[-1],
-        ))
+        sort_order = np.lexsort(
+            (
+                -max_frac[-1],
+                dominant_freq[-1],
+            )
+        )
         dominant_freq = dominant_freq[:, sort_order]
         max_frac = max_frac[:, sort_order]
 
@@ -523,11 +523,7 @@ def render_neuron_freq_trajectory(
                 thickness=15,
                 len=0.9,
             ),
-            hovertemplate=(
-                "Epoch %{x}<br>"
-                "Neuron %{y}<br>"
-                "Dominant Freq: %{z:.0f}<extra></extra>"
-            ),
+            hovertemplate=("Epoch %{x}<br>Neuron %{y}<br>Dominant Freq: %{z:.0f}<extra></extra>"),
         )
     )
 

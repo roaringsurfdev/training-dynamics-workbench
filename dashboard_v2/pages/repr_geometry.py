@@ -236,9 +236,7 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         timeseries = _render_timeseries(loader, site, current_epoch=epoch)
         prime = server_state.model_config.get("prime", 113) if server_state.model_config else 113
         snapshot_site = "resid_post" if site_value == "all" else site_value
-        pca_fig, dist_fig, fisher_fig = _render_snapshot(
-            loader, epoch, snapshot_site, prime
-        )
+        pca_fig, dist_fig, fisher_fig = _render_snapshot(loader, epoch, snapshot_site, prime)
 
         status = f"{variant_name} — {len(epochs)} epochs"
         return timeseries, pca_fig, dist_fig, fisher_fig, slider_max, 0, status
@@ -281,23 +279,17 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         snapshot_site = "resid_post" if site_value == "all" else site_value
 
         timeseries = _render_timeseries(loader, site, current_epoch=epoch)
-        pca_fig, dist_fig, fisher_fig = _render_snapshot(
-            loader, epoch, snapshot_site, prime
-        )
+        pca_fig, dist_fig, fisher_fig = _render_snapshot(loader, epoch, snapshot_site, prime)
         return timeseries, pca_fig, dist_fig, fisher_fig
 
 
-def _render_timeseries(
-    loader, site: str | None, current_epoch: int | None = None
-) -> go.Figure:
+def _render_timeseries(loader, site: str | None, current_epoch: int | None = None) -> go.Figure:
     """Render time-series from summary data."""
     if not loader.has_summary("repr_geometry"):
         return _empty_figure("No summary data. Run analysis pipeline first.")
     try:
         summary = loader.load_summary("repr_geometry")
-        return render_geometry_timeseries(
-            summary, site=site, current_epoch=current_epoch
-        )
+        return render_geometry_timeseries(summary, site=site, current_epoch=current_epoch)
     except FileNotFoundError:
         return _empty_figure("No summary data")
 

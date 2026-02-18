@@ -205,13 +205,11 @@ def register_neuron_dynamics_callbacks(app: Dash) -> None:
         _cached_cross_epoch = cross_epoch
         _cached_variant = variant_name
 
-        prime = server_state.model_config.get("prime", 101)
-        seed = server_state.model_config.get("seed")
+        prime = server_state.model_config.get("prime", 101)  # type: ignore
+        seed = server_state.model_config.get("seed")  # type: ignore
         sorted_flag = sort_value == "sorted"
 
-        trajectory = render_neuron_freq_trajectory(
-            cross_epoch, prime, sorted_by_final=sorted_flag
-        )
+        trajectory = render_neuron_freq_trajectory(cross_epoch, prime, sorted_by_final=sorted_flag)
         switch_dist = render_switch_count_distribution(cross_epoch, prime, seed=seed)
         commitment = render_commitment_timeline(cross_epoch, prime, seed=seed)
 
@@ -230,7 +228,7 @@ def register_neuron_dynamics_callbacks(app: Dash) -> None:
         if _cached_cross_epoch is None:
             return _empty_figure("Select a variant")
 
-        prime = server_state.model_config.get("prime", 101)
+        prime = server_state.model_config.get("prime", 101)  # type: ignore
         sorted_flag = sort_value == "sorted"
         return render_neuron_freq_trajectory(
             _cached_cross_epoch, prime, sorted_by_final=sorted_flag

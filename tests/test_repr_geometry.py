@@ -30,12 +30,14 @@ from miscope.visualization.renderers.repr_geometry import render_fisher_heatmap
 
 class TestComputeClassCentroids:
     def test_two_classes_known_centroids(self):
-        activations = np.array([
-            [1.0, 0.0],
-            [3.0, 0.0],
-            [0.0, 1.0],
-            [0.0, 3.0],
-        ])
+        activations = np.array(
+            [
+                [1.0, 0.0],
+                [3.0, 0.0],
+                [0.0, 1.0],
+                [0.0, 3.0],
+            ]
+        )
         labels = np.array([0, 0, 1, 1])
         centroids = compute_class_centroids(activations, labels, 2)
         np.testing.assert_allclose(centroids[0], [2.0, 0.0])
@@ -60,12 +62,14 @@ class TestComputeClassRadii:
     def test_known_radius(self):
         # Points at distance 1 from centroid in all directions
         centroids = np.array([[0.0, 0.0]])
-        activations = np.array([
-            [1.0, 0.0],
-            [-1.0, 0.0],
-            [0.0, 1.0],
-            [0.0, -1.0],
-        ])
+        activations = np.array(
+            [
+                [1.0, 0.0],
+                [-1.0, 0.0],
+                [0.0, 1.0],
+                [0.0, -1.0],
+            ]
+        )
         labels = np.array([0, 0, 0, 0])
         radii = compute_class_radii(activations, labels, centroids)
         assert radii[0] == pytest.approx(1.0)
@@ -74,12 +78,14 @@ class TestComputeClassRadii:
 class TestComputeClassDimensionality:
     def test_one_dimensional_data(self):
         # All variance on one axis
-        activations = np.array([
-            [1.0, 0.0],
-            [2.0, 0.0],
-            [3.0, 0.0],
-            [4.0, 0.0],
-        ])
+        activations = np.array(
+            [
+                [1.0, 0.0],
+                [2.0, 0.0],
+                [3.0, 0.0],
+                [4.0, 0.0],
+            ]
+        )
         labels = np.array([0, 0, 0, 0])
         centroids = np.array([[2.5, 0.0]])
         dims = compute_class_dimensionality(activations, labels, centroids)
@@ -87,12 +93,14 @@ class TestComputeClassDimensionality:
 
     def test_uniform_two_dimensional(self):
         # Equal variance on two axes
-        activations = np.array([
-            [1.0, 0.0],
-            [-1.0, 0.0],
-            [0.0, 1.0],
-            [0.0, -1.0],
-        ])
+        activations = np.array(
+            [
+                [1.0, 0.0],
+                [-1.0, 0.0],
+                [0.0, 1.0],
+                [0.0, -1.0],
+            ]
+        )
         labels = np.array([0, 0, 0, 0])
         centroids = np.array([[0.0, 0.0]])
         dims = compute_class_dimensionality(activations, labels, centroids)
@@ -129,11 +137,13 @@ class TestComputeCircularity:
 
     def test_collinear_points(self):
         # Points on a line — not circular
-        centroids = np.column_stack([
-            np.linspace(-5, 5, 20),
-            np.zeros(20),
-            np.zeros(20),
-        ])
+        centroids = np.column_stack(
+            [
+                np.linspace(-5, 5, 20),
+                np.zeros(20),
+                np.zeros(20),
+            ]
+        )
         score = compute_circularity(centroids)
         assert score < 0.5
 
@@ -171,19 +181,19 @@ class TestComputeFourierAlignment:
 class TestComputeFisherDiscriminant:
     def test_well_separated_classes(self):
         # Two classes far apart with tight spread
-        activations = np.array([
-            [10.0, 0.0],
-            [10.1, 0.0],
-            [9.9, 0.0],
-            [-10.0, 0.0],
-            [-10.1, 0.0],
-            [-9.9, 0.0],
-        ])
+        activations = np.array(
+            [
+                [10.0, 0.0],
+                [10.1, 0.0],
+                [9.9, 0.0],
+                [-10.0, 0.0],
+                [-10.1, 0.0],
+                [-9.9, 0.0],
+            ]
+        )
         labels = np.array([0, 0, 0, 1, 1, 1])
         centroids = compute_class_centroids(activations, labels, 2)
-        mean_f, min_f = compute_fisher_discriminant(
-            activations, labels, centroids
-        )
+        mean_f, min_f = compute_fisher_discriminant(activations, labels, centroids)
         assert mean_f > 100  # Very well separated
         assert min_f > 100
 
@@ -193,9 +203,7 @@ class TestComputeFisherDiscriminant:
         activations = rng.standard_normal((100, 5))
         labels = np.array([0] * 50 + [1] * 50)
         centroids = compute_class_centroids(activations, labels, 2)
-        mean_f, min_f = compute_fisher_discriminant(
-            activations, labels, centroids
-        )
+        mean_f, min_f = compute_fisher_discriminant(activations, labels, centroids)
         assert mean_f < 1.0  # Poorly separated
 
 

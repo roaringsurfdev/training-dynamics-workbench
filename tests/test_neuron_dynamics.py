@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from typing import Any
 
 import numpy as np
 import plotly.graph_objects as go
@@ -50,11 +51,11 @@ def artifacts_with_neuron_freq_norm():
     d_mlp = 8
     # Epochs: neurons start random, then specialize, then some switch
     epoch_assignments = {
-        0: [0, 1, 2, 3, 4, 5, 6, 7],      # initial assignment
-        100: [0, 1, 2, 3, 4, 5, 6, 7],      # same
-        200: [0, 1, 2, 3, 4, 5, 6, 7],      # same
-        300: [0, 1, 9, 3, 4, 5, 6, 7],      # neuron 2 switches to freq 9
-        400: [0, 1, 9, 3, 8, 5, 6, 7],      # neuron 4 switches to freq 8
+        0: [0, 1, 2, 3, 4, 5, 6, 7],  # initial assignment
+        100: [0, 1, 2, 3, 4, 5, 6, 7],  # same
+        200: [0, 1, 2, 3, 4, 5, 6, 7],  # same
+        300: [0, 1, 9, 3, 4, 5, 6, 7],  # neuron 2 switches to freq 9
+        400: [0, 1, 9, 3, 8, 5, 6, 7],  # neuron 4 switches to freq 8
     }
     epochs = sorted(epoch_assignments.keys())
 
@@ -139,7 +140,9 @@ class TestNeuronDynamicsAnalyzer:
         """NeuronDynamicsAnalyzer is registered as a cross-epoch analyzer."""
         assert "neuron_dynamics" in AnalyzerRegistry._cross_epoch_analyzers
 
-    def test_analyze_across_epochs(self, artifacts_with_neuron_freq_norm):
+    def test_analyze_across_epochs(
+        self, artifacts_with_neuron_freq_norm: tuple[str, list[int], dict[int, list[int]]]
+    ):
         """Analyzer produces expected output fields and shapes."""
         artifacts_dir, epochs, assignments = artifacts_with_neuron_freq_norm
         analyzer = NeuronDynamicsAnalyzer()
@@ -161,7 +164,9 @@ class TestNeuronDynamicsAnalyzer:
         assert result["switch_counts"].shape == (d_mlp,)
         assert result["commitment_epochs"].shape == (d_mlp,)
 
-    def test_switch_counts_correct(self, artifacts_with_neuron_freq_norm):
+    def test_switch_counts_correct(
+        self, artifacts_with_neuron_freq_norm: tuple[str, list[int], dict[int, list[int]]]
+    ):
         """Switch counts match known assignments."""
         artifacts_dir, epochs, assignments = artifacts_with_neuron_freq_norm
         analyzer = NeuronDynamicsAnalyzer()
@@ -190,9 +195,7 @@ def sample_cross_epoch_data():
     dominant_freq = rng.integers(0, n_freq, size=(n_epochs, d_mlp))
     max_frac = rng.uniform(0.0, 1.0, size=(n_epochs, d_mlp)).astype(np.float32)
     switch_counts = rng.integers(0, 5, size=d_mlp).astype(np.int32)
-    commitment_epochs = np.array(
-        [100 * i if i < d_mlp - 2 else np.nan for i in range(d_mlp)]
-    )
+    commitment_epochs = np.array([100 * i if i < d_mlp - 2 else np.nan for i in range(d_mlp)])
 
     return {
         "epochs": np.array([0, 100, 200, 300, 400]),
@@ -205,30 +208,26 @@ def sample_cross_epoch_data():
 
 
 class TestRenderers:
-    def test_trajectory_returns_figure(self, sample_cross_epoch_data):
+    def test_trajectory_returns_figure(self, sample_cross_epoch_data: dict[str, Any]):
         fig = render_neuron_freq_trajectory(sample_cross_epoch_data, prime=101)
         assert isinstance(fig, go.Figure)
-        assert len(fig.data) == 1
+        assert len(fig.data) == 1  # type: ignore
 
-    def test_trajectory_sorted(self, sample_cross_epoch_data):
+    def test_trajectory_sorted(self, sample_cross_epoch_data: dict[str, Any]):
         fig = render_neuron_freq_trajectory(
             sample_cross_epoch_data, prime=101, sorted_by_final=True
         )
         assert isinstance(fig, go.Figure)
 
-    def test_switch_distribution_returns_figure(self, sample_cross_epoch_data):
-        fig = render_switch_count_distribution(
-            sample_cross_epoch_data, prime=101, seed=485
-        )
+    def test_switch_distribution_returns_figure(self, sample_cross_epoch_data: dict[str, Any]):
+        fig = render_switch_count_distribution(sample_cross_epoch_data, prime=101, seed=485)
         assert isinstance(fig, go.Figure)
-        assert len(fig.data) == 1
+        assert len(fig.data) == 1  # type: ignore
 
-    def test_commitment_timeline_returns_figure(self, sample_cross_epoch_data):
-        fig = render_commitment_timeline(
-            sample_cross_epoch_data, prime=101, seed=485
-        )
+    def test_commitment_timeline_returns_figure(self, sample_cross_epoch_data: dict[str, Any]):
+        fig = render_commitment_timeline(sample_cross_epoch_data, prime=101, seed=485)
         assert isinstance(fig, go.Figure)
-        assert len(fig.data) == 1
+        assert len(fig.data) == 1  # type: ignore
 
 
 # ── Export registry test ─────────────────────────────────────────────

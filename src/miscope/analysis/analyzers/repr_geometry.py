@@ -143,13 +143,11 @@ class RepresentationalGeometryAnalyzer:
         activations: np.ndarray,
         labels: np.ndarray,
         p: int,
-    ) -> dict[str, np.ndarray]:
+    ) -> dict[str, Any]:
         """Compute all geometric measures for one activation site."""
         centroids = compute_class_centroids(activations, labels, p)
         radii = compute_class_radii(activations, labels, centroids)
-        dimensionality = compute_class_dimensionality(
-            activations, labels, centroids
-        )
+        dimensionality = compute_class_dimensionality(activations, labels, centroids)
 
         mean_radius = np.mean(radii)
         mean_dim = np.mean(dimensionality)
@@ -157,9 +155,7 @@ class RepresentationalGeometryAnalyzer:
         snr = (center_spread**2 / mean_radius**2) if mean_radius > 0 else 0.0
         circularity = compute_circularity(centroids)
         fourier_align = compute_fourier_alignment(centroids, p)
-        fisher_mean, fisher_min = compute_fisher_discriminant(
-            activations, labels, centroids
-        )
+        fisher_mean, fisher_min = compute_fisher_discriminant(activations, labels, centroids)
 
         # Find the argmin pair (weakest separation) from the full Fisher matrix
         fisher_mat = compute_fisher_matrix(centroids, radii)
@@ -190,4 +186,4 @@ class RepresentationalGeometryAnalyzer:
             "fisher_argmin_r": np.float64(argmin_r),
             "fisher_argmin_s": np.float64(argmin_s),
             "fisher_argmin_diff": np.float64(argmin_diff),
-        }
+        }  # type: ignore

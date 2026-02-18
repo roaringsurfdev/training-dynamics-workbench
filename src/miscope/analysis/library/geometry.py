@@ -299,9 +299,7 @@ def compute_fisher_matrix(
 # --- Private helpers ---
 
 
-def _pca_project(
-    points: np.ndarray, n_components: int = 3
-) -> tuple[np.ndarray, np.ndarray]:
+def _pca_project(points: np.ndarray, n_components: int = 3) -> tuple[np.ndarray, np.ndarray]:
     """Project points into their top-N principal components.
 
     Args:
