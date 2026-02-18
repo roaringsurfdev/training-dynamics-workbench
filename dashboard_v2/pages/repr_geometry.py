@@ -234,7 +234,7 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         # Time-series from summary (with epoch indicator)
         site = None if site_value == "all" else site_value
         timeseries = _render_timeseries(loader, site, current_epoch=epoch)
-        prime = server_state.model_config.get("prime", 113)
+        prime = server_state.model_config.get("prime", 113) if server_state.model_config else 113
         snapshot_site = "resid_post" if site_value == "all" else site_value
         pca_fig, dist_fig, fisher_fig = _render_snapshot(
             loader, epoch, snapshot_site, prime
@@ -276,7 +276,7 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
             return empty, empty, empty, empty
 
         epoch = epochs[epoch_idx]
-        prime = server_state.model_config.get("prime", 113)
+        prime = server_state.model_config.get("prime", 113) if server_state.model_config else 113
         site = None if site_value == "all" else site_value
         snapshot_site = "resid_post" if site_value == "all" else site_value
 

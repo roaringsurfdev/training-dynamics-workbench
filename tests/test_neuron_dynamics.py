@@ -7,7 +7,6 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from miscope.analysis import ArtifactLoader
 from miscope.analysis.analyzers import AnalyzerRegistry
 from miscope.analysis.analyzers.neuron_dynamics import (
     NeuronDynamicsAnalyzer,

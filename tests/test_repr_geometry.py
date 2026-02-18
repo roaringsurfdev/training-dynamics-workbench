@@ -9,8 +9,8 @@ import torch
 
 from miscope.analysis.analyzers import AnalyzerRegistry
 from miscope.analysis.analyzers.repr_geometry import (
-    RepresentationalGeometryAnalyzer,
     _SITES,
+    RepresentationalGeometryAnalyzer,
     _get_summary_keys,
 )
 from miscope.analysis.library.geometry import (

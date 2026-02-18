@@ -263,8 +263,8 @@ def render_geometry_timeseries(
                 line_dash="solid",
                 line_color="red",
                 line_width=1,
-                row=row,
-                col=1,
+                row=row,  # type: ignore[reportArgumentType]
+                col=1,  # type: ignore[reportArgumentType]
             )
 
     fig.update_yaxes(type="log", row=1, col=1)
@@ -306,7 +306,7 @@ def render_centroid_pca(
     centroid_key = f"{site}_centroids"
     centroids = epoch_data[centroid_key]
     if p is None:
-        p = centroids.shape[0]
+        p = int(centroids.shape[0])
 
     projected, var_fracs = _pca_project(centroids, n_components=3)
     residues = np.arange(p)
@@ -438,7 +438,7 @@ def render_centroid_distances(
     centroid_key = f"{site}_centroids"
     centroids = epoch_data[centroid_key]
     if p is None:
-        p = centroids.shape[0]
+        p = int(centroids.shape[0])
 
     # Compute pairwise distances
     diffs = centroids[:, np.newaxis, :] - centroids[np.newaxis, :, :]
@@ -498,7 +498,7 @@ def render_fisher_heatmap(
     centroids = epoch_data[centroid_key]
     radii = epoch_data[radii_key]
     if p is None:
-        p = centroids.shape[0]
+        p = int(centroids.shape[0])
 
     fisher_mat = compute_fisher_matrix(centroids, radii)
 
