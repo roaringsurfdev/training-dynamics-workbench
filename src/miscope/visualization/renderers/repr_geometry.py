@@ -9,7 +9,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from miscope.analysis.library.geometry import _pca_project_2d, compute_fisher_matrix
+from miscope.analysis.library.geometry import _pca_project, compute_fisher_matrix
 
 # Colors for activation sites
 _SITE_COLORS = {
@@ -286,12 +286,12 @@ def render_centroid_pca(
     epoch: int,
     site: str = "resid_post",
     p: int | None = None,
-    height: int = 500,
+    height: int = 800,
 ) -> go.Figure:
     """PCA scatter of class centroids at a single epoch.
 
-    Projects centroids into top-2 PCs and colors by residue class
-    using a cyclic colormap.
+    Shows a 2x2 grid: PC1-PC2, PC1-PC3, PC2-PC3, and a 3D scatter.
+    Colors by residue class using a cyclic colormap.
 
     Args:
         epoch_data: From ArtifactLoader.load_epoch("repr_geometry", epoch).
@@ -301,46 +301,113 @@ def render_centroid_pca(
         height: Figure height in pixels.
 
     Returns:
-        Plotly Figure with centroid PCA scatter.
+        Plotly Figure with centroid PCA subplots.
     """
     centroid_key = f"{site}_centroids"
     centroids = epoch_data[centroid_key]
     if p is None:
         p = centroids.shape[0]
 
-    projected, var_explained = _pca_project_2d(centroids)
+    projected, var_fracs = _pca_project(centroids, n_components=3)
     residues = np.arange(p)
+    labels = [str(r) for r in residues]
+    total_var = float(var_fracs.sum())
 
-    # Cyclic colorscale: map residue to hue
-    fig = go.Figure()
+    # 2D pair panels
+    pc_pairs = [(0, 1), (0, 2), (1, 2)]
+    pair_labels = [("PC1", "PC2"), ("PC1", "PC3"), ("PC2", "PC3")]
+
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        specs=[
+            [{"type": "xy"}, {"type": "xy"}],
+            [{"type": "xy"}, {"type": "scene"}],
+        ],
+        subplot_titles=[
+            f"PC1 vs PC2 ({var_fracs[0]:.1%} + {var_fracs[1]:.1%})",
+            f"PC1 vs PC3 ({var_fracs[0]:.1%} + {var_fracs[2]:.1%})",
+            f"PC2 vs PC3 ({var_fracs[1]:.1%} + {var_fracs[2]:.1%})",
+            f"3D ({total_var:.1%} total)",
+        ],
+        horizontal_spacing=0.08,
+        vertical_spacing=0.10,
+    )
+
+    positions = [(1, 1), (1, 2), (2, 1)]
+    for (pc_a, pc_b), (xl, yl), (row, col) in zip(
+        pc_pairs, pair_labels, positions
+    ):
+        fig.add_trace(
+            go.Scatter(
+                x=projected[:, pc_a],
+                y=projected[:, pc_b],
+                mode="markers+text",
+                marker=dict(
+                    size=8,
+                    color=residues,
+                    colorscale="HSV",
+                    showscale=False,
+                ),
+                text=labels,
+                textposition="top center",
+                textfont=dict(size=7),
+                hovertemplate=(
+                    f"Residue %{{text}}<br>{xl}: %{{x:.3f}}"
+                    f"<br>{yl}: %{{y:.3f}}<extra></extra>"
+                ),
+                showlegend=False,
+            ),
+            row=row,
+            col=col,
+        )
+        fig.update_xaxes(title_text=xl, row=row, col=col)
+        fig.update_yaxes(
+            title_text=yl,
+            scaleanchor=f"x{(row - 1) * 2 + col}" if row == 1 and col == 1 else None,
+            row=row,
+            col=col,
+        )
+
+    # 3D scatter
     fig.add_trace(
-        go.Scatter(
+        go.Scatter3d(
             x=projected[:, 0],
             y=projected[:, 1],
+            z=projected[:, 2],
             mode="markers+text",
             marker=dict(
-                size=10,
+                size=4,
                 color=residues,
                 colorscale="HSV",
                 showscale=True,
-                colorbar=dict(title="Residue"),
+                colorbar=dict(title="Residue", x=1.02, len=0.4, y=0.2),
             ),
-            text=[str(r) for r in residues],
-            textposition="top center",
-            textfont=dict(size=8),
-            hovertemplate="Residue %{text}<br>PC1: %{x:.3f}<br>PC2: %{y:.3f}<extra></extra>",
-        )
+            text=labels,
+            textfont=dict(size=6),
+            hovertemplate=(
+                "Residue %{text}<br>PC1: %{x:.3f}"
+                "<br>PC2: %{y:.3f}<br>PC3: %{z:.3f}<extra></extra>"
+            ),
+            showlegend=False,
+        ),
+        row=2,
+        col=2,
+    )
+    fig.update_layout(
+        scene=dict(
+            xaxis_title="PC1",
+            yaxis_title="PC2",
+            zaxis_title="PC3",
+        ),
     )
 
     site_label = _SITE_LABELS.get(site, site)
     fig.update_layout(
-        title=f"Class Centroids PCA — {site_label} — Epoch {epoch} ({var_explained:.0%} var explained)",
-        xaxis_title="PC1",
-        yaxis_title="PC2",
+        title=f"Class Centroids PCA — {site_label} — Epoch {epoch}",
         template="plotly_white",
         height=height,
-        margin=dict(l=60, r=20, t=50, b=50),
-        yaxis=dict(scaleanchor="x", scaleratio=1),
+        margin=dict(l=50, r=50, t=80, b=50),
     )
 
     return fig

@@ -142,17 +142,17 @@ def create_repr_geometry_layout() -> html.Div:
         [
             # Time-series (full width, tall — auto-sized by renderer)
             dbc.Row(dbc.Col(_graph("rg-timeseries-plot", "1400px"))),
-            # Centroid PCA | Distance heatmap
-            dbc.Row(
-                [
-                    dbc.Col(_graph("rg-centroid-pca-plot", "500px"), width=6),
-                    dbc.Col(_graph("rg-centroid-dist-plot", "500px"), width=6),
-                ]
-            ),
-            # Fisher discriminant heatmap
+            # Fisher discriminant heatmap | Distance heatmap
             dbc.Row(
                 [
                     dbc.Col(_graph("rg-fisher-heatmap-plot", "500px"), width=6),
+                    dbc.Col(_graph("rg-centroid-dist-plot", "500px"), width=6),
+                ]
+            ),
+            # Centroid PCA
+            dbc.Row(
+                [
+                    dbc.Col(_graph("rg-centroid-pca-plot", "800px"), width=6),
                 ]
             ),
         ],

@@ -28,18 +28,29 @@ variants = family.list_variants()
 print(f"Family: {FAMILY_NAME}")
 print(f"Variants: {len(variants)}")
 for v in variants:
-    print(f"  {v.display_name} [{v.state.value}]")
+    print(f"  {v.name} [{v.state.value}]")
 
 # %% run analysis
+cooling_off_period = 60 * 4 # timer to allow machine to cool between runs
 results = []
+exclude_list = ["modulo_addition_1layer_p101_seed999"]
+include_list = [
+    "modulo_addition_1layer_p113_seed999",
+    "modulo_addition_1layer_p59_seed485"
+    ]
 for i, variant in enumerate(variants):
     print(f"\n{'='*60}")
-    print(f"[{i+1}/{len(variants)}] {variant.display_name}")
+    print(f"[{i+1}/{len(variants)}] {variant.name}")
     print(f"{'='*60}")
 
     if not variant._has_checkpoints():
         print("  SKIPPED: No checkpoints")
-        results.append((variant.display_name, "skipped", 0))
+        results.append((variant.name, "skipped", 0))
+        continue
+
+    if variant.name not in include_list:
+        print("  SKIPPED: Not in include list")
+        results.append((variant.name, "skipped", 0))
         continue
 
     start = time.time()
@@ -53,11 +64,14 @@ for i, variant in enumerate(variants):
         pipeline.run(force=FORCE, progress_callback=progress_callback)
         elapsed = time.time() - start
         print(f"\n  DONE in {elapsed:.1f}s")
-        results.append((variant.display_name, "success", elapsed))
+        results.append((variant.name, "success", elapsed))
+        print("  COOLING OFF: Entering cooling off period.")
+        time.sleep(cooling_off_period)
+
     except Exception as e:
         elapsed = time.time() - start
         print(f"\n  FAILED after {elapsed:.1f}s: {e}")
-        results.append((variant.display_name, "failed", elapsed))
+        results.append((variant.name, "failed", elapsed))
 
 # %% summary
 print(f"\n{'='*60}")
