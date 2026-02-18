@@ -1,15 +1,15 @@
-"""REQ_044: Representational Geometry Visualizations.
+"""REQ_044/REQ_045: Representational Geometry Visualizations.
 
 Renders time-series of geometric measures (SNR, circularity, Fisher, etc.)
-from summary data, and centroid PCA snapshots + distance heatmaps from
-per-epoch data.
+from summary data, and centroid PCA snapshots + distance/Fisher heatmaps
+from per-epoch data.
 """
 
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from miscope.analysis.library.geometry import _pca_project_2d
+from miscope.analysis.library.geometry import _pca_project, compute_fisher_matrix
 
 # Colors for activation sites
 _SITE_COLORS = {
@@ -33,38 +33,49 @@ def render_geometry_timeseries(
     summary_data: dict[str, np.ndarray],
     site: str | None = None,
     current_epoch: int | None = None,
-    height: int = 1200,
+    height: int | None = None,
 ) -> go.Figure:
     """Multi-panel time-series of geometric measures.
 
     Panels: SNR, center spread + mean radius, circularity + Fourier
-    alignment, mean dimensionality, Fisher discriminant (mean + min).
+    alignment, mean dimensionality, Fisher discriminant (mean + min),
+    and optionally Fisher argmin residue difference (if available).
 
     Args:
         summary_data: From ArtifactLoader.load_summary("repr_geometry").
             Contains "epochs" and site-prefixed scalar keys.
         site: Activation site to display. None = show all sites.
         current_epoch: Current epoch for vertical indicator.
-        height: Total figure height in pixels.
+        height: Total figure height in pixels. Auto-sized if None.
 
     Returns:
-        Plotly Figure with 5 vertically stacked subplots.
+        Plotly Figure with 5 or 6 vertically stacked subplots.
     """
     epochs = summary_data["epochs"]
     sites = [site] if site else _ALL_SITES
 
+    # Check if argmin data is available (added by REQ_045)
+    has_argmin = any(f"{s}_fisher_argmin_diff" in summary_data for s in sites)
+    n_rows = 6 if has_argmin else 5
+    if height is None:
+        height = 1400 if has_argmin else 1200
+
+    titles = [
+        "Signal-to-Noise Ratio (SNR)",
+        "Center Spread & Mean Radius",
+        "Circularity & Fourier Alignment",
+        "Mean Effective Dimensionality",
+        "Fisher Discriminant",
+    ]
+    if has_argmin:
+        titles.append("Fisher Argmin Residue Difference")
+
     fig = make_subplots(
-        rows=5,
+        rows=n_rows,
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.04,
-        subplot_titles=(
-            "Signal-to-Noise Ratio (SNR)",
-            "Center Spread & Mean Radius",
-            "Circularity & Fourier Alignment",
-            "Mean Effective Dimensionality",
-            "Fisher Discriminant",
-        ),
+        subplot_titles=titles,
     )
 
     for s in sites:
@@ -211,9 +222,42 @@ def render_geometry_timeseries(
                 col=1,
             )
 
+        # Panel 6: Fisher argmin residue difference (REQ_045)
+        argmin_diff_key = f"{s}_fisher_argmin_diff"
+        argmin_r_key = f"{s}_fisher_argmin_r"
+        argmin_s_key = f"{s}_fisher_argmin_s"
+        if has_argmin and argmin_diff_key in summary_data:
+            # Build hover text with the actual (r, s) pair
+            custom = None
+            if argmin_r_key in summary_data and argmin_s_key in summary_data:
+                r_vals = summary_data[argmin_r_key].astype(int)
+                s_vals = summary_data[argmin_s_key].astype(int)
+                custom = np.column_stack([r_vals, s_vals])
+            fig.add_trace(
+                go.Scatter(
+                    x=epochs,
+                    y=summary_data[argmin_diff_key],
+                    mode="lines+markers",
+                    name=f"{label} argmin |r-s|",
+                    legendgroup=s,
+                    showlegend=False,
+                    line=dict(color=color, width=2),
+                    marker=dict(size=3),
+                    customdata=custom,
+                    hovertemplate=(
+                        f"{label}<br>Epoch %{{x}}<br>"
+                        "|r*-s*| mod p: %{y:.0f}<br>"
+                        "Pair: (%{customdata[0]}, %{customdata[1]})"
+                        "<extra></extra>"
+                    ),
+                ),
+                row=6,
+                col=1,
+            )
+
     # Add epoch indicator
     if current_epoch is not None:
-        for row in range(1, 6):
+        for row in range(1, n_rows + 1):
             fig.add_vline(
                 x=current_epoch,
                 line_dash="solid",
@@ -225,7 +269,7 @@ def render_geometry_timeseries(
 
     fig.update_yaxes(type="log", row=1, col=1)
     fig.update_yaxes(range=[0, 1.05], row=3, col=1)
-    fig.update_xaxes(title_text="Epoch", row=5, col=1)
+    fig.update_xaxes(title_text="Epoch", row=n_rows, col=1)
 
     fig.update_layout(
         template="plotly_white",
@@ -242,12 +286,12 @@ def render_centroid_pca(
     epoch: int,
     site: str = "resid_post",
     p: int | None = None,
-    height: int = 500,
+    height: int = 800,
 ) -> go.Figure:
     """PCA scatter of class centroids at a single epoch.
 
-    Projects centroids into top-2 PCs and colors by residue class
-    using a cyclic colormap.
+    Shows a 2x2 grid: PC1-PC2, PC1-PC3, PC2-PC3, and a 3D scatter.
+    Colors by residue class using a cyclic colormap.
 
     Args:
         epoch_data: From ArtifactLoader.load_epoch("repr_geometry", epoch).
@@ -257,46 +301,113 @@ def render_centroid_pca(
         height: Figure height in pixels.
 
     Returns:
-        Plotly Figure with centroid PCA scatter.
+        Plotly Figure with centroid PCA subplots.
     """
     centroid_key = f"{site}_centroids"
     centroids = epoch_data[centroid_key]
     if p is None:
         p = centroids.shape[0]
 
-    projected, var_explained = _pca_project_2d(centroids)
+    projected, var_fracs = _pca_project(centroids, n_components=3)
     residues = np.arange(p)
+    labels = [str(r) for r in residues]
+    total_var = float(var_fracs.sum())
 
-    # Cyclic colorscale: map residue to hue
-    fig = go.Figure()
+    # 2D pair panels
+    pc_pairs = [(0, 1), (0, 2), (1, 2)]
+    pair_labels = [("PC1", "PC2"), ("PC1", "PC3"), ("PC2", "PC3")]
+
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        specs=[
+            [{"type": "xy"}, {"type": "xy"}],
+            [{"type": "xy"}, {"type": "scene"}],
+        ],
+        subplot_titles=[
+            f"PC1 vs PC2 ({var_fracs[0]:.1%} + {var_fracs[1]:.1%})",
+            f"PC1 vs PC3 ({var_fracs[0]:.1%} + {var_fracs[2]:.1%})",
+            f"PC2 vs PC3 ({var_fracs[1]:.1%} + {var_fracs[2]:.1%})",
+            f"3D ({total_var:.1%} total)",
+        ],
+        horizontal_spacing=0.08,
+        vertical_spacing=0.10,
+    )
+
+    positions = [(1, 1), (1, 2), (2, 1)]
+    for (pc_a, pc_b), (xl, yl), (row, col) in zip(
+        pc_pairs, pair_labels, positions
+    ):
+        fig.add_trace(
+            go.Scatter(
+                x=projected[:, pc_a],
+                y=projected[:, pc_b],
+                mode="markers+text",
+                marker=dict(
+                    size=8,
+                    color=residues,
+                    colorscale="HSV",
+                    showscale=False,
+                ),
+                text=labels,
+                textposition="top center",
+                textfont=dict(size=7),
+                hovertemplate=(
+                    f"Residue %{{text}}<br>{xl}: %{{x:.3f}}"
+                    f"<br>{yl}: %{{y:.3f}}<extra></extra>"
+                ),
+                showlegend=False,
+            ),
+            row=row,
+            col=col,
+        )
+        fig.update_xaxes(title_text=xl, row=row, col=col)
+        fig.update_yaxes(
+            title_text=yl,
+            scaleanchor=f"x{(row - 1) * 2 + col}" if row == 1 and col == 1 else None,
+            row=row,
+            col=col,
+        )
+
+    # 3D scatter
     fig.add_trace(
-        go.Scatter(
+        go.Scatter3d(
             x=projected[:, 0],
             y=projected[:, 1],
+            z=projected[:, 2],
             mode="markers+text",
             marker=dict(
-                size=10,
+                size=4,
                 color=residues,
                 colorscale="HSV",
                 showscale=True,
-                colorbar=dict(title="Residue"),
+                colorbar=dict(title="Residue", x=1.02, len=0.4, y=0.2),
             ),
-            text=[str(r) for r in residues],
-            textposition="top center",
-            textfont=dict(size=8),
-            hovertemplate="Residue %{text}<br>PC1: %{x:.3f}<br>PC2: %{y:.3f}<extra></extra>",
-        )
+            text=labels,
+            textfont=dict(size=6),
+            hovertemplate=(
+                "Residue %{text}<br>PC1: %{x:.3f}"
+                "<br>PC2: %{y:.3f}<br>PC3: %{z:.3f}<extra></extra>"
+            ),
+            showlegend=False,
+        ),
+        row=2,
+        col=2,
+    )
+    fig.update_layout(
+        scene=dict(
+            xaxis_title="PC1",
+            yaxis_title="PC2",
+            zaxis_title="PC3",
+        ),
     )
 
     site_label = _SITE_LABELS.get(site, site)
     fig.update_layout(
-        title=f"Class Centroids PCA — {site_label} — Epoch {epoch} ({var_explained:.0%} var explained)",
-        xaxis_title="PC1",
-        yaxis_title="PC2",
+        title=f"Class Centroids PCA — {site_label} — Epoch {epoch}",
         template="plotly_white",
         height=height,
-        margin=dict(l=60, r=20, t=50, b=50),
-        yaxis=dict(scaleanchor="x", scaleratio=1),
+        margin=dict(l=50, r=50, t=80, b=50),
     )
 
     return fig
@@ -354,6 +465,113 @@ def render_centroid_distances(
         height=height,
         margin=dict(l=60, r=20, t=50, b=50),
         yaxis=dict(autorange="reversed"),
+    )
+
+    return fig
+
+
+def render_fisher_heatmap(
+    epoch_data: dict[str, np.ndarray],
+    epoch: int,
+    site: str = "resid_post",
+    p: int | None = None,
+    height: int = 500,
+) -> go.Figure:
+    """Pairwise Fisher discriminant heatmap at a single epoch.
+
+    Recomputes J(r,s) = ||mu_r - mu_s||^2 / (radius_r^2 + radius_s^2)
+    from stored centroids and radii. Low values (cold spots) indicate
+    the hardest-to-separate class pairs — the model's vulnerability.
+
+    Args:
+        epoch_data: From ArtifactLoader.load_epoch("repr_geometry", epoch).
+        epoch: Epoch number (for title).
+        site: Activation site to display.
+        p: Number of classes (inferred from centroid shape if None).
+        height: Figure height in pixels.
+
+    Returns:
+        Plotly Figure with p x p Fisher discriminant heatmap.
+    """
+    centroid_key = f"{site}_centroids"
+    radii_key = f"{site}_radii"
+    centroids = epoch_data[centroid_key]
+    radii = epoch_data[radii_key]
+    if p is None:
+        p = centroids.shape[0]
+
+    fisher_mat = compute_fisher_matrix(centroids, radii)
+
+    # Find argmin pair for annotation
+    r_idx, s_idx = np.triu_indices(p, k=1)
+    fisher_upper = fisher_mat[r_idx, s_idx]
+    argmin_idx = int(np.argmin(fisher_upper))
+    argmin_r = int(r_idx[argmin_idx])
+    argmin_s = int(s_idx[argmin_idx])
+    argmin_val = float(fisher_upper[argmin_idx])
+    raw_diff = abs(argmin_s - argmin_r)
+    argmin_diff = min(raw_diff, p - raw_diff)
+
+    # Build customdata with |r-s| mod p for hover (vectorized)
+    idx = np.arange(p)
+    raw_diffs = np.abs(idx[:, np.newaxis] - idx[np.newaxis, :])
+    residue_diffs = np.minimum(raw_diffs, p - raw_diffs)
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Heatmap(
+            z=fisher_mat,
+            x=list(range(p)),
+            y=list(range(p)),
+            colorscale="Inferno",
+            reversescale=True,
+            colorbar=dict(title="Fisher J"),
+            customdata=residue_diffs,
+            hovertemplate=(
+                "Class %{x} ↔ Class %{y}<br>"
+                "J: %{z:.3f}<br>"
+                "|r-s| mod p: %{customdata}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
+    # Mark the argmin pair
+    fig.add_trace(
+        go.Scatter(
+            x=[argmin_s, argmin_r],
+            y=[argmin_r, argmin_s],
+            mode="markers",
+            marker=dict(
+                size=10,
+                color="rgba(0,0,0,0)",
+                line=dict(color="lime", width=2),
+                symbol="square",
+            ),
+            name=f"Min pair ({argmin_r},{argmin_s})",
+            hovertemplate=(
+                f"Argmin pair: ({argmin_r}, {argmin_s})<br>"
+                f"J = {argmin_val:.4f}<br>"
+                f"|r-s| mod p = {argmin_diff}"
+                "<extra></extra>"
+            ),
+        )
+    )
+
+    site_label = _SITE_LABELS.get(site, site)
+    fig.update_layout(
+        title=(
+            f"Fisher Discriminant — {site_label} — Epoch {epoch}"
+            f"<br><sub>Min pair: ({argmin_r}, {argmin_s}), "
+            f"J={argmin_val:.3f}, |r-s|={argmin_diff}</sub>"
+        ),
+        xaxis_title="Residue Class",
+        yaxis_title="Residue Class",
+        template="plotly_white",
+        height=height,
+        margin=dict(l=60, r=20, t=70, b=50),
+        yaxis=dict(autorange="reversed"),
+        showlegend=False,
     )
 
     return fig

@@ -1,8 +1,9 @@
-"""Tests for REQ_044: Representational Geometry library and analyzer."""
+"""Tests for REQ_044/REQ_045: Representational Geometry library and analyzer."""
 
 from unittest.mock import MagicMock
 
 import numpy as np
+import plotly.graph_objects as go
 import pytest
 import torch
 
@@ -19,8 +20,10 @@ from miscope.analysis.library.geometry import (
     compute_class_dimensionality,
     compute_class_radii,
     compute_fisher_discriminant,
+    compute_fisher_matrix,
     compute_fourier_alignment,
 )
+from miscope.visualization.renderers.repr_geometry import render_fisher_heatmap
 
 # ── Geometry Library Tests ───────────────────────────────────────────
 
@@ -265,6 +268,9 @@ class TestRepresentationalGeometryAnalyzer:
             assert f"{site}_fourier_alignment" in result
             assert f"{site}_fisher_mean" in result
             assert f"{site}_fisher_min" in result
+            assert f"{site}_fisher_argmin_r" in result
+            assert f"{site}_fisher_argmin_s" in result
+            assert f"{site}_fisher_argmin_diff" in result
 
     def test_analyze_shapes(self):
         p = 7
@@ -284,7 +290,7 @@ class TestRepresentationalGeometryAnalyzer:
 
     def test_summary_keys_match_scalars(self):
         summary_keys = _get_summary_keys()
-        assert len(summary_keys) == 4 * 8  # 4 sites × 8 scalar measures
+        assert len(summary_keys) == 4 * 11  # 4 sites × 11 scalar measures
 
     def test_compute_summary_extracts_scalars(self):
         p = 7
@@ -319,3 +325,131 @@ class TestRepresentationalGeometryAnalyzer:
         # Each class should have exactly p samples
         for r in range(p):
             assert np.sum(labels == r) == p
+
+    def test_argmin_values_are_valid_class_indices(self):
+        p = 7
+        analyzer = RepresentationalGeometryAnalyzer()
+        probe = self._make_probe(p)
+        cache = self._make_mock_cache(p)
+        model = MagicMock()
+
+        result = analyzer.analyze(model, probe, cache, {"params": {"prime": p}})
+
+        for site in _SITES:
+            r = int(result[f"{site}_fisher_argmin_r"])
+            s = int(result[f"{site}_fisher_argmin_s"])
+            diff = int(result[f"{site}_fisher_argmin_diff"])
+            assert 0 <= r < p
+            assert 0 <= s < p
+            assert r < s  # upper triangle convention
+            raw_diff = abs(s - r)
+            assert diff == min(raw_diff, p - raw_diff)
+
+
+# ── Fisher Matrix Tests (REQ_045) ─────────────────────────────────
+
+
+class TestComputeFisherMatrix:
+    def test_symmetric(self):
+        rng = np.random.default_rng(42)
+        centroids = rng.standard_normal((10, 5))
+        radii = np.abs(rng.standard_normal(10)) + 0.1
+        mat = compute_fisher_matrix(centroids, radii)
+        np.testing.assert_allclose(mat, mat.T)
+
+    def test_zero_diagonal(self):
+        rng = np.random.default_rng(42)
+        centroids = rng.standard_normal((10, 5))
+        radii = np.abs(rng.standard_normal(10)) + 0.1
+        mat = compute_fisher_matrix(centroids, radii)
+        np.testing.assert_allclose(np.diag(mat), 0.0)
+
+    def test_well_separated_high_values(self):
+        # Two classes far apart with small radii
+        centroids = np.array([[10.0, 0.0], [-10.0, 0.0]])
+        radii = np.array([0.1, 0.1])
+        mat = compute_fisher_matrix(centroids, radii)
+        assert mat[0, 1] > 100
+        assert mat[1, 0] > 100
+
+    def test_overlapping_low_values(self):
+        # Two classes at same location with large radii
+        centroids = np.array([[0.0, 0.0], [0.1, 0.0]])
+        radii = np.array([10.0, 10.0])
+        mat = compute_fisher_matrix(centroids, radii)
+        assert mat[0, 1] < 0.01
+
+    def test_agrees_with_fisher_discriminant(self):
+        """Mean and min from matrix should match compute_fisher_discriminant."""
+        rng = np.random.default_rng(42)
+        p = 11
+        n_per_class = p
+        d = 5
+
+        # Generate activations with known class structure
+        centroids_true = rng.standard_normal((p, d)) * 5
+        activations = []
+        labels = []
+        for r in range(p):
+            samples = centroids_true[r] + rng.standard_normal((n_per_class, d)) * 0.5
+            activations.append(samples)
+            labels.extend([r] * n_per_class)
+        activations = np.vstack(activations)
+        labels = np.array(labels)
+
+        centroids = compute_class_centroids(activations, labels, p)
+        radii = compute_class_radii(activations, labels, centroids)
+
+        # From compute_fisher_discriminant (uses raw activations)
+        mean_fd, min_fd = compute_fisher_discriminant(activations, labels, centroids)
+
+        # From compute_fisher_matrix (uses stored centroids + radii)
+        mat = compute_fisher_matrix(centroids, radii)
+        r_idx, s_idx = np.triu_indices(p, k=1)
+        fisher_values = mat[r_idx, s_idx]
+        mean_fm = float(np.mean(fisher_values))
+        min_fm = float(np.min(fisher_values))
+
+        np.testing.assert_allclose(mean_fm, mean_fd, rtol=1e-6)
+        np.testing.assert_allclose(min_fm, min_fd, rtol=1e-6)
+
+    def test_zero_radii_handled(self):
+        centroids = np.array([[1.0, 0.0], [2.0, 0.0]])
+        radii = np.array([0.0, 0.0])
+        mat = compute_fisher_matrix(centroids, radii)
+        # Should not raise; zeros in denominator handled gracefully
+        assert np.isfinite(mat).all()
+
+
+# ── Renderer Tests (REQ_045) ──────────────────────────────────────
+
+
+class TestRenderFisherHeatmap:
+    @pytest.fixture
+    def epoch_data(self):
+        """Create mock per-epoch data with centroids and radii."""
+        rng = np.random.default_rng(42)
+        p = 11
+        d = 8
+        return {
+            "resid_post_centroids": rng.standard_normal((p, d)) * 5,
+            "resid_post_radii": np.abs(rng.standard_normal(p)) + 0.1,
+        }
+
+    def test_returns_figure(self, epoch_data):
+        fig = render_fisher_heatmap(epoch_data, epoch=100, site="resid_post")
+        assert isinstance(fig, go.Figure)
+
+    def test_has_heatmap_trace(self, epoch_data):
+        fig = render_fisher_heatmap(epoch_data, epoch=100, site="resid_post")
+        heatmap_traces = [t for t in fig.data if isinstance(t, go.Heatmap)]
+        assert len(heatmap_traces) == 1
+
+    def test_has_argmin_marker(self, epoch_data):
+        fig = render_fisher_heatmap(epoch_data, epoch=100, site="resid_post")
+        scatter_traces = [t for t in fig.data if isinstance(t, go.Scatter)]
+        assert len(scatter_traces) == 1  # argmin marker
+
+    def test_title_contains_min_pair(self, epoch_data):
+        fig = render_fisher_heatmap(epoch_data, epoch=100, site="resid_post")
+        assert "Min pair" in fig.layout.title.text

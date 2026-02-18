@@ -62,6 +62,12 @@ from miscope.visualization.renderers.neuron_freq_clusters import (
     render_specialization_by_frequency,
     render_specialization_trajectory,
 )
+from miscope.visualization.renderers.repr_geometry import (
+    render_centroid_distances,
+    render_centroid_pca,
+    render_fisher_heatmap,
+    render_geometry_timeseries,
+)
 from miscope.visualization.renderers.parameter_trajectory import (
     get_group_label,
     render_component_velocity,
@@ -123,4 +129,9 @@ __all__ = [
     "render_trajectory_3d",
     "render_trajectory_pc1_pc3",
     "render_trajectory_pc2_pc3",
+    # REQ_044/045: Representational geometry
+    "render_geometry_timeseries",
+    "render_centroid_pca",
+    "render_centroid_distances",
+    "render_fisher_heatmap",
 ]

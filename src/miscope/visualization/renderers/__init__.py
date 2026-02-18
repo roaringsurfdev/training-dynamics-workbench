@@ -24,6 +24,7 @@ from miscope.visualization.renderers.neuron_freq_clusters import (
 from miscope.visualization.renderers.repr_geometry import (
     render_centroid_distances,
     render_centroid_pca,
+    render_fisher_heatmap,
     render_geometry_timeseries,
 )
 
@@ -51,4 +52,6 @@ __all__ = [
     "render_geometry_timeseries",
     "render_centroid_pca",
     "render_centroid_distances",
+    # REQ_045: Fisher minimum pair
+    "render_fisher_heatmap",
 ]

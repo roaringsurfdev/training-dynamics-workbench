@@ -14,6 +14,7 @@ Functions:
 - compute_circularity: How well centroids lie on a circle (Kåsa circle fit)
 - compute_fourier_alignment: Whether angular ordering matches residue class ordering
 - compute_fisher_discriminant: Pairwise Fisher discriminant ratio statistics
+- compute_fisher_matrix: Full pairwise Fisher discriminant matrix from stored data
 """
 
 import numpy as np
@@ -262,7 +263,67 @@ def compute_fisher_discriminant(
     return mean_fisher, min_fisher
 
 
+def compute_fisher_matrix(
+    centroids: np.ndarray,
+    radii: np.ndarray,
+) -> np.ndarray:
+    """Compute full pairwise Fisher discriminant matrix from stored data.
+
+    J(r, s) = ||mu_r - mu_s||^2 / (radius_r^2 + radius_s^2)
+
+    This function operates on pre-computed centroids and radii (as stored
+    in per-epoch artifacts), enabling render-time computation without
+    needing raw activations. radii^2 equals within-class variance.
+
+    Args:
+        centroids: Class centroid matrix, shape (n_classes, d)
+        radii: RMS radius per class, shape (n_classes,)
+
+    Returns:
+        Fisher discriminant matrix, shape (n_classes, n_classes).
+        Symmetric with zero diagonal.
+    """
+    variances = radii**2
+    diffs = centroids[:, np.newaxis, :] - centroids[np.newaxis, :, :]
+    pairwise_sq_dists = np.sum(diffs**2, axis=2)
+    pairwise_within = variances[:, np.newaxis] + variances[np.newaxis, :]
+    fisher_matrix = np.where(
+        pairwise_within > 0,
+        pairwise_sq_dists / np.maximum(pairwise_within, 1e-12),
+        0.0,
+    )
+    np.fill_diagonal(fisher_matrix, 0.0)
+    return fisher_matrix
+
+
 # --- Private helpers ---
+
+
+def _pca_project(
+    points: np.ndarray, n_components: int = 3
+) -> tuple[np.ndarray, np.ndarray]:
+    """Project points into their top-N principal components.
+
+    Args:
+        points: Matrix of shape (n, d).
+        n_components: Number of principal components to return.
+
+    Returns:
+        Tuple of (projected points of shape (n, n_components),
+                  per-component variance explained of shape (n_components,)).
+    """
+    centered = points - points.mean(axis=0)
+    cov = centered.T @ centered / centered.shape[0]
+    eigenvalues, eigenvectors = np.linalg.eigh(cov)
+    # eigh returns ascending order; take last n_components, reversed
+    n = min(n_components, len(eigenvalues))
+    top_vecs = eigenvectors[:, -n:][:, ::-1]
+    total_var = eigenvalues.sum()
+    if total_var < 1e-12:
+        var_fracs = np.zeros(n)
+    else:
+        var_fracs = eigenvalues[-n:][::-1] / total_var
+    return centered @ top_vecs, var_fracs
 
 
 def _pca_project_2d(points: np.ndarray) -> tuple[np.ndarray, float]:
@@ -282,22 +343,11 @@ def _pca_project_2d(points: np.ndarray) -> tuple[np.ndarray, float]:
         Tuple of (projected points of shape (n, 2),
                   2D quality score in [0, 1])
     """
-    centered = points - points.mean(axis=0)
-    cov = centered.T @ centered / centered.shape[0]
-    eigenvalues, eigenvectors = np.linalg.eigh(cov)
-    # eigh returns ascending order; take last 2
-    top2_vecs = eigenvectors[:, -2:][:, ::-1]
-    total_var = eigenvalues.sum()
-    if total_var < 1e-12:
-        return centered @ top2_vecs, 0.0
-    top2_var = eigenvalues[-2:].sum()
-    var_explained = top2_var / total_var
-    # Balance: ratio of PC2/PC1 variance (1.0 for circle, 0.0 for line)
-    ev1 = eigenvalues[-1]
-    ev2 = eigenvalues[-2]
-    balance = float(ev2 / ev1) if ev1 > 1e-12 else 0.0
-    quality = float(var_explained * balance)
-    return centered @ top2_vecs, quality
+    projected, var_fracs = _pca_project(points, n_components=2)
+    var_explained = float(var_fracs.sum())
+    balance = float(var_fracs[1] / var_fracs[0]) if var_fracs[0] > 1e-12 else 0.0
+    quality = var_explained * balance
+    return projected, quality
 
 
 def _kasa_circle_fit(points: np.ndarray) -> tuple[float, float, float]:
