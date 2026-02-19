@@ -14,8 +14,52 @@ from dashboard_v2.navigation import create_navbar
 from miscope.analysis.library.weights import WEIGHT_MATRIX_NAMES
 from miscope.visualization.renderers.landscape_flatness import FLATNESS_METRICS
 
+# ---------------------------------------------------------------------------
+# Shared style constants
+# ---------------------------------------------------------------------------
 
-def create_sidebar() -> html.Div:
+_SIDEBAR_STYLE = {
+    "width": "280px",
+    "minWidth": "280px",
+    "padding": "20px",
+    "backgroundColor": "#f8f9fa",
+    "overflowY": "auto",
+    "borderRight": "1px solid #dee2e6",
+    "height": "100vh",
+    "position": "sticky",
+    "top": "0",
+}
+
+_COLLAPSED_SIDEBAR_STYLE = {
+    "width": "40px",
+    "minWidth": "40px",
+    "padding": "10px 5px",
+    "backgroundColor": "#f8f9fa",
+    "borderRight": "1px solid #dee2e6",
+    "height": "100vh",
+    "position": "sticky",
+    "top": "0",
+    "display": "none",
+}
+
+_PAGE_CONTENT_STYLE = {
+    "flex": "1",
+    "padding": "20px",
+    "overflowY": "auto",
+    "height": "100vh",
+}
+
+_FLEX_WRAPPER_STYLE = {
+    "display": "flex",
+    "height": "calc(100vh - 56px)",
+    "overflow": "hidden",
+}
+
+
+def create_sidebar(
+    initial_family: str | None = None,
+    initial_variant: str | None = None,
+) -> html.Div:
     """Create the collapsible sidebar with all controls."""
     return html.Div(
         id="sidebar",
@@ -38,11 +82,11 @@ def create_sidebar() -> html.Div:
             html.Hr(),
             # Family selector
             dbc.Label("Family", className="fw-bold"),
-            dcc.Dropdown(id="family-dropdown", placeholder="Select family..."),
+            dcc.Dropdown(id="family-dropdown", placeholder="Select family...", value=initial_family),
             html.Br(),
             # Variant selector
             dbc.Label("Variant", className="fw-bold"),
-            dcc.Dropdown(id="variant-dropdown", placeholder="Select variant..."),
+            dcc.Dropdown(id="variant-dropdown", placeholder="Select variant...", value=initial_variant),
             html.Br(),
             # Epoch slider
             dbc.Label("Epoch", className="fw-bold"),
@@ -151,17 +195,7 @@ def create_sidebar() -> html.Div:
                 className="text-muted small",
             ),
         ],
-        style={
-            "width": "280px",
-            "minWidth": "280px",
-            "padding": "20px",
-            "backgroundColor": "#f8f9fa",
-            "overflowY": "auto",
-            "borderRight": "1px solid #dee2e6",
-            "height": "100vh",
-            "position": "sticky",
-            "top": "0",
-        },
+        style=_SIDEBAR_STYLE,
     )
 
 
@@ -184,17 +218,7 @@ def create_collapsed_sidebar() -> html.Div:
                 style={"writingMode": "vertical-lr", "textOrientation": "mixed"},
             ),
         ],
-        style={
-            "width": "40px",
-            "minWidth": "40px",
-            "padding": "10px 5px",
-            "backgroundColor": "#f8f9fa",
-            "borderRight": "1px solid #dee2e6",
-            "height": "100vh",
-            "position": "sticky",
-            "top": "0",
-            "display": "none",
-        },
+        style=_COLLAPSED_SIDEBAR_STYLE,
     )
 
 
@@ -252,19 +276,110 @@ def create_content_area() -> html.Div:
     )
 
 
-def create_visualization_layout() -> html.Div:
+def create_visualization_layout(initial: dict | None = None) -> html.Div:
     """Create the visualization page layout (sidebar + plots)."""
+    initial = initial or {}
     return html.Div(
         children=[
-            create_sidebar(),
+            create_sidebar(
+                initial_family=initial.get("family_name"),
+                initial_variant=initial.get("variant_name"),
+            ),
             create_collapsed_sidebar(),
             create_content_area(),
         ],
-        style={
-            "display": "flex",
-            "height": "calc(100vh - 56px)",
-            "overflow": "hidden",
-        },
+        style=_FLEX_WRAPPER_STYLE,
+    )
+
+
+def create_page_sidebar(
+    prefix: str,
+    initial_family: str | None = None,
+    initial_variant: str | None = None,
+    initial_epoch_idx: int = 0,
+    extra_controls: list | None = None,
+) -> html.Div:
+    """Shared collapsible sidebar factory for visualization pages.
+
+    Uses shared toggle IDs (sidebar, sidebar-toggle, etc.) so the existing
+    toggle_sidebar callback works on all pages without modification.
+    Data component IDs are prefixed to avoid cross-page collision.
+    """
+    controls: list = [
+        html.Div(
+            className="sidebar-header",
+            children=[
+                html.H5("Controls", className="mb-0"),
+                dbc.Button(
+                    "\u2190",
+                    id="sidebar-toggle",
+                    size="sm",
+                    color="secondary",
+                    outline=True,
+                    className="ms-auto",
+                ),
+            ],
+            style={"display": "flex", "alignItems": "center"},
+        ),
+        html.Hr(),
+        dbc.Label("Family", className="fw-bold"),
+        dcc.Dropdown(
+            id=f"{prefix}family-dropdown",
+            placeholder="Select family...",
+            value=initial_family,
+        ),
+        html.Br(),
+        dbc.Label("Variant", className="fw-bold"),
+        dcc.Dropdown(
+            id=f"{prefix}variant-dropdown",
+            placeholder="Select variant...",
+            value=initial_variant,
+        ),
+        html.Br(),
+        dbc.Label("Epoch", className="fw-bold"),
+        dcc.Slider(
+            id=f"{prefix}epoch-slider",
+            min=0,
+            max=1,
+            step=1,
+            value=initial_epoch_idx,
+            marks=None,
+            tooltip={"placement": "bottom", "always_visible": False},
+        ),
+        html.Div(
+            id=f"{prefix}epoch-display",
+            children="Epoch 0",
+            className="text-muted small mb-3",
+        ),
+    ]
+    if extra_controls:
+        controls += [html.Hr()] + extra_controls
+    controls.append(
+        html.Div(id=f"{prefix}status", children="No variant selected", className="text-muted small mt-3")
+    )
+    return html.Div(id="sidebar", children=controls, style=_SIDEBAR_STYLE)
+
+
+def create_collapsed_page_sidebar() -> html.Div:
+    """Collapsed sidebar strip (shared toggle IDs, works with toggle_sidebar callback)."""
+    return html.Div(
+        id="sidebar-collapsed",
+        children=[
+            dbc.Button(
+                "\u2192",
+                id="sidebar-expand",
+                size="sm",
+                color="secondary",
+                outline=True,
+            ),
+            html.Div(
+                id="collapsed-status",
+                children="",
+                className="small text-muted mt-2",
+                style={"writingMode": "vertical-lr", "textOrientation": "mixed"},
+            ),
+        ],
+        style=_COLLAPSED_SIDEBAR_STYLE,
     )
 
 
@@ -272,6 +387,11 @@ def create_layout() -> html.Div:
     """Create the full application layout with navbar and URL routing."""
     return html.Div(
         [
+            dcc.Store(
+                id="selection-store",
+                storage_type="session",
+                data={"family_name": None, "variant_name": None, "epoch": None},
+            ),
             dcc.Location(id="url", refresh=False),
             create_navbar(),
             html.Div(id="page-content"),

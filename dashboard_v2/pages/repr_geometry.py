@@ -10,9 +10,15 @@ from __future__ import annotations
 
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, State, dcc, html
+from dash import Dash, Input, Output, Patch, State, dcc, html, no_update
 
 from dashboard_v2.components.family_selector import get_family_choices, get_variant_choices
+from dashboard_v2.layout import (
+    _FLEX_WRAPPER_STYLE,
+    _PAGE_CONTENT_STYLE,
+    create_collapsed_page_sidebar,
+    create_page_sidebar,
+)
 from dashboard_v2.state import get_registry, server_state
 from miscope.visualization.renderers.repr_geometry import (
     render_centroid_distances,
@@ -79,63 +85,25 @@ def _graph(graph_id: str, height: str = "400px") -> dcc.Graph:
 # ---------------------------------------------------------------------------
 
 
-def create_repr_geometry_layout() -> html.Div:
-    """Create the Representational Geometry page layout."""
-    controls = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    dbc.Label("Family", className="fw-bold small"),
-                    dcc.Dropdown(id="rg-family-dropdown", placeholder="Select family..."),
-                ],
-                width=2,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("Variant", className="fw-bold small"),
-                    dcc.Dropdown(id="rg-variant-dropdown", placeholder="Select variant..."),
-                ],
-                width=3,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("Activation Site", className="fw-bold small"),
-                    dcc.Dropdown(
-                        id="rg-site-dropdown",
-                        options=_SITE_OPTIONS,
-                        value="all",
-                        clearable=False,
-                    ),
-                ],
-                width=2,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("Snapshot Epoch", className="fw-bold small"),
-                    dcc.Slider(
-                        id="rg-epoch-slider",
-                        min=0,
-                        max=1,
-                        step=1,
-                        value=0,
-                        marks=None,
-                        tooltip={"placement": "bottom", "always_visible": False},
-                    ),
-                ],
-                width=3,
-            ),
-            dbc.Col(
-                [
-                    html.Div(
-                        id="rg-status",
-                        children="No variant selected",
-                        className="text-muted small mt-4",
-                    ),
-                ],
-                width=2,
-            ),
+def create_repr_geometry_layout(initial: dict | None = None) -> html.Div:
+    """Create the Representational Geometry page layout with left sidebar."""
+    initial = initial or {}
+
+    site_dropdown = dcc.Dropdown(
+        id="rg-site-dropdown",
+        options=_SITE_OPTIONS,
+        value="all",
+        clearable=False,
+    )
+
+    sidebar = create_page_sidebar(
+        prefix="rg-",
+        initial_family=initial.get("family_name"),
+        initial_variant=initial.get("variant_name"),
+        extra_controls=[
+            dbc.Label("Activation Site", className="fw-bold"),
+            site_dropdown,
         ],
-        className="mb-3 align-items-end",
     )
 
     grid = html.Div(
@@ -160,11 +128,11 @@ def create_repr_geometry_layout() -> html.Div:
 
     return html.Div(
         [
-            html.Div(
-                [controls, grid],
-                style={"padding": "20px", "overflowY": "auto", "height": "calc(100vh - 56px)"},
-            ),
-        ]
+            sidebar,
+            create_collapsed_page_sidebar(),
+            html.Div(grid, style=_PAGE_CONTENT_STYLE),
+        ],
+        style=_FLEX_WRAPPER_STYLE,
     )
 
 
@@ -189,13 +157,20 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         Output("rg-variant-dropdown", "options"),
         Output("rg-variant-dropdown", "value"),
         Input("rg-family-dropdown", "value"),
+        State("selection-store", "data"),
     )
-    def on_rg_family_change(family_name: str | None):
+    def on_rg_family_change(family_name: str | None, store_data: dict | None):
         if not family_name:
             return [], None
         registry = get_registry()
         choices = get_variant_choices(registry, family_name)
-        return [{"label": display, "value": name} for display, name in choices], None
+        options = [{"label": display, "value": name} for display, name in choices]
+        stored = store_data or {}
+        if stored.get("family_name") == family_name:
+            variant_names = {opt["value"] for opt in options}
+            if stored.get("variant_name") in variant_names:
+                return options, stored["variant_name"]
+        return options, None
 
     @app.callback(
         *[Output(pid, "figure") for pid in _PLOT_IDS],
@@ -205,11 +180,13 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         Input("rg-variant-dropdown", "value"),
         State("rg-family-dropdown", "value"),
         State("rg-site-dropdown", "value"),
+        State("selection-store", "data"),
     )
     def on_rg_variant_change(
         variant_name: str | None,
         family_name: str | None,
         site_value: str,
+        store_data: dict | None,
     ):
         empty = _empty_figure("Select a variant")
         if not variant_name or not family_name:
@@ -226,12 +203,16 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
             no_data = _empty_figure(msg)
             return no_data, no_data, no_data, no_data, 1, 0, msg
 
-        # Centroid snapshot at first epoch
         epochs = loader.get_epochs("repr_geometry")
         slider_max = max(len(epochs) - 1, 1)
-        epoch = epochs[0] if epochs else 0
 
-        # Time-series from summary (with epoch indicator)
+        stored_epoch = (store_data or {}).get("epoch")
+        if stored_epoch is not None and epochs:
+            initial_epoch_idx = min(range(len(epochs)), key=lambda i: abs(epochs[i] - stored_epoch))
+        else:
+            initial_epoch_idx = 0
+        epoch = epochs[initial_epoch_idx] if epochs else 0
+
         site = None if site_value == "all" else site_value
         timeseries = _render_timeseries(loader, site, current_epoch=epoch)
         prime = server_state.model_config.get("prime", 113) if server_state.model_config else 113
@@ -239,7 +220,7 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         pca_fig, dist_fig, fisher_fig = _render_snapshot(loader, epoch, snapshot_site, prime)
 
         status = f"{variant_name} — {len(epochs)} epochs"
-        return timeseries, pca_fig, dist_fig, fisher_fig, slider_max, 0, status
+        return timeseries, pca_fig, dist_fig, fisher_fig, slider_max, initial_epoch_idx, status
 
     @app.callback(
         Output("rg-timeseries-plot", "figure", allow_duplicate=True),
@@ -281,6 +262,57 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         timeseries = _render_timeseries(loader, site, current_epoch=epoch)
         pca_fig, dist_fig, fisher_fig = _render_snapshot(loader, epoch, snapshot_site, prime)
         return timeseries, pca_fig, dist_fig, fisher_fig
+
+    # --- Click on timeseries → navigate epoch slider ---
+    @app.callback(
+        Output("rg-epoch-slider", "value", allow_duplicate=True),
+        Input("rg-timeseries-plot", "clickData"),
+        prevent_initial_call=True,
+    )
+    def on_rg_timeseries_click(click_data):
+        if not click_data or not click_data.get("points"):
+            return no_update
+        clicked_epoch = click_data["points"][0].get("x")
+        if clicked_epoch is None:
+            return no_update
+        loader = server_state.get_loader()
+        if loader is None:
+            return no_update
+        epochs = loader.get_epochs("repr_geometry")
+        if not epochs:
+            return no_update
+        return min(range(len(epochs)), key=lambda i: abs(epochs[i] - int(clicked_epoch)))
+
+    # --- Sync variant selection to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("rg-variant-dropdown", "value"),
+        State("rg-family-dropdown", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_rg_variant_to_store(variant: str | None, family: str | None):
+        p = Patch()
+        p["family_name"] = family
+        p["variant_name"] = variant
+        return p
+
+    # --- Sync epoch slider to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("rg-epoch-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_rg_epoch_to_store(epoch_idx: int):
+        loader = server_state.get_loader()
+        if loader is None:
+            return no_update
+        epochs = loader.get_epochs("repr_geometry")
+        epoch = epochs[epoch_idx] if epochs and epoch_idx < len(epochs) else None
+        if epoch is None:
+            return no_update
+        p = Patch()
+        p["epoch"] = epoch
+        return p
 
 
 def _render_timeseries(loader, site: str | None, current_epoch: int | None = None) -> go.Figure:

@@ -7,7 +7,7 @@ REQ_040: Migrate Training & Analysis Run Management to Dash.
 """
 
 import dash_bootstrap_components as dbc
-from dash import Dash, Input, Output, html
+from dash import Dash, Input, Output, State, html
 
 from dashboard_v2.version import __version__
 
@@ -43,16 +43,18 @@ def register_routing_callbacks(app: Dash) -> None:
     @app.callback(
         Output("page-content", "children"),
         Input("url", "pathname"),
+        State("selection-store", "data"),
     )
-    def display_page(pathname: str | None) -> html.Div:
+    def display_page(pathname: str | None, store_data: dict | None) -> html.Div:
+        initial = store_data or {}
         if pathname == "/training":
             return create_training_layout()
         elif pathname == "/analysis-run":
             return create_analysis_run_layout()
         elif pathname == "/summary":
-            return create_summary_layout()
+            return create_summary_layout(initial)
         elif pathname == "/neuron-dynamics":
-            return create_neuron_dynamics_layout()
+            return create_neuron_dynamics_layout(initial)
         elif pathname == "/repr-geometry":
-            return create_repr_geometry_layout()
-        return create_visualization_layout()
+            return create_repr_geometry_layout(initial)
+        return create_visualization_layout(initial)
