@@ -14,6 +14,47 @@ from dashboard_v2.navigation import create_navbar
 from miscope.analysis.library.weights import WEIGHT_MATRIX_NAMES
 from miscope.visualization.renderers.landscape_flatness import FLATNESS_METRICS
 
+# ---------------------------------------------------------------------------
+# Shared style constants
+# ---------------------------------------------------------------------------
+
+_SIDEBAR_STYLE = {
+    "width": "280px",
+    "minWidth": "280px",
+    "padding": "20px",
+    "backgroundColor": "#f8f9fa",
+    "overflowY": "auto",
+    "borderRight": "1px solid #dee2e6",
+    "height": "100vh",
+    "position": "sticky",
+    "top": "0",
+}
+
+_COLLAPSED_SIDEBAR_STYLE = {
+    "width": "40px",
+    "minWidth": "40px",
+    "padding": "10px 5px",
+    "backgroundColor": "#f8f9fa",
+    "borderRight": "1px solid #dee2e6",
+    "height": "100vh",
+    "position": "sticky",
+    "top": "0",
+    "display": "none",
+}
+
+_PAGE_CONTENT_STYLE = {
+    "flex": "1",
+    "padding": "20px",
+    "overflowY": "auto",
+    "height": "100vh",
+}
+
+_FLEX_WRAPPER_STYLE = {
+    "display": "flex",
+    "height": "calc(100vh - 56px)",
+    "overflow": "hidden",
+}
+
 
 def create_sidebar(
     initial_family: str | None = None,
@@ -249,44 +290,6 @@ def create_visualization_layout(initial: dict | None = None) -> html.Div:
         ],
         style=_FLEX_WRAPPER_STYLE,
     )
-
-
-_SIDEBAR_STYLE = {
-    "width": "280px",
-    "minWidth": "280px",
-    "padding": "20px",
-    "backgroundColor": "#f8f9fa",
-    "overflowY": "auto",
-    "borderRight": "1px solid #dee2e6",
-    "height": "100vh",
-    "position": "sticky",
-    "top": "0",
-}
-
-_COLLAPSED_SIDEBAR_STYLE = {
-    "width": "40px",
-    "minWidth": "40px",
-    "padding": "10px 5px",
-    "backgroundColor": "#f8f9fa",
-    "borderRight": "1px solid #dee2e6",
-    "height": "100vh",
-    "position": "sticky",
-    "top": "0",
-    "display": "none",
-}
-
-_PAGE_CONTENT_STYLE = {
-    "flex": "1",
-    "padding": "20px",
-    "overflowY": "auto",
-    "height": "100vh",
-}
-
-_FLEX_WRAPPER_STYLE = {
-    "display": "flex",
-    "height": "calc(100vh - 56px)",
-    "overflow": "hidden",
-}
 
 
 def create_page_sidebar(
