@@ -9,9 +9,15 @@ from __future__ import annotations
 
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, State, dcc, html
+from dash import Dash, Input, Output, Patch, State, dcc, html
 
 from dashboard_v2.components.family_selector import get_family_choices, get_variant_choices
+from dashboard_v2.layout import (
+    _FLEX_WRAPPER_STYLE,
+    _PAGE_CONTENT_STYLE,
+    create_collapsed_page_sidebar,
+    create_page_sidebar,
+)
 from dashboard_v2.state import get_registry, server_state
 from miscope.visualization.renderers.neuron_freq_clusters import (
     render_commitment_timeline,
@@ -70,51 +76,28 @@ def _graph(graph_id: str, height: str = "400px") -> dcc.Graph:
 # ---------------------------------------------------------------------------
 
 
-def create_neuron_dynamics_layout() -> html.Div:
-    """Create the Neuron Dynamics page layout."""
-    controls = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    dbc.Label("Family", className="fw-bold small"),
-                    dcc.Dropdown(id="nd-family-dropdown", placeholder="Select family..."),
-                ],
-                width=2,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("Variant", className="fw-bold small"),
-                    dcc.Dropdown(id="nd-variant-dropdown", placeholder="Select variant..."),
-                ],
-                width=3,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("Sort Order", className="fw-bold small"),
-                    dbc.RadioItems(
-                        id="nd-sort-toggle",
-                        options=[
-                            {"label": "Natural Order", "value": "natural"},
-                            {"label": "Sorted by Final Frequency", "value": "sorted"},
-                        ],
-                        value="natural",
-                        inline=True,
-                    ),
-                ],
-                width=4,
-            ),
-            dbc.Col(
-                [
-                    html.Div(
-                        id="nd-status",
-                        children="No variant selected",
-                        className="text-muted small mt-4",
-                    ),
-                ],
-                width=3,
-            ),
+def create_neuron_dynamics_layout(initial: dict | None = None) -> html.Div:
+    """Create the Neuron Dynamics page layout with left sidebar."""
+    initial = initial or {}
+
+    sort_toggle = dbc.RadioItems(
+        id="nd-sort-toggle",
+        options=[
+            {"label": "Natural Order", "value": "natural"},
+            {"label": "Sorted by Final Frequency", "value": "sorted"},
         ],
-        className="mb-3 align-items-end",
+        value="natural",
+        className="mb-3",
+    )
+
+    sidebar = create_page_sidebar(
+        prefix="nd-",
+        initial_family=initial.get("family_name"),
+        initial_variant=initial.get("variant_name"),
+        extra_controls=[
+            dbc.Label("Sort Order", className="fw-bold"),
+            sort_toggle,
+        ],
     )
 
     grid = html.Div(
@@ -133,11 +116,11 @@ def create_neuron_dynamics_layout() -> html.Div:
 
     return html.Div(
         [
-            html.Div(
-                [controls, grid],
-                style={"padding": "20px", "overflowY": "auto", "height": "calc(100vh - 56px)"},
-            ),
-        ]
+            sidebar,
+            create_collapsed_page_sidebar(),
+            html.Div(grid, style=_PAGE_CONTENT_STYLE),
+        ],
+        style=_FLEX_WRAPPER_STYLE,
     )
 
 
@@ -233,3 +216,28 @@ def register_neuron_dynamics_callbacks(app: Dash) -> None:
         return render_neuron_freq_trajectory(
             _cached_cross_epoch, prime, sorted_by_final=sorted_flag
         )
+
+    # --- Sync variant selection to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("nd-variant-dropdown", "value"),
+        State("nd-family-dropdown", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_nd_variant_to_store(variant: str | None, family: str | None):
+        p = Patch()
+        p["family_name"] = family
+        p["variant_name"] = variant
+        return p
+
+    # --- Sync epoch slider to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("nd-epoch-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_nd_epoch_to_store(epoch_idx: int):
+        epoch = server_state.get_epoch_at_index(epoch_idx)
+        p = Patch()
+        p["epoch"] = epoch
+        return p

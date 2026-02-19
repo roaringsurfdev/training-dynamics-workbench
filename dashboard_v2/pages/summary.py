@@ -13,6 +13,12 @@ from dash import Dash, Input, Output, Patch, State, dcc, html, no_update
 
 from dashboard_v2.components.family_selector import get_family_choices, get_variant_choices
 from dashboard_v2.components.loss_curves import render_loss_curves_with_indicator
+from dashboard_v2.layout import (
+    _FLEX_WRAPPER_STYLE,
+    _PAGE_CONTENT_STYLE,
+    create_collapsed_page_sidebar,
+    create_page_sidebar,
+)
 from dashboard_v2.state import get_registry, server_state
 from miscope.visualization.renderers.attention_freq import (
     render_attention_dominant_frequencies,
@@ -72,6 +78,18 @@ _TRAJECTORY_PLOTS = [
     "summary-trajectory-3d-plot",
     "summary-trajectory-pc1-pc3-plot",
     "summary-trajectory-pc2-pc3-plot",
+]
+
+# Time-series plots that support click-to-navigate (epoch on x-axis)
+_CLICK_NAV_PLOT_IDS = [
+    "summary-loss-plot",
+    "summary-freq-over-time-plot",
+    "summary-spec-trajectory-plot",
+    "summary-spec-freq-plot",
+    "summary-attn-spec-plot",
+    "summary-attn-dom-freq-plot",
+    "summary-velocity-plot",
+    "summary-dim-trajectory-plot",
 ]
 
 # ---------------------------------------------------------------------------
@@ -321,52 +339,14 @@ def _graph(graph_id: str, height: str = "400px") -> dcc.Graph:
     )
 
 
-def create_summary_layout() -> html.Div:
-    """Create the Summary Lens page layout."""
-    controls = dbc.Row(
-        [
-            dbc.Col(
-                [
-                    dbc.Label("Family", className="fw-bold small"),
-                    dcc.Dropdown(id="summary-family-dropdown", placeholder="Select family..."),
-                ],
-                width=2,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("Variant", className="fw-bold small"),
-                    dcc.Dropdown(id="summary-variant-dropdown", placeholder="Select variant..."),
-                ],
-                width=3,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("Epoch", className="fw-bold small"),
-                    dcc.Slider(
-                        id="summary-epoch-slider",
-                        min=0,
-                        max=1,
-                        step=1,
-                        value=0,
-                        marks=None,
-                        tooltip={"placement": "bottom", "always_visible": False},
-                    ),
-                ],
-                width=5,
-            ),
-            dbc.Col(
-                [
-                    dbc.Label("\u00a0", className="fw-bold small"),  # spacer
-                    html.Div(
-                        id="summary-epoch-display",
-                        children="Epoch 0",
-                        className="text-muted small",
-                    ),
-                ],
-                width=2,
-            ),
-        ],
-        className="mb-3 align-items-end",
+def create_summary_layout(initial: dict | None = None) -> html.Div:
+    """Create the Summary Lens page layout with left sidebar."""
+    initial = initial or {}
+
+    sidebar = create_page_sidebar(
+        prefix="summary-",
+        initial_family=initial.get("family_name"),
+        initial_variant=initial.get("variant_name"),
     )
 
     grid = html.Div(
@@ -408,11 +388,11 @@ def create_summary_layout() -> html.Div:
 
     return html.Div(
         [
-            html.Div(
-                [controls, grid],
-                style={"padding": "20px", "overflowY": "auto", "height": "calc(100vh - 56px)"},
-            ),
-        ]
+            sidebar,
+            create_collapsed_page_sidebar(),
+            html.Div(grid, style=_PAGE_CONTENT_STYLE),
+        ],
+        style=_FLEX_WRAPPER_STYLE,
     )
 
 
@@ -455,8 +435,13 @@ def register_summary_callbacks(app: Dash) -> None:
         Output("summary-epoch-display", "children"),
         Input("summary-variant-dropdown", "value"),
         State("summary-family-dropdown", "value"),
+        State("selection-store", "data"),
     )
-    def on_summary_variant_change(variant_name: str | None, family_name: str | None):
+    def on_summary_variant_change(
+        variant_name: str | None,
+        family_name: str | None,
+        store_data: dict | None,
+    ):
         empty = _empty_figure("Select a variant")
         if not variant_name or not family_name:
             return (*[empty] * len(_PLOT_IDS), 1, 0, "No variant selected")
@@ -470,8 +455,11 @@ def register_summary_callbacks(app: Dash) -> None:
         server_state.get_trajectory_data()
 
         epochs = server_state.available_epochs
-        epoch = epochs[0] if epochs else 0
         slider_max = max(len(epochs) - 1, 1)
+
+        stored_epoch = (store_data or {}).get("epoch")
+        initial_epoch_idx = server_state.nearest_epoch_index(stored_epoch) if stored_epoch is not None else 0
+        epoch = server_state.get_epoch_at_index(initial_epoch_idx)
 
         # Render all 12 figures
         loss = _s_render_loss(epoch)
@@ -483,7 +471,7 @@ def register_summary_callbacks(app: Dash) -> None:
         t3d, t_fig, pc13, pc23, vel = _s_render_trajectory_plots(epoch)
         dim_traj = _s_render_dim_trajectory(epoch)
 
-        display = f"Epoch {epoch} (Index 0 / {len(epochs)})"
+        display = f"Epoch {epoch} (Index {initial_epoch_idx} / {len(epochs)})"
 
         # Return in _PLOT_IDS order
         return (
@@ -500,9 +488,57 @@ def register_summary_callbacks(app: Dash) -> None:
             vel,
             dim_traj,
             slider_max,
-            0,
+            initial_epoch_idx,
             display,
         )
+
+    # --- Sync variant selection to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("summary-variant-dropdown", "value"),
+        State("summary-family-dropdown", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_summary_variant_to_store(variant: str | None, family: str | None):
+        from dash import Patch
+
+        p = Patch()
+        p["family_name"] = family
+        p["variant_name"] = variant
+        return p
+
+    # --- Sync epoch slider to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("summary-epoch-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_summary_epoch_to_store(epoch_idx: int):
+        from dash import Patch
+
+        epoch = server_state.get_epoch_at_index(epoch_idx)
+        p = Patch()
+        p["epoch"] = epoch
+        return p
+
+    # --- Click on time-series plot → navigate epoch slider ---
+    @app.callback(
+        Output("summary-epoch-slider", "value", allow_duplicate=True),
+        *[Input(pid, "clickData") for pid in _CLICK_NAV_PLOT_IDS],
+        prevent_initial_call=True,
+    )
+    def on_summary_plot_click(*click_args):
+        from dash import ctx
+
+        click_map = dict(zip(_CLICK_NAV_PLOT_IDS, click_args, strict=False))
+        triggered = ctx.triggered_id
+        click_data = click_map.get(triggered) if isinstance(triggered, str) else None
+        if not click_data or not click_data.get("points"):
+            return no_update
+        clicked_epoch = click_data["points"][0].get("x")
+        if clicked_epoch is None:
+            return no_update
+        return server_state.nearest_epoch_index(int(clicked_epoch))
 
     # --- Epoch slider change → temporal cursor update ---
     @app.callback(

@@ -148,10 +148,10 @@ class TestPageLayouts:
         from dashboard_v2.layout import create_layout
 
         layout = create_layout()
-        # Layout should have children: Location, Navbar, page-content div
+        # Layout should have children: Store, Location, Navbar, page-content div
         assert layout is not None
         assert layout.children is not None
-        assert len(layout.children) == 3
+        assert len(layout.children) == 4
 
 
 class TestDashAppCreation:

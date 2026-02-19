@@ -425,6 +425,7 @@ _CLICK_NAV_PLOT_IDS = [
     "attn-spec-plot",
     "dim-trajectory-plot",
     "flatness-trajectory-plot",
+    "velocity-plot",
 ]
 
 
@@ -476,6 +477,7 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
         State("position-pair-dropdown", "value"),
         State("sv-matrix-dropdown", "value"),
         State("sv-head-slider", "value"),
+        State("selection-store", "data"),
     )
     def on_variant_change(
         variant_name,
@@ -485,6 +487,7 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
         position_pair,
         sv_matrix,
         sv_head,
+        store_data,
     ):
         n_plots = len(_ALL_PLOT_IDS)
         empty = _empty_figure("Select a variant")
@@ -515,7 +518,9 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
                 "Variant not found",
             )
 
-        epoch = server_state.get_epoch_at_index(0)
+        stored_epoch = (store_data or {}).get("epoch")
+        initial_epoch_idx = server_state.nearest_epoch_index(stored_epoch) if stored_epoch is not None else 0
+        epoch = server_state.get_epoch_at_index(initial_epoch_idx)
         max_idx = max(0, len(server_state.available_epochs) - 1)
         to_pos, from_pos = _parse_position_pair(position_pair)
 
@@ -568,10 +573,10 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
             perturbation,
             # Controls
             max_idx,
-            0,
+            initial_epoch_idx,
             max(0, server_state.n_neurons - 1),
             max(0, server_state.n_heads - 1),
-            f"Epoch {epoch} (Index 0)",
+            f"Epoch {epoch} (Index {initial_epoch_idx})",
             "Neuron 0",
             status,
         )
@@ -767,6 +772,35 @@ def register_callbacks(app: Dash) -> None:  # noqa: C901
     def on_flatness_metric_change(metric, epoch_idx):
         epoch = server_state.get_epoch_at_index(epoch_idx)
         return _render_flatness(epoch, metric)
+
+    # --- Sync main Viz variant selection to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("variant-dropdown", "value"),
+        State("family-dropdown", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_viz_variant_to_store(variant, family):
+        from dash import Patch
+
+        p = Patch()
+        p["family_name"] = family
+        p["variant_name"] = variant
+        return p
+
+    # --- Sync main Viz epoch slider to cross-page store ---
+    @app.callback(
+        Output("selection-store", "data", allow_duplicate=True),
+        Input("epoch-slider", "value"),
+        prevent_initial_call=True,
+    )
+    def sync_viz_epoch_to_store(epoch_idx):
+        from dash import Patch
+
+        epoch = server_state.get_epoch_at_index(epoch_idx)
+        p = Patch()
+        p["epoch"] = epoch
+        return p
 
     # --- Sidebar toggle ---
     @app.callback(
