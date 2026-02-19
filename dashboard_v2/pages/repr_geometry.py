@@ -157,13 +157,20 @@ def register_repr_geometry_callbacks(app: Dash) -> None:
         Output("rg-variant-dropdown", "options"),
         Output("rg-variant-dropdown", "value"),
         Input("rg-family-dropdown", "value"),
+        State("selection-store", "data"),
     )
-    def on_rg_family_change(family_name: str | None):
+    def on_rg_family_change(family_name: str | None, store_data: dict | None):
         if not family_name:
             return [], None
         registry = get_registry()
         choices = get_variant_choices(registry, family_name)
-        return [{"label": display, "value": name} for display, name in choices], None
+        options = [{"label": display, "value": name} for display, name in choices]
+        stored = store_data or {}
+        if stored.get("family_name") == family_name:
+            variant_names = {opt["value"] for opt in options}
+            if stored.get("variant_name") in variant_names:
+                return options, stored["variant_name"]
+        return options, None
 
     @app.callback(
         *[Output(pid, "figure") for pid in _PLOT_IDS],
