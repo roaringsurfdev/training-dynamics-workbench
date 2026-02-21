@@ -1,5 +1,5 @@
 import dash_bootstrap_components as dbc
-from dash import Dash, Input, Output, State, html, set_props
+from dash import Dash, Input, Output, State, html
 from dash.exceptions import PreventUpdate
 
 from dashboard_temp.components.visualization import create_empty_figure, create_graph
