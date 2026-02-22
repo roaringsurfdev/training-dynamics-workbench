@@ -5,6 +5,10 @@
 ### Context-Aware Navigation (context_aware_navigation.md)
 It would be helpful to have a consistent left navigation that stays consistent across the application. The context of the left navigation can change based on context and it has expand/collapse behavior.
 
+### Sticky Analysis selections
+When navigating through the "lenses"/pages of the application, I would like to keep the current Model Family, Variant, and Checkpoint constant across the pages.
+*For now, this does not apply to the Analysis and Training sections. If these selections are sticky, that's ok, but this requirement does not need to include those pages*
+
 ### Consistent-Time Series Visualization Behavior
 It is incredibly helpful to be able to click on a Visualization to navigate to an epoch of interest. For any time-series visualization with epochs along the x-axis, it would be ideal if they all shared the default behavior such that clicking on the visualization navigates to the epoch.
 
