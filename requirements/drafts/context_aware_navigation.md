@@ -2,6 +2,7 @@
 It would be helpful to have a consistent left navigation that stays consistent across the application. The context of the left navigation can change based on context and it has expand/collapse behavior.
 
 ### Training Job Menu
+*Note: Job Management functionality will likely move to a separate application that's more suited to job management*
 * **Select Model Family** (drop-down) - Selecting Model Family refreshes Variant List
 * **Select Variant(s)** (Single-select list) - Selecting Variant(s) indicates which Variant Analysis jobs will be started
 * **Create New/Edit/Save Button(s)** - CRUD buttons for Model Variant profiles. Note: Once a variant has been created, the only field that can be edited is the Checkpoint schedule. (NOTE: If the application doesn't yet support CRUD, it's possible to tackle this without a database backend since it's really just about running a new job with a different checkpoint schedule)
