@@ -11,7 +11,7 @@ from dashboard_temp.state import variant_state
 # ---------------------------------------------------------------------------
 
 _VIEW_LIST = {
-    "nd-trajectory-plot": {"view_name": "neuron_freq_trajectory", "view_type":"default_graph"},
+    "nd-trajectory-plot": {"view_name": "neuron_freq_trajectory", "view_type":"epoch_selector"},
     "nd-switch-plot": {"view_name": "", "view_type":"default_graph"},
     "nd-commitment-plot": {"view_name": "", "view_type":"default_graph"},
 }
@@ -80,12 +80,12 @@ def create_neuron_dynamics_page_layout() -> html.Div:
             html.Div(
                     [
                         # Trajectory heatmap (full width)
-                        dbc.Row(dbc.Col(create_graph("nd-trajectory-plot", "600px"))),
+                        dbc.Row(dbc.Col(create_graph("nd-trajectory-plot", "600px", _get_graph_view_type("nd-trajectory-plot")))),
                         # Switch distribution | Commitment timeline
                         dbc.Row(
                             [
-                                dbc.Col(create_graph("nd-switch-plot", "350px"), width=6),
-                                dbc.Col(create_graph("nd-commitment-plot", "350px"), width=6),
+                                dbc.Col(create_graph("nd-switch-plot", "350px", _get_graph_view_type("nd-switch-plot")), width=6),
+                                dbc.Col(create_graph("nd-commitment-plot", "350px", _get_graph_view_type("nd-commitment-plot")), width=6),
                             ]
                         ),
                     ],

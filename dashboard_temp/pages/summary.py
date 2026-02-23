@@ -27,11 +27,12 @@ _PLOT_IDS = [
     "summary-velocity-plot",
     "summary-dim-trajectory-plot",
 ]
+# TODO: Standardize _VIEW_LIST to use a shared schema across pages
 _VIEW_LIST = {
     "summary-loss-plot": {"view_name": "loss_curve", "view_type": "epoch_selector"},
     "summary-freq-over-time-plot": {"view_name": "dominant_frequencies_over_time", "view_type": "epoch_selector"},
     "summary-spec-trajectory-plot": {"view_name": "specialization_trajectory", "view_type": "default_graph"},
-    "summary-spec-freq-plot": {"view_name": "specialization_by_frequency", "view_type": "default_graph"},
+    "summary-spec-freq-plot": {"view_name": "specialization_by_frequency", "view_type": "epoch_selector"},
     "summary-attn-spec-plot": {"view_name": "attention_specialization_trajectory", "view_type": "default_graph"},
     "summary-attn-dom-freq-plot": {"view_name": "attention_dominant_frequencies", "view_type": "default_graph"},
     "summary-trajectory-3d-plot": {"view_name": "trajectory_3d", "view_type": "default_graph"},
@@ -42,6 +43,7 @@ _VIEW_LIST = {
     "summary-dim-trajectory-plot": {"view_name": "dimensionality_trajectory", "view_type": "default_graph"},
 }
 
+# TODO: refactor to pull out common functionality across analysis pages
 def _get_graph_output_list():
     graph_list = []
     for view_item in _VIEW_LIST.keys():
