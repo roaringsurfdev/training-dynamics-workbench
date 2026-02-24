@@ -833,3 +833,91 @@ p59/485 adds the critical fourth comparison point:
 ---
 
 *p59/485 proves the basin is reachable even via the overshoot path. The overshooter compensates with massive scale. The undershooter (p101/999) fails not because it can't find the basin, but because it can't stay.*
+
+---
+
+## 2026-02-23: Phase Scatter Voids — Dual View of Centroid Geometry
+
+### Observation
+
+The phase alignment scatter (ψ_m vs. φ_m at dominant frequency) shows characteristic void regions — not noise, not missing data, but structured gaps. This pattern immediately recalled the centroid PCA Lissajous structure.
+
+### What Creates the Voids
+
+Both φ and ψ are constrained to [-π, π] by arctan2, but the alignment relationship is ψ = 2φ. This requires ψ ∈ [-2π, 2π] — double the range available. The wrapping at ±π splits what would be a single diagonal into **three bands**:
+
+1. **Central band**: φ ∈ [-π/2, π/2], ψ = 2φ ∈ [-π, π] — lies on the dashed ideal line
+2. **Lower-right band**: φ ∈ (π/2, π], theoretical ψ = 2φ wraps to 2φ - 2π ∈ (-π, 0]
+3. **Upper-left band**: φ ∈ (-π, -π/2], theoretical ψ = 2φ wraps to 2φ + 2π ∈ (0, π]
+
+The voids are the gaps at φ ≈ ±π/2 — the wrapping discontinuities. They're structural proof the doubled-phase relationship is real.
+
+### Connection to Centroid PCA
+
+Both representations are projections of the same torus topology:
+
+- **Centroid PCA**: plots output class centroids on a circle/Lissajous parameterized by e^{ikx} and e^{2ikx}. The self-intersections and figure-8 shapes come from the double-angle relationship cos(kx)cos(ky) → cos(k(x+y)).
+- **Phase scatter**: plots per-neuron weight phases (φ_m, ψ_m) subject to ψ ≈ 2φ. The three-band void structure comes from the same doubling, wrapped back into [-π, π].
+
+Both are signatures of the same circuit: the model computes cos(kx)·cos(ky) - sin(kx)·sin(ky) = cos(k(x+y)), and the double-angle relationship is the mathematical spine of that computation. Centroid PCA sees it in output-space organization; phase scatter sees it in weight-space organization.
+
+### Diagnostic Potential
+
+For pathological variants (p101/999, p59/485): a model with degenerate or incomplete frequency coverage should show a distorted version of this three-band structure — bands that are faint, smeared, or misaligned. The clarity of the three-band void pattern may be a visual analog to circularity in the centroid time-series: sharp bands = well-formed Fourier circuit; blurred/missing bands = degraded or incomplete alignment.
+
+Worth comparing the phase scatter for p101/999 (degenerate cos/sin imbalance, transient circle that collapses) against p113/999 (clean). If the three-band structure is absent or smeared for p101/999, the weight-space and activation-space views are telling the same story from complementary angles.
+
+---
+
+*The phase scatter voids are not artifacts — they're the weight-space signature of the same doubled-phase topology that creates Lissajous figures in centroid PCA. Both views are projections of the model's ψ = 2φ constraint onto accessible phase ranges.*
+
+---
+
+## 2026-02-23: Initialization Implicated in p=101/999 — Lottery Ticket Non-Null Result
+
+### Key Finding
+
+Null lottery ticket result (neither phase margin nor magnitude ratio at init predicts winning frequency) holds for p=113/999 (healthy variant). p=101/999 shows structure in the phase margin vs magnitude scatter — initialization IS predictive for the anomalous variant.
+
+This is diagnostic. In healthy variants, the competition plays out through gradient flow — init doesn't matter. In p=101/999, amplitude locks early (β IPR rises to ~0.9 ahead of phase alignment), and wherever the neuron started is closer to where it ends up. The competition isn't resolved by training dynamics; it's resolved by the initialization.
+
+### p=101/485 as Control Case
+
+p=101/485 shows canonical grokking from a healthy loss curve. Same prime, different seed. This rules out p=101 being intrinsically hard — seed=999 is a bad initialization draw for this prime. The lottery ticket non-null result is not a property of p=101; it's specific to p=101/999's initialization.
+
+**The mechanism**: p=101/999's amplitude competition commits prematurely before phase gradient flow can establish ψ≈2φ (dissociation: β IPR ≈0.9, α IPR ≈0.4). Because amplitude competition resolved early based on initial magnitudes rather than sustained competition, initialization is more deterministic in this variant than in healthy ones.
+
+### p=109/485 — Fast Grokker as the Ideal Case
+
+p=109/485 locked in fast — appears to have landed on a converged representation quickly but still went through a refinement phase. This is the opposite of p=101/999's pathology: amplitude competition resolved productively AND the model continued refining phase alignment post-commitment. Fast grokking here is evidence of arriving at the right place with the right momentum, not just arriving fast.
+
+**Open question**: Does p=109/485's phase scatter show the clean three-band structure earlier than slower grokkers? If so, it would suggest the fast landing came with intact phase alignment from the start — the initialization happened to be well-positioned for both amplitude and phase competition.
+
+---
+
+*p=101/999's non-null lottery ticket result is diagnostic of broken competition dynamics. p=101/485 control confirms the pathology is init-dependent, not prime-intrinsic.*
+
+---
+
+## 2026-02-23: Neuron Fourier Views — Dashboard Comparison Gap
+
+### The Friction
+
+Comparative analysis across variants (p=101/999 vs p=101/485, healthy vs anomalous) is high friction in notebooks. Each comparison requires: re-loading data, rerunning cells, holding context between runs. Quick comparison of IPR trajectories, phase scatter, or margin vs switches across variants is the core scientific workflow but currently requires significant cognitive overhead.
+
+The neuron Fourier views (IPR, phase alignment, phase scatter) are registered in the View Catalog (REQ_047) and artifacts are on disk for all 12 variants. The missing piece is a dashboard surface that exposes them for interactive multi-variant comparison.
+
+### What's Needed
+
+Not a generic multi-panel comparison tool (too ambitious). Specifically:
+- IPR trajectory (input + output) side-by-side for two variants on the same axes
+- Phase scatter at a selected epoch — healthy reference vs. target variant
+- (Stretch) Conditioned alignment progress as a single overlaid time-series
+
+Dash's dynamic loading capabilities (explored in sandbox UX work) are well-suited to on-demand, ad-hoc multi-graph composition. This is the next natural frontend requirement after the View Catalog architecture stabilizes.
+
+**Status**: Candidate requirement. Blocked by: none. Priority: next after current branch.
+
+---
+
+*Notebook is the right excavation tool; the dashboard is the right comparison tool. The neuron Fourier views need dashboard exposure to support the cross-variant comparative workflow.*
