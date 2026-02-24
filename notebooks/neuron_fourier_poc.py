@@ -25,8 +25,10 @@ from miscope.analysis.artifact_loader import ArtifactLoader
 
 # %% configuration
 FAMILY_NAME = "modulo_addition_1layer"
-HEALTHY = dict(prime=113, seed=999)
-ANOMALOUS = dict(prime=101, seed=999)
+#HEALTHY = dict(prime=113, seed=999)
+HEALTHY = dict(prime=109, seed=485)
+#ANOMALOUS = dict(prime=59, seed=485)
+ANOMALOUS = dict(prime=113, seed=999)
 
 family = load_family(FAMILY_NAME)
 
