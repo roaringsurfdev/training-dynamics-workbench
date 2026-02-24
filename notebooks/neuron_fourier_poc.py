@@ -370,7 +370,7 @@ print(f"  Chance baseline (1/K={K}):  {1/K:.1%}")
 
 rng = np.random.default_rng(42)
 jitter = rng.uniform(-0.2, 0.2, M)
-ipr_final = ipr_alpha_h[-1]                             # (M,) per-neuron IPR at final epoch
+ipr_final = ipr_input_h[-1]                             # (M,) per-neuron IPR at final epoch
 
 # Phase margin vs. switches
 fig_phase_sw = go.Figure()
@@ -425,7 +425,7 @@ print(f"  {'Epoch':>8}  {'Committed':>10}  {'Unconditioned':>14}  {'Conditioned'
 
 sample_indices = np.linspace(0, n_epochs_h - 1, min(8, n_epochs_h), dtype=int)
 for t in sample_indices:
-    mask = ipr_alpha_h[t] > IPR_THRESHOLD
+    mask = ipr_input_h[t] > IPR_THRESHOLD
     dom_k_t = dominant_freq_idx(alpha_h[t])
     phi_t = phi_h[t, m_idx, dom_k_t]
     psi_t = psi_h[t, m_idx, dom_k_t]
