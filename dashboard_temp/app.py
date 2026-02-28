@@ -1,0 +1,41 @@
+# imports
+import dash_bootstrap_components as dbc
+from dash import Dash
+
+from dashboard_temp.components.leftnav import register_left_nav_callbacks
+from dashboard_temp.components.sitenav import register_sitenav_callbacks
+from dashboard_temp.components.variant_selector import register_variant_selector_callbacks
+from dashboard_temp.layout import create_default_layout
+from dashboard_temp.pages.neuron_dynamics import register_neuron_dynamics_page_callbacks
+from dashboard_temp.pages.repr_geometry import register_repr_geometry_page_callbacks
+from dashboard_temp.pages.summary import register_summary_page_callbacks
+from dashboard_temp.pages.visualization import register_visualization_page_callbacks
+
+
+def create_app() -> Dash:
+    """Create and configure the Dash application."""
+    app = Dash(
+        __name__,
+        external_stylesheets=[dbc.themes.BOOTSTRAP],
+        suppress_callback_exceptions=True,
+    )
+    app.title = "MechInterp Scope"
+    app.layout = create_default_layout()
+    # core application callbacks
+    register_left_nav_callbacks(app)
+    register_sitenav_callbacks(app)
+    register_variant_selector_callbacks(app)
+    # page-specific callbacks
+    register_neuron_dynamics_page_callbacks(app)
+    register_repr_geometry_page_callbacks(app)
+    register_summary_page_callbacks(app)
+    register_visualization_page_callbacks(app)
+    return app
+
+def main() -> None:
+    """Entry point for the Dash dashboard."""
+    app = create_app()
+    app.run(debug=True, host="0.0.0.0", port=8060)
+
+if __name__ == '__main__':
+    main()
