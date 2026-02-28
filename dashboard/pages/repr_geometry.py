@@ -22,14 +22,27 @@ _SUMMARY_VIEW_LIST = {
 
 # Per-epoch snapshot views (site kwarg; epoch as data slice)
 _SNAPSHOT_VIEW_LIST = {
-    "rg-centroid-pca-plot": {"view_name": "centroid_pca", "view_type": "default_graph", "view_filter_set": "site"},
-    "rg-centroid-dist-plot": {"view_name": "centroid_distances", "view_type": "default_graph", "view_filter_set": "site"},
-    "rg-fisher-heatmap-plot": {"view_name": "fisher_heatmap", "view_type": "default_graph", "view_filter_set": "site"},
+    "rg-centroid-pca-plot": {
+        "view_name": "centroid_pca",
+        "view_type": "default_graph",
+        "view_filter_set": "site",
+    },
+    "rg-centroid-dist-plot": {
+        "view_name": "centroid_distances",
+        "view_type": "default_graph",
+        "view_filter_set": "site",
+    },
+    "rg-fisher-heatmap-plot": {
+        "view_name": "fisher_heatmap",
+        "view_type": "default_graph",
+        "view_filter_set": "site",
+    },
 }
 
 _VIEW_LIST = {**_SUMMARY_VIEW_LIST, **_SNAPSHOT_VIEW_LIST}
 
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST)
+
 
 def create_repr_geometry_page_nav() -> html.Div:
     return html.Div(
@@ -44,6 +57,7 @@ def create_repr_geometry_page_nav() -> html.Div:
         ]
     )
 
+
 def create_repr_geometry_page_layout() -> html.Div:
     return html.Div(
         id="repr_geometry_content",
@@ -54,7 +68,9 @@ def create_repr_geometry_page_layout() -> html.Div:
             # Fisher heatmap | Distance heatmap
             dbc.Row(
                 [
-                    dbc.Col(_graph_manager.create_graph("rg-fisher-heatmap-plot", "500px"), width=6),
+                    dbc.Col(
+                        _graph_manager.create_graph("rg-fisher-heatmap-plot", "500px"), width=6
+                    ),
                     dbc.Col(_graph_manager.create_graph("rg-centroid-dist-plot", "500px"), width=6),
                 ]
             ),
@@ -62,6 +78,7 @@ def create_repr_geometry_page_layout() -> html.Div:
             dbc.Row(dbc.Col(_graph_manager.create_graph("rg-centroid-pca-plot", "800px"), width=6)),
         ],
     )
+
 
 def register_repr_geometry_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Repr Geometry page."""
@@ -71,9 +88,7 @@ def register_repr_geometry_page_callbacks(app: Dash) -> None:
         Input("variant-selector-store", "modified_timestamp"),
         State("variant-selector-store", "data"),
     )
-    def on_rg_data_change(
-        _modified_timestamp: str | None, variant_data: dict | None
-    ):
+    def on_rg_data_change(_modified_timestamp: str | None, variant_data: dict | None):
         return _graph_manager.update_graphs(variant_data=variant_data)
 
     @app.callback(
@@ -87,4 +102,6 @@ def register_repr_geometry_page_callbacks(app: Dash) -> None:
     ):
         print("on_rg_site_value_change")
         view_kwargs = {"site": site_value}
-        return _graph_manager.update_graphs(variant_data=variant_data, view_filter_set="site", view_kwargs=view_kwargs)
+        return _graph_manager.update_graphs(
+            variant_data=variant_data, view_filter_set="site", view_kwargs=view_kwargs
+        )

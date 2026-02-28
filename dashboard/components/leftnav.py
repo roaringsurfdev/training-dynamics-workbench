@@ -1,6 +1,6 @@
 """
 Analysis Left Navigation
-    Will contain 
+    Will contain
         Primary Variant Selection (components.variant_selector)
             Family Drop-Down (Single Select)
             Variant List (Single Select) displayed as [domain parameter list]
@@ -16,6 +16,7 @@ Analysis Left Navigation
             Activation Site
             Weight Component Group
 """
+
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, html
 
@@ -45,6 +46,7 @@ _COLLAPSED_SIDEBAR_STYLE = {
     "display": "none",
 }
 
+
 def create_sidebar() -> html.Div:
     print("create_sidebar")
     """Create the collapsible sidebar with all controls."""
@@ -73,7 +75,7 @@ def create_sidebar() -> html.Div:
             html.Div(
                 id="page_left_nav",
                 children=[],
-            )
+            ),
         ],
         style=_SIDEBAR_STYLE,
     )
@@ -101,6 +103,7 @@ def create_collapsed_sidebar() -> html.Div:
         ],
         style=_COLLAPSED_SIDEBAR_STYLE,
     )
+
 
 def register_left_nav_callbacks(app: Dash) -> None:
     print("register_layout_callbacks")

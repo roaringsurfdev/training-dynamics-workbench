@@ -2,6 +2,7 @@
 
 Provides a top navbar with links to all pages, plus URL-driven routing callback.
 """
+
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, html
 

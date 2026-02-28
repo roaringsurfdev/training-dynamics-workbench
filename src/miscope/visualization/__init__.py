@@ -54,6 +54,10 @@ from miscope.visualization.renderers.neuron_activations import (
     render_neuron_grid,
     render_neuron_heatmap,
 )
+from miscope.visualization.renderers.neuron_fourier import (
+    render_neuron_fourier_heatmap,
+    render_neuron_fourier_heatmap_output,
+)
 from miscope.visualization.renderers.neuron_freq_clusters import (
     get_neuron_specialization,
     get_specialized_neurons,
@@ -71,10 +75,6 @@ from miscope.visualization.renderers.parameter_trajectory import (
     render_trajectory_3d,
     render_trajectory_pc1_pc3,
     render_trajectory_pc2_pc3,
-)
-from miscope.visualization.renderers.neuron_fourier import (
-    render_neuron_fourier_heatmap,
-    render_neuron_fourier_heatmap_output,
 )
 from miscope.visualization.renderers.repr_geometry import (
     render_centroid_distances,

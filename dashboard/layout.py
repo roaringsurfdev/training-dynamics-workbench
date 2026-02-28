@@ -29,6 +29,7 @@ _FLEX_WRAPPER_STYLE = {
     "overflow": "hidden",
 }
 
+
 def create_page_content() -> html.Div:
     print("create_page_content")
     """Create the scrollable content area with all 18 plot containers.
@@ -42,6 +43,7 @@ def create_page_content() -> html.Div:
         ],
         style=_PAGE_CONTENT_STYLE,
     )
+
 
 def create_default_layout() -> html.Div:
     print("create_default_layout")
@@ -58,6 +60,7 @@ def create_default_layout() -> html.Div:
                     create_page_content(),
                     dcc.Input(id="page-out-of-date", value="0", type="hidden"),
                 ],
-                style=_FLEX_WRAPPER_STYLE,)
-        ],        
+                style=_FLEX_WRAPPER_STYLE,
+            ),
+        ],
     )

@@ -56,16 +56,16 @@ class NeuronFourierAnalyzer:
         p = context["params"]["prime"]
         fourier_basis = context["fourier_basis"].cpu().numpy()  # (p, p)
 
-        W_E = artifact["W_E"]    # (p+1, d_model) — includes equals token
+        W_E = artifact["W_E"]  # (p+1, d_model) — includes equals token
         W_in = artifact["W_in"]  # (d_model, d_mlp)
         W_out = artifact["W_out"]  # (d_mlp, d_model)
-        W_U = artifact["W_U"]    # (d_model, p)
+        W_U = artifact["W_U"]  # (d_model, p)
 
-        theta = _compose_input_weights(W_E, W_in, p)   # (p, M)
-        xi = _compose_output_weights(W_out, W_U)        # (M, p)
+        theta = _compose_input_weights(W_E, W_in, p)  # (p, M)
+        xi = _compose_output_weights(W_out, W_U)  # (M, p)
 
-        G = fourier_basis @ theta    # (p, M) — Fourier coefficients of θ_m
-        R = fourier_basis @ xi.T     # (p, M) — Fourier coefficients of ξ_m
+        G = fourier_basis @ theta  # (p, M) — Fourier coefficients of θ_m
+        R = fourier_basis @ xi.T  # (p, M) — Fourier coefficients of ξ_m
 
         alpha_mk, phi_mk = extract_frequency_pairs(G, p)
         beta_mk, psi_mk = extract_frequency_pairs(R, p)

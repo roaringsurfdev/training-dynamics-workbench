@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -12,9 +13,12 @@ import numpy as np
 import torch
 import tqdm.auto as tqdm
 
-import logging
-
-from miscope.analysis.protocols import AnalysisRunConfig, Analyzer, CrossEpochAnalyzer, SecondaryAnalyzer
+from miscope.analysis.protocols import (
+    AnalysisRunConfig,
+    Analyzer,
+    CrossEpochAnalyzer,
+    SecondaryAnalyzer,
+)
 
 logger = logging.getLogger(__name__)
 

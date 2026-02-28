@@ -105,18 +105,27 @@ def format_variant_params(variant: Variant) -> str:
     for key, value in variant.params.items():
         parts.append(f"{key}={value}")
     return ", ".join(parts)
-    
+
+
 def get_variant_selector(
     initial_family: str | None = None,
     initial_variant: str | None = None,
-    initial_epoch_idx: int = 0        
+    initial_epoch_idx: int = 0,
 ) -> html.Div:
     return html.Div(
         [
             dcc.Store(
                 id="variant-selector-store",
                 storage_type="session",
-                data={"family_name": None, "variant_name": None, "epoch": None, "epoch_index": None, "max_epochs": 0, "last_field_updated": None, "stale_data": "0"},
+                data={
+                    "family_name": None,
+                    "variant_name": None,
+                    "epoch": None,
+                    "epoch_index": None,
+                    "max_epochs": 0,
+                    "last_field_updated": None,
+                    "stale_data": "0",
+                },
             ),
             html.Hr(),
             dbc.Label("Family", className="fw-bold"),
@@ -158,6 +167,7 @@ def get_variant_selector(
         ]
     )
 
+
 def register_variant_selector_callbacks(app: Dash) -> None:
     """Register all callbacks for the Variant Selector."""
 
@@ -182,33 +192,37 @@ def register_variant_selector_callbacks(app: Dash) -> None:
         stored_family_name = stored.get("family_name")
 
         if family_name is None and stored_family_name is None:
-            print("on_family_change: family_name is None and stored_family_name is None, PreventUpdate")
+            print(
+                "on_family_change: family_name is None and stored_family_name is None, PreventUpdate"
+            )
             raise PreventUpdate
-        
+
         if stored_family_name != family_name:
             print("on_family_change: family_name has changed, update dependencies")
             registry = get_registry()
             choices = get_variant_choices(registry, family_name)
             options = [{"label": display, "value": name} for display, name in choices]
-            set_props("variant-selector-store", {"data": {
-                "family_name": family_name,
-                "last_field_updated": "family_name"
-                }})
+            set_props(
+                "variant-selector-store",
+                {"data": {"family_name": family_name, "last_field_updated": "family_name"}},
+            )
             print(f"on_family_changed: Store updated -> family_name={family_name}")
         else:
-            #cancel operation
+            # cancel operation
             print("on_family_change: family_name is unchanged, PreventUpdate")
             raise PreventUpdate
 
         return options, None
-    
+
     @app.callback(
-        [Output("variant-selector-epoch-slider", "value"),
-        Output("variant-selector-epoch-slider", "max"),
-        Output("variant-selector-status-display", "children")],
+        [
+            Output("variant-selector-epoch-slider", "value"),
+            Output("variant-selector-epoch-slider", "max"),
+            Output("variant-selector-status-display", "children"),
+        ],
         Input("variant-selector-variant-dropdown", "value"),
         State("variant-selector-store", "data"),
-        prevent_initial_call=True
+        prevent_initial_call=True,
     )
     def on_variant_change(variant_name: str | None, store_data: dict | None):
         stored = store_data or {}
@@ -219,9 +233,11 @@ def register_variant_selector_callbacks(app: Dash) -> None:
         stored_family_name = stored.get("family_name")
 
         if variant_name is None and stored_variant_name is None:
-            print("on_variant_change: variant_name is None and stored_variant_name is None, PreventUpdate")
+            print(
+                "on_variant_change: variant_name is None and stored_variant_name is None, PreventUpdate"
+            )
             raise PreventUpdate
-        
+
         if stored_variant_name != variant_name:
             print("on_variant_change: variant_name has changed, update dependencies")
             if variant_name is None:
@@ -233,25 +249,34 @@ def register_variant_selector_callbacks(app: Dash) -> None:
             else:
                 # load variant-specific data
                 if stored_family_name is None:
-                    print("on_variant_change: variant_name changed but family_name is None, PreventUpdate")
+                    print(
+                        "on_variant_change: variant_name changed but family_name is None, PreventUpdate"
+                    )
                     raise PreventUpdate
-                
+
                 # load variant into server_state
                 variant_state.load_variant(stored_family_name, str(variant_name))
                 # reset epoch and epoch_index
-                # get max epochs for new variant                
+                # get max epochs for new variant
                 max_epochs = max(0, len(variant_state.available_epochs) - 1)
-                print(f"New variant selected: variant_name: {variant_name}, epoch: {epoch}, max_epochs:{max_epochs}")
+                print(
+                    f"New variant selected: variant_name: {variant_name}, epoch: {epoch}, max_epochs:{max_epochs}"
+                )
 
             # save updated variant settings to store
-            set_props("variant-selector-store", {"data": {
-                "family_name": stored_family_name, 
-                "variant_name": variant_name,
-                "epoch": epoch,
-                "epoch_index": epoch_index,
-                "max_epochs": max_epochs,
-                "last_field_updated": "variant_name"
-                }})
+            set_props(
+                "variant-selector-store",
+                {
+                    "data": {
+                        "family_name": stored_family_name,
+                        "variant_name": variant_name,
+                        "epoch": epoch,
+                        "epoch_index": epoch_index,
+                        "max_epochs": max_epochs,
+                        "last_field_updated": "variant_name",
+                    }
+                },
+            )
         else:
             print("on_variant_change: variant_name is unchanged, PreventUpdate")
             raise PreventUpdate
@@ -261,11 +286,13 @@ def register_variant_selector_callbacks(app: Dash) -> None:
     @app.callback(
         Output("variant-selector-epoch-display", "children"),
         Input("variant-selector-epoch-slider", "value"),
-        Input({'view_type': 'epoch_selector', 'index': ALL}, "clickData"),
+        Input({"view_type": "epoch_selector", "index": ALL}, "clickData"),
         State("variant-selector-store", "data"),
-        prevent_initial_call=True
+        prevent_initial_call=True,
     )
-    def on_epoch_change(epoch_index: int | None, click_data: list[dict | None] | None, store_data: dict | None):
+    def on_epoch_change(
+        epoch_index: int | None, click_data: list[dict | None] | None, store_data: dict | None
+    ):
         print("on_epoch_change")
         stored = store_data or {}
         stored_variant_name = stored.get("variant_name")
@@ -277,7 +304,9 @@ def register_variant_selector_callbacks(app: Dash) -> None:
         update_slider = False
 
         if stored_family_name is None and stored_variant_name is None:
-            print("on_epoch_changed: variant_name is None and stored_variant_name is None, PreventUpdate")
+            print(
+                "on_epoch_changed: variant_name is None and stored_variant_name is None, PreventUpdate"
+            )
             raise PreventUpdate
 
         if epoch_index is None:
@@ -285,7 +314,7 @@ def register_variant_selector_callbacks(app: Dash) -> None:
             epoch = 0
         else:
             epoch = stored_epoch
-        
+
         # check for click events
         if ctx.triggered_id != "variant-selector-epoch-slider":
             click_data_component_id = ctx.triggered_id
@@ -297,12 +326,12 @@ def register_variant_selector_callbacks(app: Dash) -> None:
                             print(f"handling click event: {click_data}")
                             epoch_index = variant_state.get_nearest_epoch_index(int(clicked_x))
                             epoch = variant_state.available_epochs[epoch_index]
-                            # Will need to explicitly update the slider since the event 
+                            # Will need to explicitly update the slider since the event
                             # did not come through the slider
                             update_slider = True
                             # Reset clickData so that there's only one entry in click_data at a time
                             if click_data_component_id:
-                                set_props(click_data_component_id, {'clickData': None})
+                                set_props(click_data_component_id, {"clickData": None})
                         break
 
         # commit new epoch data if it has changed
@@ -311,26 +340,31 @@ def register_variant_selector_callbacks(app: Dash) -> None:
 
             # save updated variant settings to store
             print("on_epoch_slider_changed: epoch changed, update dependencies")
-            
+
             # load the variant at the newly selected epoch
             variant_state.load_epoch(epoch)
 
             # update the store with updated selections
-            set_props("variant-selector-store", {"data": {
-                "family_name": stored_family_name, 
-                "variant_name": stored_variant_name,
-                "epoch": epoch,
-                "epoch_index": epoch_index,
-                "max_epochs": stored_max_epochs,
-                "last_field_updated": "epoch"
-                }})
+            set_props(
+                "variant-selector-store",
+                {
+                    "data": {
+                        "family_name": stored_family_name,
+                        "variant_name": stored_variant_name,
+                        "epoch": epoch,
+                        "epoch_index": epoch_index,
+                        "max_epochs": stored_max_epochs,
+                        "last_field_updated": "epoch",
+                    }
+                },
+            )
             # update the slider if necessary
             if update_slider:
-                set_props("variant-selector-epoch-slider", {'value': epoch_index})
+                set_props("variant-selector-epoch-slider", {"value": epoch_index})
         else:
             print("on_epoch_slider_changed: epoch unchanged, PreventUpdate")
             raise PreventUpdate
-            
+
         return f"Epoch {epoch}"
 
     # --- Show last field updated: for debugging purposes ---

@@ -25,7 +25,6 @@ Example usage:
 
 # Import universal registrations to populate the catalog as a side effect.
 import miscope.views.universal  # noqa: F401
-
 from miscope.views.catalog import BoundView, EpochContext, ViewCatalog, ViewDefinition, _catalog
 
 # Public catalog instance — use catalog.names() to inspect available views.

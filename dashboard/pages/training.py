@@ -234,7 +234,9 @@ def register_training_page_callbacks(app: Dash) -> None:
         try:
             registry = get_registry()
             family = registry.get_family(family_name)
-            variant_name = family.get_variant_directory_name({"prime": int(prime), "seed": int(seed)})
+            variant_name = family.get_variant_directory_name(
+                {"prime": int(prime), "seed": int(seed)}
+            )
             return f"Variant: {variant_name}"
         except Exception:
             return "Invalid parameters"
@@ -294,7 +296,10 @@ def register_training_page_callbacks(app: Dash) -> None:
         if state["running"]:
             return pct, f"{pct}%", state["message"], False, True, {"display": "block"}
         return (
-            100, "100%",
+            100,
+            "100%",
             state["result"] if state["result"] else state["message"],
-            True, False, {"display": "none"},
+            True,
+            False,
+            {"display": "none"},
         )

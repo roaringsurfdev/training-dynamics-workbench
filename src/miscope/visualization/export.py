@@ -295,7 +295,6 @@ _VISUALIZATION_REGISTRY: dict[str, tuple[str, str, str]] = {
         "render_neuron_freq_trajectory",
         "cross_epoch_neuron_dynamics",
     ),
-
 }
 
 

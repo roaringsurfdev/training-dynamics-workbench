@@ -1,19 +1,18 @@
 """Tests for REQ_048: Secondary Analysis Tier."""
 
+import json
 import os
 import tempfile
 import warnings
 from pathlib import Path
-import json
 
 import numpy as np
 import pytest
 
-from miscope.analysis import AnalysisPipeline, ArtifactLoader, SecondaryAnalyzer
+from miscope.analysis import AnalysisPipeline, ArtifactLoader
 from miscope.analysis.analyzers import AnalyzerRegistry
 from miscope.analysis.protocols import SecondaryAnalyzer as SecondaryAnalyzerProtocol
 from miscope.families import FamilyRegistry
-
 
 # ── Minimal fake analyzers ─────────────────────────────────────────────
 
@@ -266,10 +265,12 @@ class TestPipelineSecondary:
 
         # Record mtimes
         secondary_dir = os.path.join(pipeline.artifacts_dir, "snapshot_norm")
-        mtimes_before = {f: os.path.getmtime(os.path.join(secondary_dir, f))
-                        for f in os.listdir(secondary_dir)}
+        mtimes_before = {
+            f: os.path.getmtime(os.path.join(secondary_dir, f)) for f in os.listdir(secondary_dir)
+        }
 
         import time
+
         time.sleep(0.05)
 
         # Second run without force — should skip
@@ -278,8 +279,9 @@ class TestPipelineSecondary:
         pipeline2.register_secondary(DoubleSnapshotNorm())
         pipeline2.run()
 
-        mtimes_after = {f: os.path.getmtime(os.path.join(secondary_dir, f))
-                       for f in os.listdir(secondary_dir)}
+        mtimes_after = {
+            f: os.path.getmtime(os.path.join(secondary_dir, f)) for f in os.listdir(secondary_dir)
+        }
         assert mtimes_after == mtimes_before
 
     def test_secondary_force_recomputes(self, trained_variant):
@@ -305,6 +307,7 @@ class TestPipelineSecondary:
         mtime_before = os.path.getmtime(os.path.join(secondary_dir, files[0]))
 
         import time
+
         time.sleep(0.05)
 
         pipeline2 = AnalysisPipeline(trained_variant)
@@ -320,7 +323,7 @@ class TestPipelineSecondary:
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register_secondary(WrongDependencyAnalyzer())
 
-        with warnings.catch_warnings(record=True) as w:
+        with warnings.catch_warnings(record=True):  # as w:
             warnings.simplefilter("always")
             pipeline.run()
 

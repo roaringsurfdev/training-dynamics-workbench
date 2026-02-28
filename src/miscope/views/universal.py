@@ -111,7 +111,11 @@ def _register_all() -> None:
         ("blob_count_trajectory", "coarseness", "render_blob_count_trajectory"),
         ("specialization_trajectory", "neuron_freq_norm", "render_specialization_trajectory"),
         ("specialization_by_frequency", "neuron_freq_norm", "render_specialization_by_frequency"),
-        ("dimensionality_trajectory", "effective_dimensionality", "render_dimensionality_trajectory"),
+        (
+            "dimensionality_trajectory",
+            "effective_dimensionality",
+            "render_dimensionality_trajectory",
+        ),
         (
             "attention_specialization_trajectory",
             "attention_freq",
@@ -254,9 +258,7 @@ def _register_all() -> None:
             data["cross_epoch"], data["prime"], sorted_by_final=sorted_by_final, **kwargs
         )
 
-    def _render_switch_count_distribution(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
+    def _render_switch_count_distribution(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         from miscope.visualization.renderers.neuron_freq_clusters import (
             render_switch_count_distribution,
         )
@@ -325,9 +327,7 @@ def _register_all() -> None:
 
     def _render_fisher_heatmap(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         site = kwargs.pop("site", "resid_post")
-        return viz.render_fisher_heatmap(
-            data["epoch_data"], epoch or 0, site=site, p=data["prime"]
-        )
+        return viz.render_fisher_heatmap(data["epoch_data"], epoch or 0, site=site, p=data["prime"])
 
     for name, renderer in [
         ("centroid_pca", _render_centroid_pca),

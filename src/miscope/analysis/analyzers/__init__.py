@@ -13,8 +13,8 @@ from miscope.analysis.analyzers.effective_dimensionality import EffectiveDimensi
 from miscope.analysis.analyzers.landscape_flatness import LandscapeFlatnessAnalyzer
 from miscope.analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
 from miscope.analysis.analyzers.neuron_dynamics import NeuronDynamicsAnalyzer
-from miscope.analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
 from miscope.analysis.analyzers.neuron_fourier import NeuronFourierAnalyzer
+from miscope.analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
 from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
 from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
 from miscope.analysis.analyzers.registry import AnalyzerRegistry

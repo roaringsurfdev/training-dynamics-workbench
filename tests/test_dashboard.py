@@ -8,8 +8,8 @@ from pathlib import Path
 import plotly.graph_objects as go
 import pytest
 
-from miscope.visualization.renderers.loss_curves import render_loss_curves_with_indicator
 from dashboard.utils import parse_checkpoint_epochs
+from miscope.visualization.renderers.loss_curves import render_loss_curves_with_indicator
 
 
 class TestLossCurvesRenderer:

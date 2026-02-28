@@ -221,6 +221,6 @@ def extract_frequency_pairs(
     cos_coeffs = fourier_coeffs[cos_idx, :]  # (K, M)
 
     magnitudes = np.sqrt(sin_coeffs**2 + cos_coeffs**2).T  # (M, K)
-    phases = np.arctan2(-sin_coeffs, cos_coeffs).T          # (M, K)
+    phases = np.arctan2(-sin_coeffs, cos_coeffs).T  # (M, K)
 
     return magnitudes, phases

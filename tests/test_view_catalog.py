@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import tempfile
-from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -13,7 +12,6 @@ import plotly.graph_objects as go
 import pytest
 
 from miscope.views.catalog import BoundView, EpochContext, ViewCatalog, ViewDefinition, _catalog
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

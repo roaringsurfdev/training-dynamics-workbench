@@ -36,10 +36,12 @@ def create_app() -> Dash:
     register_visualization_page_callbacks(app)
     return app
 
+
 def main() -> None:
     """Entry point for the Dash dashboard."""
     app = create_app()
     app.run(debug=True, host="0.0.0.0", port=8060)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

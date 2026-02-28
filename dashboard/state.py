@@ -96,9 +96,11 @@ def refresh_registry() -> None:
         results_dir=Path("results"),
     )
 
+
 # ---------------------------------------------------------------------------
 # Variant Data in Server State
 # ---------------------------------------------------------------------------
+
 
 class VariantState:
     family_name: str | None = None
@@ -132,17 +134,16 @@ class VariantState:
         self.variant = variant
         self.available_epochs = variant.get_available_checkpoints()
         self.context = variant.at(0)
-        
+
         return True
-    
+
     def load_epoch(self, epoch: int) -> bool:
         if epoch in self.available_epochs:
             self.context = self.variant.at(epoch)
 
-        #TODO: Add error handling. This is currently just proof-of-concept 
+        # TODO: Add error handling. This is currently just proof-of-concept
         # for wiring architecture
         return True
-        
 
     def get_nearest_epoch_index(self, epoch: int) -> int:
         """Find the slider index closest to the given epoch number."""
@@ -150,6 +151,7 @@ class VariantState:
             return 0
         distances = [abs(e - epoch) for e in self.available_epochs]
         return distances.index(min(distances))
+
 
 # Global server state instance
 variant_state = VariantState()

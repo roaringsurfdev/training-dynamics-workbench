@@ -11,27 +11,66 @@ _VIEW_LIST = {
     "loss-plot": {"view_name": "loss_curve", "view_type": "epoch_selector"},
     "freq-plot": {"view_name": "dominant_frequencies", "view_type": "default_graph"},
     "clusters-plot": {"view_name": "freq_clusters", "view_type": "neuron_selector"},
-    "spec-trajectory-plot": {"view_name": "specialization_trajectory", "view_type": "epoch_selector"},
+    "spec-trajectory-plot": {
+        "view_name": "specialization_trajectory",
+        "view_type": "epoch_selector",
+    },
     "spec-freq-plot": {"view_name": "specialization_by_frequency", "view_type": "epoch_selector"},
-    "activation-plot": {"view_name": "neuron_heatmap", "view_type": "default_graph", "view_filter_set": "neuron_id"},
-    "attention-plot": {"view_name": "attention_heads", "view_type": "default_graph", "view_filter_set": "attention_pair"},
+    "activation-plot": {
+        "view_name": "neuron_heatmap",
+        "view_type": "default_graph",
+        "view_filter_set": "neuron_id",
+    },
+    "attention-plot": {
+        "view_name": "attention_heads",
+        "view_type": "default_graph",
+        "view_filter_set": "attention_pair",
+    },
     "attn-freq-plot": {"view_name": "attention_freq_heatmap", "view_type": "default_graph"},
-    "attn-spec-plot": {"view_name": "attention_specialization_trajectory", "view_type": "epoch_selector"},
-
-    "trajectory-3d-plot": {"view_name": "trajectory_3d", "view_type": "default_graph", "view_filter_set": "trajectory_group"},
-    "trajectory-plot": {"view_name": "parameter_trajectory", "view_type": "default_graph", "view_filter_set": "trajectory_group"},
-    "trajectory-pc1-pc3-plot": {"view_name": "trajectory_pc1_pc3", "view_type": "default_graph", "view_filter_set": "trajectory_group"},
-    "trajectory-pc2-pc3-plot": {"view_name": "trajectory_pc2_pc3", "view_type": "default_graph", "view_filter_set": "trajectory_group"},
+    "attn-spec-plot": {
+        "view_name": "attention_specialization_trajectory",
+        "view_type": "epoch_selector",
+    },
+    "trajectory-3d-plot": {
+        "view_name": "trajectory_3d",
+        "view_type": "default_graph",
+        "view_filter_set": "trajectory_group",
+    },
+    "trajectory-plot": {
+        "view_name": "parameter_trajectory",
+        "view_type": "default_graph",
+        "view_filter_set": "trajectory_group",
+    },
+    "trajectory-pc1-pc3-plot": {
+        "view_name": "trajectory_pc1_pc3",
+        "view_type": "default_graph",
+        "view_filter_set": "trajectory_group",
+    },
+    "trajectory-pc2-pc3-plot": {
+        "view_name": "trajectory_pc2_pc3",
+        "view_type": "default_graph",
+        "view_filter_set": "trajectory_group",
+    },
     "velocity-plot": {"view_name": "component_velocity", "view_type": "epoch_selector"},
-
-    "dim-trajectory-plot": {"view_name": "dimensionality_trajectory", "view_type": "epoch_selector"},
-    "sv-spectrum-plot": {"view_name": "singular_value_spectrum", "view_type": "default_graph", "view_filter_set": "matrix_name"},
-
-    "flatness-trajectory-plot": {"view_name": "flatness_trajectory", "view_type":"epoch_selector", "view_filter_set": "flatness_metric"},
-    "perturbation-plot": {"view_name": "perturbation_distribution", "view_type":"default_graph"},
+    "dim-trajectory-plot": {
+        "view_name": "dimensionality_trajectory",
+        "view_type": "epoch_selector",
+    },
+    "sv-spectrum-plot": {
+        "view_name": "singular_value_spectrum",
+        "view_type": "default_graph",
+        "view_filter_set": "matrix_name",
+    },
+    "flatness-trajectory-plot": {
+        "view_name": "flatness_trajectory",
+        "view_type": "epoch_selector",
+        "view_filter_set": "flatness_metric",
+    },
+    "perturbation-plot": {"view_name": "perturbation_distribution", "view_type": "default_graph"},
 }
 
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST)
+
 
 def create_visualization_page_nav() -> html.Div:
     print("create_visualization_page_nav")
@@ -103,7 +142,8 @@ def create_visualization_page_nav() -> html.Div:
             html.Br(),
             html.Hr(),
         ]
-    )    
+    )
+
 
 def create_visualization_page_layout() -> html.Div:
     print("create_visualization_page_layout")
@@ -111,51 +151,66 @@ def create_visualization_page_layout() -> html.Div:
         children=[
             html.H4("Visualization", className="mb-3"),
             html.Div(
-                    [
-                        # --- Loss ---
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("loss-plot", "350px"))),
-                        # --- Frequency Analysis ---
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("freq-plot", "400px"))),
-                        # --- Neuron Specialization (summary, click-to-navigate) ---
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("clusters-plot", "450px"))),
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("spec-trajectory-plot", "350px"))),
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("spec-freq-plot", "450px"))),
-
-                        # --- Neuron and Attention (per-epoch) ---
-                        dbc.Row(
-                            [
-                                dbc.Col(_graph_manager.create_graph("activation-plot", "300px"), width=3),
-                                dbc.Col(_graph_manager.create_graph("attention-plot", "400px"), width=9),
-                            ]
-                        ),
-                        # --- Attention Specialization (summary, click-to-navigate) ---
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("attn-freq-plot", "450px"))),
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("attn-spec-plot", "450px"))),
-                        # --- Trajectory (cross-epoch) ---
-                        dbc.Row(
-                            [
-                                dbc.Col(_graph_manager.create_graph("trajectory-3d-plot", "350px"), width=6),
-                                dbc.Col(_graph_manager.create_graph("trajectory-plot", "350px"), width=6),
-                            ]
-                        ),
-                        dbc.Row(
-                            [
-                                dbc.Col(_graph_manager.create_graph("trajectory-pc1-pc3-plot", "350px"), width=6),
-                                dbc.Col(_graph_manager.create_graph("trajectory-pc2-pc3-plot", "350px"), width=6),
-                            ]
-                        ),
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("velocity-plot", "400px"))),
-
-                        # --- Dimensionality (summary + per-epoch) ---
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("dim-trajectory-plot", "400px"))),
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("sv-spectrum-plot", "400px"))),
-                        # --- Flatness (summary + per-epoch, click-to-navigate) ---
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("flatness-trajectory-plot", "400px"))),
-                        dbc.Row(dbc.Col(_graph_manager.create_graph("perturbation-plot", "400px"))),
-                    ],
-                )            
+                [
+                    # --- Loss ---
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("loss-plot", "350px"))),
+                    # --- Frequency Analysis ---
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("freq-plot", "400px"))),
+                    # --- Neuron Specialization (summary, click-to-navigate) ---
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("clusters-plot", "450px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("spec-trajectory-plot", "350px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("spec-freq-plot", "450px"))),
+                    # --- Neuron and Attention (per-epoch) ---
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                _graph_manager.create_graph("activation-plot", "300px"), width=3
+                            ),
+                            dbc.Col(
+                                _graph_manager.create_graph("attention-plot", "400px"), width=9
+                            ),
+                        ]
+                    ),
+                    # --- Attention Specialization (summary, click-to-navigate) ---
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("attn-freq-plot", "450px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("attn-spec-plot", "450px"))),
+                    # --- Trajectory (cross-epoch) ---
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                _graph_manager.create_graph("trajectory-3d-plot", "350px"), width=6
+                            ),
+                            dbc.Col(
+                                _graph_manager.create_graph("trajectory-plot", "350px"), width=6
+                            ),
+                        ]
+                    ),
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                _graph_manager.create_graph("trajectory-pc1-pc3-plot", "350px"),
+                                width=6,
+                            ),
+                            dbc.Col(
+                                _graph_manager.create_graph("trajectory-pc2-pc3-plot", "350px"),
+                                width=6,
+                            ),
+                        ]
+                    ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("velocity-plot", "400px"))),
+                    # --- Dimensionality (summary + per-epoch) ---
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("dim-trajectory-plot", "400px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("sv-spectrum-plot", "400px"))),
+                    # --- Flatness (summary + per-epoch, click-to-navigate) ---
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("flatness-trajectory-plot", "400px"))
+                    ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("perturbation-plot", "400px"))),
+                ],
+            ),
         ]
     )
+
 
 def register_visualization_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
@@ -164,66 +219,86 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
         Input("variant-selector-store", "modified_timestamp"),
-        State("variant-selector-store", "data")
+        State("variant-selector-store", "data"),
     )
     def on_vz_data_change(modified_timestamp: str | None, variant_data: dict | None):
         print("on_vz_data_change")
         return _graph_manager.update_graphs(variant_data, None)
 
-
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("attention_pair")],
         Input("variant-selector-store", "modified_timestamp"),
         Input("position-pair-dropdown", "value"),
-        State("variant-selector-store", "data")
+        State("variant-selector-store", "data"),
     )
-    def on_vz_attention_pair_change(modified_timestamp: str | None, attention_pair: str, variant_data: dict | None):
+    def on_vz_attention_pair_change(
+        modified_timestamp: str | None, attention_pair: str, variant_data: dict | None
+    ):
         print("on_vz_attention_pair_change")
         attention_pair_value = dict(item.split(":") for item in attention_pair.split(","))
         view_kwargs = {key: int(value) for key, value in attention_pair_value.items()}
-        return _graph_manager.update_graphs(variant_data=variant_data, view_filter_set="attention_pair", view_kwargs=view_kwargs)    
+        return _graph_manager.update_graphs(
+            variant_data=variant_data, view_filter_set="attention_pair", view_kwargs=view_kwargs
+        )
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("matrix_name")],
         Input("variant-selector-store", "modified_timestamp"),
         Input("sv-matrix-dropdown", "value"),
-        State("variant-selector-store", "data")
+        State("variant-selector-store", "data"),
     )
-    def on_vz_sv_matrix_change(modified_timestamp: str | None, matrix_name: str, variant_data: dict | None):
+    def on_vz_sv_matrix_change(
+        modified_timestamp: str | None, matrix_name: str, variant_data: dict | None
+    ):
         print("on_vz_sv_matrix_change")
         view_kwargs = {"matrix_name": matrix_name}
-        return _graph_manager.update_graphs(variant_data=variant_data, view_filter_set="matrix_name", view_kwargs=view_kwargs)    
+        return _graph_manager.update_graphs(
+            variant_data=variant_data, view_filter_set="matrix_name", view_kwargs=view_kwargs
+        )
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("trajectory_group")],
         Input("variant-selector-store", "modified_timestamp"),
         Input("trajectory-group-dropdown", "value"),
-        State("variant-selector-store", "data")
+        State("variant-selector-store", "data"),
     )
-    def on_vz_trajectory_group_change(modified_timestamp: str | None, trajectory_group: str, variant_data: dict | None):
+    def on_vz_trajectory_group_change(
+        modified_timestamp: str | None, trajectory_group: str, variant_data: dict | None
+    ):
         print("on_vz_trajectory_group_change")
         view_kwargs = {"group_label": trajectory_group, "group": trajectory_group}
-        return _graph_manager.update_graphs(variant_data=variant_data, view_filter_set="trajectory_group", view_kwargs=view_kwargs)    
+        return _graph_manager.update_graphs(
+            variant_data=variant_data, view_filter_set="trajectory_group", view_kwargs=view_kwargs
+        )
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("flatness_metric")],
         Input("variant-selector-store", "modified_timestamp"),
         Input("flatness-metric-dropdown", "value"),
-        State("variant-selector-store", "data")
+        State("variant-selector-store", "data"),
     )
-    def on_vz_flatness_metric_change(modified_timestamp: str | None, metric_name: str, variant_data: dict | None):
+    def on_vz_flatness_metric_change(
+        modified_timestamp: str | None, metric_name: str, variant_data: dict | None
+    ):
         print("on_vz_flatness_metric_change")
         view_kwargs = {"metric": metric_name}
-        return _graph_manager.update_graphs(variant_data=variant_data, view_filter_set="flatness_metric", view_kwargs=view_kwargs)    
-    
+        return _graph_manager.update_graphs(
+            variant_data=variant_data, view_filter_set="flatness_metric", view_kwargs=view_kwargs
+        )
+
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("neuron_id")],
         Input("variant-selector-store", "modified_timestamp"),
         Input("neuron-slider", "value"),
-        Input({'view_type': 'neuron_selector', 'index': ALL}, "clickData"),
-        State("variant-selector-store", "data")
+        Input({"view_type": "neuron_selector", "index": ALL}, "clickData"),
+        State("variant-selector-store", "data"),
     )
-    def on_vz_neuron_slider_change(modified_timestamp: str | None, neuron_id: int, click_data: list[dict | None], variant_data: dict | None):
+    def on_vz_neuron_slider_change(
+        modified_timestamp: str | None,
+        neuron_id: int,
+        click_data: list[dict | None],
+        variant_data: dict | None,
+    ):
         print("on_vz_neuron_slider_change")
 
         if ctx.triggered_id != "neuron-slider":
@@ -237,11 +312,12 @@ def register_visualization_page_callbacks(app: Dash) -> None:
                             neuron_id = int(clicked_x)
                             # Reset clickData so that there's only one entry in click_data at a time
                             if click_data_component_id:
-                                set_props(click_data_component_id, {'clickData': None})
-                                set_props("neuron-slider", {'value': neuron_id})
-                                set_props("neuron-display", {'children': f"Neuron {neuron_id}"})
+                                set_props(click_data_component_id, {"clickData": None})
+                                set_props("neuron-slider", {"value": neuron_id})
+                                set_props("neuron-display", {"children": f"Neuron {neuron_id}"})
 
                         break
         view_kwargs = {"neuron_idx": neuron_id}
-        return _graph_manager.update_graphs(variant_data=variant_data, view_filter_set="neuron_id", view_kwargs=view_kwargs)    
-    
+        return _graph_manager.update_graphs(
+            variant_data=variant_data, view_filter_set="neuron_id", view_kwargs=view_kwargs
+        )

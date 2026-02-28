@@ -239,7 +239,10 @@ def register_analysis_run_page_callbacks(app: Dash) -> None:
         if state["running"]:
             return pct, f"{pct}%", state["message"], False, True, {"display": "block"}
         return (
-            100, "100%",
+            100,
+            "100%",
             state["result"] if state["result"] else state["message"],
-            True, False, {"display": "none"},
+            True,
+            False,
+            {"display": "none"},
         )
