@@ -129,6 +129,7 @@ def create_summary_page_layout() -> html.Div:
 
 def register_summary_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Summary page."""
+    print("register_summary_page_callbacks")
 
     @app.callback(
         *[Output(pid, "figure") for pid in _get_graph_output_list()],

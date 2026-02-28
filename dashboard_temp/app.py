@@ -9,6 +9,7 @@ from dashboard_temp.layout import create_default_layout
 from dashboard_temp.pages.neuron_dynamics import register_neuron_dynamics_page_callbacks
 from dashboard_temp.pages.repr_geometry import register_repr_geometry_page_callbacks
 from dashboard_temp.pages.summary import register_summary_page_callbacks
+from dashboard_temp.pages.visualization import register_visualization_page_callbacks
 
 
 def create_app() -> Dash:
@@ -28,6 +29,7 @@ def create_app() -> Dash:
     register_neuron_dynamics_page_callbacks(app)
     register_repr_geometry_page_callbacks(app)
     register_summary_page_callbacks(app)
+    register_visualization_page_callbacks(app)
     return app
 
 def main() -> None:

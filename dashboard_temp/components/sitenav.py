@@ -13,6 +13,7 @@ def create_sitenav() -> dbc.NavbarSimple:
     """Create the top navigation bar."""
     return dbc.NavbarSimple(
         children=[
+            dbc.NavItem(dbc.NavLink("Visualization", href="/visualization")),
             dbc.NavItem(dbc.NavLink("Summary", href="/summary")),
             dbc.NavItem(dbc.NavLink("Neuron Dynamics", href="/neuron-dynamics")),
             dbc.NavItem(dbc.NavLink("Repr Geometry", href="/repr-geometry")),
@@ -38,6 +39,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
         create_repr_geometry_page_nav,
     )
     from dashboard_temp.pages.summary import create_summary_page_layout, create_summary_page_nav
+    from dashboard_temp.pages.visualization import (
+        create_visualization_page_layout,
+        create_visualization_page_nav,
+    )
 
     @app.callback(
         Output("page_left_nav", "children"),
@@ -53,5 +58,7 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_repr_geometry_page_nav(), create_repr_geometry_page_layout()]
         elif pathname == "/summary":
             return [create_summary_page_nav(), create_summary_page_layout()]
+        elif pathname == "/visualization":
+            return [create_visualization_page_nav(), create_visualization_page_layout()]
         else:
-            return [create_summary_page_nav(), create_summary_page_layout()]
+            return [create_visualization_page_nav(), create_visualization_page_layout()]

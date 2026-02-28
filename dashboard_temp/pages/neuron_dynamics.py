@@ -11,14 +11,15 @@ from dashboard_temp.state import variant_state
 # ---------------------------------------------------------------------------
 
 _VIEW_LIST = {
-    "nd-trajectory-plot": {"view_name": "neuron_freq_trajectory", "view_type":"epoch_selector"},
+    "nd-trajectory-plot": {"view_name": "neuron_freq_trajectory", "view_type":"epoch_selector", "view_parameter": "sort_order"},
     "nd-switch-plot": {"view_name": "", "view_type":"default_graph"},
     "nd-commitment-plot": {"view_name": "", "view_type":"default_graph"},
 }
 
-def _get_graph_output_list():
+def _get_graph_output_list(view_parameter: str | None = None):
     graph_list = []
-    for view_item in _VIEW_LIST.keys():
+    views = [key for key in _VIEW_LIST.keys() if _VIEW_LIST[key].get("view_parameter") == view_parameter]
+    for view_item in views:
         view_type = _VIEW_LIST[view_item].get("view_type")
         graph_list.append({'view_type': view_type, 'index': view_item})
 
@@ -30,7 +31,7 @@ def _get_graph_view_type(graph_key) -> str:
         view_type = "default_graph"
     return view_type
 
-def _update_graphs(variant_data: dict | None, sort_value: str | None) -> list[go.Figure]:
+def _update_graphs(variant_data: dict | None, view_parameter: str | None = None) -> list[go.Figure]:
     stored = variant_data or {}
     variant_name = stored.get("variant_name")
     last_field_updated = stored.get("last_field_updated")
@@ -43,7 +44,9 @@ def _update_graphs(variant_data: dict | None, sort_value: str | None) -> list[go
 
     if last_field_updated in ["variant_name", "epoch"]:
         #Update graphs
-        for view_item in _VIEW_LIST.keys():
+        views = [key for key in _VIEW_LIST.keys() if _VIEW_LIST[key].get("view_parameter") == view_parameter]
+        print(views)
+        for view_item in views:
             view_name = _VIEW_LIST[view_item].get("view_name")
             #view_type = _VIEW_LIST[view_item].get("view_type")
             if view_name in variant_state.available_views:
@@ -94,13 +97,24 @@ def create_neuron_dynamics_page_layout() -> html.Div:
     )
 def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
+    print("register_neuron_dynamics_page_callbacks")
 
     @app.callback(
-        *[Output(pid, "figure") for pid in _get_graph_output_list()],
+        [Output(pid, "figure") for pid in _get_graph_output_list()],
+        Input("variant-selector-store", "modified_timestamp"),
+        State("variant-selector-store", "data")
+    )
+    def on_nd_data_change(modified_timestamp: str | None, variant_data: dict | None):
+        print("on_nd_data_change")
+        return _update_graphs(variant_data, None)
+
+
+    @app.callback(
+        [Output(pid, "figure") for pid in _get_graph_output_list("sort_order")],
         Input("variant-selector-store", "modified_timestamp"),
         Input("nd-sort-toggle", "value"),
         State("variant-selector-store", "data")
     )
-    def on_nd_data_change(modified_timestamp: str | None, sort_value: str | None, variant_data: dict | None):
-        print("on_nd_data_change")
-        return _update_graphs(variant_data, sort_value)
+    def on_nd_sort_change(modified_timestamp: str | None, sort_value: str | None, variant_data: dict | None):
+        print("on_nd_sort_change")
+        return _update_graphs(variant_data, "sort_order")    

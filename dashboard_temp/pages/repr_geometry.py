@@ -87,6 +87,7 @@ def create_repr_geometry_page_layout() -> html.Div:
 
 def register_repr_geometry_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Repr Geometry page."""
+    print("register_repr_geometry_page_callbacks")
 
     @app.callback(
         *[Output(pid, "figure") for pid in _get_graph_output_list()],
