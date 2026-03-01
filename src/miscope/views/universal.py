@@ -293,6 +293,22 @@ def _register_all() -> None:
     # --- Representational geometry views ---
     # Summary view uses site kwarg; per-epoch views bundle prime from model config.
 
+    def _load_centroid_pca_variance(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_epochs("repr_geometry")
+
+    def _render_centroid_pca_variance(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        site = kwargs.pop("site", None)
+        return viz.render_centroid_pca_variance(data, current_epoch=epoch, site=site)
+
+    _catalog.register(
+        ViewDefinition(
+            name="centroid_pca_variance",
+            load_data=_load_centroid_pca_variance,
+            renderer=_render_centroid_pca_variance,
+            epoch_source_analyzer=None,
+        )
+    )
+
     def _load_repr_geometry_summary(variant: Variant, _epoch: int | None) -> dict:
         return variant.artifacts.load_summary("repr_geometry")
 

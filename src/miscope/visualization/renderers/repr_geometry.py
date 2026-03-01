@@ -466,6 +466,104 @@ def render_centroid_distances(
     return fig
 
 
+def render_centroid_pca_variance(
+    stacked_data: dict[str, np.ndarray],
+    current_epoch: int | None = None,
+    site: str | None = None,
+    height: int = 600,
+) -> go.Figure:
+    """Time-series of centroid class PCA variance explained per PC over training.
+
+    Three panels (PC1, PC2, PC3), one line per activation site. Shows how the
+    model's representational geometry redistributes across principal components
+    as training progresses — e.g., the expansion into higher dimensions during
+    grokking.
+
+    Args:
+        stacked_data: From ArtifactLoader.load_epochs("repr_geometry").
+            Contains "epochs" and stacked "{site}_centroids" arrays (N, p, d).
+        current_epoch: Current epoch for vertical indicator.
+        site: Single activation site to display. None = show all sites.
+        height: Total figure height in pixels.
+
+    Returns:
+        Plotly Figure with 3 vertically stacked subplots.
+    """
+    epochs = stacked_data["epochs"]
+    sites = [site] if site else _ALL_SITES
+
+    site_var_fracs: dict[str, np.ndarray] = {}
+    for s in sites:
+        centroid_key = f"{s}_centroids"
+        if centroid_key not in stacked_data:
+            continue
+        all_centroids = stacked_data[centroid_key]  # (n_epochs, p, d)
+        n_epochs = len(epochs)
+        var_fracs = np.zeros((n_epochs, 3))
+        for i in range(n_epochs):
+            _, fracs = _pca_project(all_centroids[i], n_components=3)
+            var_fracs[i] = fracs
+        site_var_fracs[s] = var_fracs
+
+    fig = make_subplots(
+        rows=3,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.04,
+        subplot_titles=["PC1 Variance Explained", "PC2 Variance Explained", "PC3 Variance Explained"],
+    )
+
+    for s in sites:
+        if s not in site_var_fracs:
+            continue
+        color = _SITE_COLORS.get(s, "gray")
+        label = _SITE_LABELS.get(s, s)
+        var_fracs = site_var_fracs[s]
+
+        for pc_idx in range(3):
+            fig.add_trace(
+                go.Scatter(
+                    x=epochs,
+                    y=var_fracs[:, pc_idx] * 100,
+                    mode="lines",
+                    name=label,
+                    legendgroup=s,
+                    showlegend=(pc_idx == 0),
+                    line=dict(color=color, width=2),
+                    hovertemplate=(
+                        f"{label}<br>Epoch %{{x}}<br>"
+                        f"PC{pc_idx + 1}: %{{y:.1f}}%<extra></extra>"
+                    ),
+                ),
+                row=pc_idx + 1,
+                col=1,
+            )
+
+    if current_epoch is not None:
+        for row in range(1, 4):
+            fig.add_vline(
+                x=current_epoch,
+                line_dash="solid",
+                line_color="red",
+                line_width=1,
+                row=row,  # type: ignore[reportArgumentType]
+                col=1,  # type: ignore[reportArgumentType]
+            )
+
+    for row in range(1, 4):
+        fig.update_yaxes(range=[0, 105], ticksuffix="%", row=row, col=1)
+
+    fig.update_xaxes(title_text="Epoch", row=3, col=1)
+    fig.update_layout(
+        template="plotly_white",
+        height=height,
+        legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1),
+        margin=dict(l=60, r=20, t=40, b=40),
+    )
+
+    return fig
+
+
 def render_fisher_heatmap(
     epoch_data: dict[str, np.ndarray],
     epoch: int,
