@@ -393,6 +393,40 @@ def _register_all() -> None:
         )
     )
 
+    # --- Centroid DMD views (REQ_051) ---
+    # All load from centroid_dmd cross_epoch.npz; epoch is a cursor.
+
+    def _load_centroid_dmd(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_cross_epoch("centroid_dmd")
+
+    def _render_dmd_eigenvalues(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        site = kwargs.pop("site", "resid_post")
+        return viz.render_dmd_eigenvalues(data, site=site)
+
+    def _render_dmd_residual(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        site = kwargs.pop("site", None)
+        return viz.render_dmd_residual(data, site=site, current_epoch=epoch)
+
+    def _render_dmd_reconstruction(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        site = kwargs.pop("site", "resid_post")
+        epochs_arr = data["epochs"]
+        resolved_epoch = epoch if epoch is not None else int(epochs_arr[-1])
+        return viz.render_dmd_reconstruction(data, resolved_epoch, site=site)
+
+    for name, renderer in [
+        ("centroid_dmd_eigenvalues", _render_dmd_eigenvalues),
+        ("centroid_dmd_residual", _render_dmd_residual),
+        ("centroid_dmd_reconstruction", _render_dmd_reconstruction),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_centroid_dmd,
+                renderer=renderer,
+                epoch_source_analyzer=None,
+            )
+        )
+
     # --- Loss curve (metadata-based, no artifact loader involved) ---
     # This is the canonical example of a non-artifact view source.
 
