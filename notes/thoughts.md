@@ -921,3 +921,61 @@ Dash's dynamic loading capabilities (explored in sandbox UX work) are well-suite
 ---
 
 *Notebook is the right excavation tool; the dashboard is the right comparison tool. The neuron Fourier views need dashboard exposure to support the cross-variant comparative workflow.*
+
+---
+
+## 2026-03-02: Grokking Window Definition — The Core Methodological Gap
+
+### Why This Matters
+
+Multiple claims in the findings depend on "before grokking onset" or "during the grokking window." Without a rigorous, cross-variant-stable definition of onset, these claims are unanchored. The definition of onset also determines whether Claim 8 (geometry precedes grokking) is testable at all — "how long before" is meaningless if onset is fluid.
+
+### The Two-Problem Split
+
+**Performance-based definition (literature standard):** Test loss drop onset. The inflection point (maximum d²acc/dt²) is the most well-defined candidate — doesn't require knowing the final plateau value, is mathematically deterministic given sufficient smoothing. But this measures the *consequence* of grokking, not the cause.
+
+**Mechanistic definition (appropriate for scaffolding hypothesis):** For claims about what precedes grokking, a representation-level marker is the right reference point. Circularity & Fourier Alignment exceeding a threshold (current candidate: >0.40) is promising because: (a) it's already computed, (b) it measures a property that should precede performance, (c) its timing relative to the test loss drop is itself evidence for the scaffolding hypothesis.
+
+### DMD Residual as Third Candidate
+
+The DMD pipeline (REQ_050/051) will produce a per-epoch residual norm measuring where the linear approximation of centroid dynamics breaks down. This is a dynamics-based onset marker — expect low residual during memorization, a spike during grokking transition, and settling post-grokking. If this aligns with both the performance marker and the Fourier Alignment marker, it strengthens all three simultaneously.
+
+### Validation Approach
+
+Pick two or three candidate definitions, compute them for all variants, check whether the relative ordering (fast vs. slow grokkers, successful vs. failed) is stable across definitions. If ordering is preserved, the choice is less critical than it appears. If not, the instability is informative about what's actually varying.
+
+### Downstream Connections
+
+- **Claim 8 resolution**: The Fourier Alignment marker, if it consistently precedes the performance marker, resolves the OR (synchronization vs. alignment) and anchors the timing claim.
+- **Cross-variant table in findings.md**: Grokking window column currently based on visual inspection — a stable metric definition turns this into a computable, reproducible table.
+- **PC3 Circularity/Fourier revisit**: Current circularity metric uses only top-2 PCA components (built before PC3 significance was recognized). Once global PCA exists (REQ_050), revisiting this calculation to include PC3 is a small but potentially important correction. A 3-component circularity metric may be more predictive than the current 2-component version.
+
+---
+
+*Grokking window definition is the methodological linchpin. DMD residual, Fourier Alignment threshold, and test loss inflection point are the three candidates. Cross-variant ordering stability is the validation test. PC3 circularity revisit is a natural follow-on once global PCA is in place.*
+
+---
+
+## 2026-03-02: Converging Platform Needs — View Naming, Cross-Variant Analysis, Export
+
+### View Naming Guidelines
+
+The View Catalog currently has no naming convention. As views multiply, names should signal two things at a glance: (a) what the view offers and (b) the temporal scope (per-epoch snapshot vs. cross-epoch trajectory). The current asymmetry is already visible: `centroid_pca` is a per-epoch snapshot in activation space, while `parameter_trajectory` is a cross-epoch trajectory in weight space — but nothing in the names signals this.
+
+Candidate convention: `{subject}_{method}` for per-epoch, `{subject}_{method}_timeseries` or `{subject}_{method}_trajectory` for cross-epoch. Gaps and asymmetries become readable from the name list alone.
+
+This also aids AI-assisted navigation — a well-named catalog is faster to reason about from context.
+
+### Cross-Variant Analysis (Elevated Priority)
+
+The 2026-02-23 entry identifies this as a candidate requirement. It is now more urgent: the grokking window definition work produces metrics that only become meaningful in comparison across variants. A single-variant view of the DMD residual is a diagnostic; a cross-variant overlay is evidence.
+
+The variant health dashboard concept (from 2026-02-15: loop closure, grokking timing, frequency coverage, convergence status) is the right first surface. The neuron Fourier comparison view (IPR trajectories, phase scatter) is the second.
+
+### Export Pipeline for Collaborative Analysis
+
+`BoundView.export()` now supports canonical path derivation from variant + epoch + view + kwargs. This enables: (a) programmatic export sets for sharing with collaborators or Claude, (b) consistent naming for notebook → PDF workflows, (c) eliminating manual naming errors. The `results/exports/` directory is the accumulation point.
+
+---
+
+*View naming, cross-variant analysis, and export pipeline are converging toward the same need: reproducible, communicable findings rather than ephemeral notebook sessions.*

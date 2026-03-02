@@ -5,13 +5,13 @@
 ### Context-Aware Navigation (context_aware_navigation.md)
 It would be helpful to have a consistent left navigation that stays consistent across the application. The context of the left navigation can change based on context and it has expand/collapse behavior.
 
-*Status: Proof of concept is **near complete** in "feature/variant-selection-ux" branch.*
+*Status: Work is complete and merged to develop*
 
 ### Sticky Analysis selections
 When navigating through the "lenses"/pages of the application, I would like to keep the current Model Family, Variant, and Checkpoint constant across the pages.
 *For now, this does not apply to the Analysis and Training sections. If these selections are sticky, that's ok, but this requirement does not need to include those pages* 
 
-*Status: Proof of concept is **complete** in "feature/variant-selection-ux" branch*
+*Status: Work is complete and merged to develop*
 
 ### Consistent-Time Series Visualization Behavior
 It is incredibly helpful to be able to click on a Visualization to navigate to an epoch of interest. For any time-series visualization with epochs along the x-axis, it would be ideal if they all shared the default behavior such that clicking on the visualization navigates to the epoch.
@@ -20,7 +20,7 @@ I'm not sure whether it would be necessary or useful to also provide the checkpo
 
 *Note: There is an older requirement in the future bin that is related to this and may be outdated: REQ_014. I think it's actually completed and could be moved to the archive.*
 
-*Status: Proof of concept is **complete** in "feature/variant-selection-ux" branch*
+*Status: Work is complete and merged to develop*
 
 ### Asynchronous Job Support
 As we add more Variants and Analyzers, it would be nice to kick of Analysis runs as asynchronous jobs so that (1) the user can continue using the application and (2) the user can return to the Analysis Job Manager to check on the status of runs.
@@ -38,5 +38,5 @@ Right now, we have a slider and we have an ability to click on a graph to select
 ### Add support for Loading and Editing Variant Checkpoint Data
 The current Training interface assumes I'm only creating new variants. I would like to be able edit an existing variant's checkpoints - for example, adding checkpoint for models whose grokking window falls outside the default grokking window. It would also be nice to be able to delete unecessary checkpoints and their artifacts through a single interface to make sure everything remains in sync. This requirement is coming from a need to rerun 107/485 with additional checkpoints. There were mistakes made on my end, and there's no way to gracefully recover without deleting and retraining/reanalyzing the entire model.
 
-### Adding checkpoints not need to retrain the whole model
+### Adding checkpoints should not need to retrain the whole model
 If checkpoints are added to a model, the platform should be able to pick up with the last checkpoint before the newly added ones. If inserting checkpoints (adding density), it should only be necessary to train the model between known good checkpoints.
