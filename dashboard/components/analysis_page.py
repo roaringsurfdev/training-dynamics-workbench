@@ -10,8 +10,9 @@ from dashboard.state import variant_state
 
 
 class AnalysisPageGraphManager:
-    def __init__(self, view_list):
+    def __init__(self, view_list, page_prefix = None):
         self.view_list = view_list
+        self.page_prefix = page_prefix
 
     def create_empty_figure(self, message: str = "No data") -> go.Figure:
         """Create a placeholder figure with a centered message."""
@@ -41,6 +42,9 @@ class AnalysisPageGraphManager:
         if not view_type:
             view_type = "default_graph"
 
+        if self.page_prefix:
+            graph_id = f"{self.page_prefix}-{graph_id}"
+
         component_id = {"view_type": view_type, "index": graph_id}
         return dcc.Graph(
             id=component_id,
@@ -57,7 +61,11 @@ class AnalysisPageGraphManager:
         ]
         for view_item in views:
             view_type = self.view_list[view_item].get("view_type")
-            graph_list.append({"view_type": view_type, "index": view_item})
+            graph_id = view_item
+            if self.page_prefix:
+                graph_id = f"{self.page_prefix}-{graph_id}"
+            
+            graph_list.append({"view_type": view_type, "index": graph_id})
 
         return graph_list
 

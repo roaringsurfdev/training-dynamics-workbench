@@ -69,7 +69,7 @@ _VIEW_LIST = {
     "perturbation-plot": {"view_name": "perturbation_distribution", "view_type": "default_graph"},
 }
 
-_graph_manager = AnalysisPageGraphManager(_VIEW_LIST)
+_graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "viz")
 
 
 def create_visualization_page_nav() -> html.Div:
