@@ -18,6 +18,7 @@ def create_sitenav() -> dbc.NavbarSimple:
             dbc.NavItem(dbc.NavLink("Neuron Dynamics", href="/neuron-dynamics")),
             dbc.NavItem(dbc.NavLink("Repr Geometry", href="/repr-geometry")),
             dbc.NavItem(dbc.NavLink("Dimensionality", href="/dimensionality")),
+            dbc.NavItem(dbc.NavLink("Centroid DMD", href="/centroid-dmd")),
             dbc.NavItem(dbc.NavLink("Training", href="/training")),
             dbc.NavItem(dbc.NavLink("Analysis Run", href="/analysis-run")),
         ],
@@ -35,6 +36,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
     from dashboard.pages.analysis_run import (
         create_analysis_run_page_layout,
         create_analysis_run_page_nav,
+    )
+    from dashboard.pages.centroid_dmd import (
+        create_centroid_dmd_layout,
+        create_centroid_dmd_nav,
     )
     from dashboard.pages.dimensionality import (
         create_dimensionality_page_layout,
@@ -72,6 +77,8 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_summary_page_nav(), create_summary_page_layout()]
         elif pathname == "/dimensionality":
             return [create_dimensionality_page_nav(), create_dimensionality_page_layout()]
+        elif pathname == "/centroid-dmd":
+            return [create_centroid_dmd_nav(), create_centroid_dmd_layout()]
         elif pathname == "/training":
             return [create_training_page_nav(), create_training_page_layout()]
         elif pathname == "/analysis-run":

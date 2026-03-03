@@ -8,6 +8,13 @@ from dash.exceptions import PreventUpdate
 
 from dashboard.state import variant_state
 
+_SITE_OPTIONS = [
+    {"label": "All Sites", "value": "all"},
+    {"label": "Post-Embed", "value": "resid_pre"},
+    {"label": "Attn Out", "value": "attn_out"},
+    {"label": "MLP Out", "value": "mlp_out"},
+    {"label": "Resid Post", "value": "resid_post"},
+]
 
 class AnalysisPageGraphManager:
     def __init__(self, view_list, page_prefix = None):

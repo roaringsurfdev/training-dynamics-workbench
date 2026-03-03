@@ -1,19 +1,11 @@
 import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, dcc, html
 
-from dashboard.components.analysis_page import AnalysisPageGraphManager
+from dashboard.components.analysis_page import _SITE_OPTIONS, AnalysisPageGraphManager
 
 # ---------------------------------------------------------------------------
 # Plot IDs (prefixed "rg-" to avoid collisions)
 # ---------------------------------------------------------------------------
-
-_SITE_OPTIONS = [
-    {"label": "All Sites", "value": "all"},
-    {"label": "Post-Embed", "value": "resid_pre"},
-    {"label": "Attn Out", "value": "attn_out"},
-    {"label": "MLP Out", "value": "mlp_out"},
-    {"label": "Resid Post", "value": "resid_post"},
-]
 
 # Summary view (epoch as cursor)
 _SUMMARY_VIEW_LIST = {
