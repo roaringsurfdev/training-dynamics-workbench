@@ -40,3 +40,9 @@ There are at least two ways of solving this, and both might be needed:
 
 **Mean IPR Analysis**
 Add Mean IPR Analysis from notbooks/neuron_fourier_poc.py to analysis pipeline and renders.
+
+**Fourier Frequency Prediction**
+I would like to be able to evaluate how the top frequencies impact model learning over training - both in terms of frequency changes and initial frequency dominance. One approach: Take the perfect mod-p addition table (as a p × p × p tensor of logits), compute its full Fourier decomposition, then project down to only the components corresponding to your k frequencies. The reconstruction accuracy tells you how much of the "signal" those frequencies can capture.
+This might allow:
+Score the initial dominant frequencies at early checkpoints — do models that happen to initialize with high-quality frequency subsets converge faster or more reliably?
+Track the quality score over training — when a model starts with a poor subset, can you see it trying to swap frequencies, and does it succeed?
