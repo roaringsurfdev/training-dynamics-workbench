@@ -183,6 +183,7 @@ def register_default_analyzers() -> None:
     from miscope.analysis.analyzers.landscape_flatness import LandscapeFlatnessAnalyzer
     from miscope.analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
     from miscope.analysis.analyzers.neuron_dynamics import NeuronDynamicsAnalyzer
+    from miscope.analysis.analyzers.fourier_frequency_quality import FourierFrequencyQualityAnalyzer
     from miscope.analysis.analyzers.neuron_fourier import NeuronFourierAnalyzer
     from miscope.analysis.analyzers.neuron_freq_clusters import NeuronFreqClustersAnalyzer
     from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
@@ -200,6 +201,7 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register(LandscapeFlatnessAnalyzer)
     AnalyzerRegistry.register(RepresentationalGeometryAnalyzer)
 
+    AnalyzerRegistry.register_secondary(FourierFrequencyQualityAnalyzer)
     AnalyzerRegistry.register_secondary(NeuronFourierAnalyzer)
 
     AnalyzerRegistry.register_cross_epoch(ParameterTrajectoryPCA)

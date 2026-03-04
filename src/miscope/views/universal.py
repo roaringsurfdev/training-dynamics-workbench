@@ -127,6 +127,11 @@ def _register_all() -> None:
             "render_attention_dominant_frequencies",
         ),
         ("flatness_trajectory", "landscape_flatness", "render_flatness_trajectory"),
+        (
+            "fourier_quality_trajectory",
+            "fourier_frequency_quality",
+            "render_fourier_quality_trajectory",
+        ),
     ]:
         _catalog.register(_make_summary(name, analyzer, getattr(viz, renderer_name)))
 

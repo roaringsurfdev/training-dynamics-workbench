@@ -7,6 +7,7 @@ with the AnalyzerRegistry for discovery.
 
 from miscope.analysis.analyzers.attention_freq import AttentionFreqAnalyzer
 from miscope.analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
+from miscope.analysis.analyzers.fourier_frequency_quality import FourierFrequencyQualityAnalyzer
 from miscope.analysis.analyzers.coarseness import CoarsenessAnalyzer
 from miscope.analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
 from miscope.analysis.analyzers.effective_dimensionality import EffectiveDimensionalityAnalyzer
@@ -23,6 +24,7 @@ from miscope.analysis.analyzers.repr_geometry import RepresentationalGeometryAna
 __all__ = [
     "AnalyzerRegistry",
     "AttentionFreqAnalyzer",
+    "FourierFrequencyQualityAnalyzer",
     "NeuronFourierAnalyzer",
     "AttentionPatternsAnalyzer",
     "CoarsenessAnalyzer",

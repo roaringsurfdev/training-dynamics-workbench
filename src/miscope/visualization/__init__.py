@@ -44,6 +44,9 @@ from miscope.visualization.renderers.dominant_frequencies import (
     render_dominant_frequencies,
     render_dominant_frequencies_over_time,
 )
+from miscope.visualization.renderers.fourier_frequency_quality import (
+    render_fourier_quality_trajectory,
+)
 from miscope.visualization.renderers.effective_dimensionality import (
     render_dimensionality_trajectory,
     render_singular_value_spectrum,
@@ -95,6 +98,8 @@ from miscope.visualization.renderers.repr_geometry import (
 __all__ = [
     # REQ_012: Line plot utility (replaces neel-plotly)
     "line",
+    # REQ_052: Fourier frequency quality
+    "render_fourier_quality_trajectory",
     # REQ_004: Dominant frequencies
     "render_dominant_frequencies",
     "render_dominant_frequencies_over_time",

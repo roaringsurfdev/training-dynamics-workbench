@@ -46,3 +46,9 @@ I would like to be able to evaluate how the top frequencies impact model learnin
 This might allow:
 Score the initial dominant frequencies at early checkpoints — do models that happen to initialize with high-quality frequency subsets converge faster or more reliably?
 Track the quality score over training — when a model starts with a poor subset, can you see it trying to swap frequencies, and does it succeed?
+
+**Support for Probe Traces**
+I would like to be able to start evaluating probes through the network based on equivalence classes and residues. Coupled with Fourier Frequency Prediction, I'd like to be able to track failure modes across the network to see what it looks like when a class is poorly separated in the representation geometry. What are the interactions between the Attention Heads and the MLPs?
+
+**Error predictions based on learned frequencies**
+It would be great to be able to compare model accuracy within equivalence classes within the context of information about the quality of frequencies selected by the model and errors in output. This could likely be compared with the Fisher min.
