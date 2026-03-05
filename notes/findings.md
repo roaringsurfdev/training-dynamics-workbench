@@ -428,3 +428,101 @@ p=109/485 locked in fast — appears to have landed on a converged representatio
 *p=101/999's non-null lottery ticket result is diagnostic of broken competition dynamics. p=101/485 control confirms the pathology is init-dependent, not prime-intrinsic.*
 
 ---
+
+## 2026-03-03: Fourier Quality Score Mirrors Train/Test Loss
+
+### Observation (REQ_052)
+
+Across all healthy variants, the `fourier_quality_trajectory` plot closely tracks train/test loss curves. For the two anomalous variants (p101/999 and p59/485), the quality score captures a gradual slope rather than a sharp transition — consistent with their slow/degenerate grokking behavior.
+
+### What This Means
+
+**Quality score and loss are tracking the same underlying event.** Both drop/rise at grokking onset because grokking IS the model committing to Fourier structure. This is a positive validation: the metric is measuring something real, not noise.
+
+**But there's an important difference in what each metric can see.** Loss can drop via memorization OR via Fourier algorithm learning. Quality score only tracks Fourier structure expression. If they're tightly coupled across all variants, it suggests:
+1. In this task (mod-p addition), most of the loss reduction *is* Fourier learning — the memorization pathway doesn't persist long enough to show up as a sustained loss plateau
+2. The quality score is a weight-space proxy for the same signal loss is measuring from the output side
+
+### Does Quality Score Add Information?
+
+For healthy variants: probably not much beyond what loss already shows. The value is in being a weight-space anchor — it tells you *why* the loss dropped, not just *that* it dropped.
+
+For anomalous variants: the gradual slope is informative. A gradual quality score rise in p101/999 or p59/485 means the model IS accumulating Fourier structure, just slowly and incompletely. Loss alone doesn't distinguish "building the right algorithm slowly" from "memorizing slowly." Quality score does.
+
+**The diagnostic gap**: quality score can't tell you about *which* frequencies are present, only *how much* of the energy is in whatever dominant frequencies were identified. A model that found the wrong frequency set but committed cleanly would show high quality. This is where REQ_053 (per-class accuracy) would add orthogonal information.
+
+---
+
+*Quality score validates the Fourier learning story already visible in loss, but adds weight-space grounding and helps distinguish algorithmic accumulation from memorization in anomalous variants.*
+
+### Correction: Initial Computation Was Inverted
+
+The first run used an absolute threshold of 1.0, borrowed from the bar chart renderer (a display convention). At random init all p coefficients ≈ 1.07, so all passed and quality ≈ 1. After grokking, concentrated frequencies spiked but the rest dropped, so quality went to near 0. Fixed by using a relative threshold: `coefficient > 3 × mean(coefficients)`. Now quality starts near 0 and rises around grokking.
+
+### Quality Is Inherently Low in Absolute Terms
+
+Analytically, quality = 2k/p. For p=113 and k=3 dominant frequency pairs, the ceiling is 6/113 ≈ 5.3%. This is a property of the metric: it measures how much of the *full* Fourier space (56 possible frequency pairs for p=113) is covered by the model's 2-3 selected pairs. A fully grokked model only needs ~3 pairs to compute the algorithm — it doesn't need to cover all 56. So low absolute quality is expected and correct; shape and timing are what carry diagnostic signal.
+
+### Frequency Specialization Doesn't Look Like a Choice
+
+The corrected charts confirm: frequency quality rises within the grokking window, not before it. The model doesn't "select" frequencies in advance — specialization emerges during grokking, driven by the task structure and initialization. The quality score is better read as "did frequency specialization complete?" than "did the model choose well?"
+
+---
+
+## 2026-03-03: Frequency Selection Precedes Generalization — A Two-Stage Picture
+
+### Observation (REQ_052 trajectory charts)
+
+k↓ and quality↑ are **co-moving** — they track essentially the same line. Together, this composite signal precedes the test loss drop. The structure is two stages, not three:
+
+1. **Selection + quality buildup**: k narrows and quality rises together (the model commits to a frequency set and builds Fourier structure around it)
+2. **Generalization**: test loss drops afterward
+
+Both anomalous variants (p101/999, p59/485) show a different shape in Stage 1 — the k/quality trajectory doesn't cleanly convert to a Stage 2 test loss drop, or does so much later and less sharply.
+
+### Mechanistic Interpretation
+
+k and quality are co-moving because they're aspects of the same event: frequency selection determines both the count (k) and the projection quality (R²). The model doesn't select frequencies and then build quality separately — it does both simultaneously as competition resolves and neurons commit.
+
+The precursor relationship is: **[selection + quality buildup] → [generalization]**. Not a three-stage sequence — Stage 1 is a single event with two observable faces.
+
+### p101/999 and p59/485 as Diagnostic
+
+For healthy variants, Stage 1 completes with a clean shape and Stage 2 follows. For p101/999, the Stage 1 trajectory has a different shape that doesn't convert to a Stage 2 transition. For p59/485, Stage 1 is slower and more gradual, with Stage 2 following — but late and weakly.
+
+---
+
+*k and quality co-move as two faces of frequency selection. [Selection + quality buildup] precedes [generalization] as a two-stage pattern. Anomalous variants show degraded Stage 1 that fails to trigger or delays Stage 2.*
+
+---
+
+## 2026-03-03: Frequency Allocation → Geometric Constraints → Irreducible Error Floor
+
+### The Causal Chain
+
+**Initialization → frequency allocation (lottery ticket) → geometric constraints on class separation → irreducible error floor**
+
+The model's frequency set is largely fixed by initialization. Some allocations are structurally insufficient for perfect class separation, producing a test loss floor the model cannot cross regardless of training duration.
+
+- **p101/999**: cos/sin imbalance at frequency 13 (6:1 ratio). The Fourier algorithm requires both sin(k) and cos(k) to compute the full rotation. Without sin, residue class pairs that differ *in the sin(k) direction* cannot be separated. This produces a structurally dense cluster in those class pairs in the distance heatmap.
+- **p59/485**: missing frequency band 15. Every class pair whose natural separation lives in that frequency band is underserved. The model compensates by amplifying frequencies 5 and 21 (hence enormous centroid scale ±100), but those frequencies can only separate pairs they're geometrically equipped to separate.
+
+### Why the Floor Is Irreducible
+
+If errors were distributed uniformly, longer training or more capacity would reduce them. A floor that persists suggests the model *literally cannot represent the correct output* for certain inputs given its frequency basis. The frequency allocation determines which inputs are representable and which aren't.
+
+### The Diagnostic Value of Per-Class Accuracy (REQ_053)
+
+The test loss floor is the aggregate signature. Per-class accuracy (by residue, by input pair) localizes **which class pairs drive it**:
+- **Structured errors** (concentrated on specific residue classes): implicates the frequency gap — those residues require the missing/imbalanced component
+- **Uniform-but-high errors**: suggests general model weakness, not frequency-specific pathology
+
+Fisher discriminant and centroid distance heatmaps would show the same structure from the geometry side: low discriminant / high proximity for the specific class pairs the missing frequency should separate.
+
+This is why tying frequency quality to class geometry (Fisher, centroid distances) and per-class accuracy into a joint view is the right next step. Each lens sees the same structural limitation from a different angle.
+
+---
+
+*Frequency allocation constraints produce irreducible error floors. Per-class accuracy localizes which residues bear the cost. Fisher discriminant and distance heatmaps provide the geometric side of the same story.*
+
+---

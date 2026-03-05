@@ -18,10 +18,12 @@ from miscope import load_family
 from miscope.analysis import AnalysisPipeline
 from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
 from miscope.analysis.analyzers.neuron_fourier import NeuronFourierAnalyzer
+from miscope.analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
+from miscope.analysis.analyzers.fourier_frequency_quality import FourierFrequencyQualityAnalyzer
 
 # %% configuration
 FAMILY_NAME = "modulo_addition_1layer"
-FORCE = False  # Re-run even if artifacts exist (needed for new summary keys)
+FORCE = True  # Re-run even if artifacts exist (needed for new summary keys)
 COOLING_NEEDED = False
 COOLING_PERIOD = 4 * 60 # timer to allow machine to cool between runs
 
@@ -59,8 +61,8 @@ for i, variant in enumerate(variants):
 
     try:
         pipeline = AnalysisPipeline(variant)
-        pipeline.register(ParameterSnapshotAnalyzer())
-        pipeline.register_secondary(NeuronFourierAnalyzer())
+        pipeline.register(DominantFrequenciesAnalyzer())
+        pipeline.register_secondary(FourierFrequencyQualityAnalyzer())
         pipeline.run(force=FORCE, progress_callback=progress_callback)
         elapsed = time.time() - start
         print(f"\n  DONE in {elapsed:.1f}s")

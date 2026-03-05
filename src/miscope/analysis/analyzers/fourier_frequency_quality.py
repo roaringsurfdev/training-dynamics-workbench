@@ -24,13 +24,19 @@ class FourierFrequencyQualityAnalyzer:
     Quality score is R²: ||T_F||² / ||T||², where T is the ideal p×p×p
     logit tensor and T_F is its projection onto the 2D Fourier subspace
     defined by the dominant frequency indices.
+
+    Dominant frequencies are those with coefficient > threshold_factor × mean,
+    using a relative threshold that adapts to the per-epoch distribution.
+    At initialization all coefficients are roughly equal, so nothing qualifies
+    as "dominant" and quality starts near 0. As the model concentrates energy
+    into a few frequencies, those spike above the mean and quality rises.
     """
 
     name = "fourier_frequency_quality"
     depends_on = "dominant_frequencies"
 
-    def __init__(self, threshold: float = 1.0):
-        self.threshold = threshold
+    def __init__(self, threshold_factor: float = 3.0):
+        self.threshold_factor = threshold_factor
 
     def analyze(
         self,
@@ -56,7 +62,8 @@ class FourierFrequencyQualityAnalyzer:
         fourier_basis = context["fourier_basis"].cpu().numpy()  # (p, p)
         coefficients = artifact["coefficients"]  # (p,)
 
-        dominant_indices = np.where(coefficients > self.threshold)[0]
+        threshold = self.threshold_factor * float(np.mean(coefficients))
+        dominant_indices = np.where(coefficients > threshold)[0]
         k = int(len(dominant_indices))
 
         quality_score = _compute_quality_score(p, dominant_indices, fourier_basis)

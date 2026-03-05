@@ -1,27 +1,6 @@
 ## Roadmap Rough Draft
 *This is a landing place for a high-level collection of future **infrastructure** work. This is not meant to store future research ideas. It is not in any particular order and it is not meant to be authorative. As items are completed, they may be removed from this document.*
 
-
-### Context-Aware Navigation (context_aware_navigation.md)
-It would be helpful to have a consistent left navigation that stays consistent across the application. The context of the left navigation can change based on context and it has expand/collapse behavior.
-
-*Status: Work is complete and merged to develop*
-
-### Sticky Analysis selections
-When navigating through the "lenses"/pages of the application, I would like to keep the current Model Family, Variant, and Checkpoint constant across the pages.
-*For now, this does not apply to the Analysis and Training sections. If these selections are sticky, that's ok, but this requirement does not need to include those pages* 
-
-*Status: Work is complete and merged to develop*
-
-### Consistent-Time Series Visualization Behavior
-It is incredibly helpful to be able to click on a Visualization to navigate to an epoch of interest. For any time-series visualization with epochs along the x-axis, it would be ideal if they all shared the default behavior such that clicking on the visualization navigates to the epoch.
-
-I'm not sure whether it would be necessary or useful to also provide the checkpoints on every visualization. I think this could either be informative or over-kill. Interpretation of time-series might change if the checkpoints are made clear.
-
-*Note: There is an older requirement in the future bin that is related to this and may be outdated: REQ_014. I think it's actually completed and could be moved to the archive.*
-
-*Status: Work is complete and merged to develop*
-
 ### Asynchronous Job Support
 As we add more Variants and Analyzers, it would be nice to kick of Analysis runs as asynchronous jobs so that (1) the user can continue using the application and (2) the user can return to the Analysis Job Manager to check on the status of runs.
 
