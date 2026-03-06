@@ -13,7 +13,7 @@ Example usage:
     ctx = variant.at(epoch=26400)
     ctx.view("training.metadata.loss_curves").show()
     ctx.view("parameters.embeddings.fourier_coefficients").show()
-    ctx.view("parameter_trajectory").show()
+    ctx.view("parameters.pca.pc1_pc2").show()
 
     # Convenience shortcut (uses first available epoch for per-epoch views)
     variant.view("training.metadata.loss_curves").show()

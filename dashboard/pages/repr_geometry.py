@@ -9,23 +9,23 @@ from dashboard.components.analysis_page import _SITE_OPTIONS, AnalysisPageGraphM
 
 # Summary view (epoch as cursor)
 _SUMMARY_VIEW_LIST = {
-    "timeseries-plot": {"view_name": "geometry_timeseries", "view_type": "epoch_selector"},
+    "timeseries-plot": {"view_name": "geometry.timeseries", "view_type": "epoch_selector"},
 }
 
 # Per-epoch snapshot views (site kwarg; epoch as data slice)
 _SNAPSHOT_VIEW_LIST = {
     "centroid-pca-plot": {
-        "view_name": "centroid_pca",
+        "view_name": "geometry.centroid_pca",
         "view_type": "default_graph",
         "view_filter_set": "site",
     },
     "centroid-dist-plot": {
-        "view_name": "centroid_distances",
+        "view_name": "geometry.centroid_distances",
         "view_type": "default_graph",
         "view_filter_set": "site",
     },
     "fisher-heatmap-plot": {
-        "view_name": "fisher_heatmap",
+        "view_name": "geometry.fisher_heatmap",
         "view_type": "default_graph",
         "view_filter_set": "site",
     },

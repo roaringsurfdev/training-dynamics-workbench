@@ -7,7 +7,7 @@ from dashboard.components.analysis_page import AnalysisPageGraphManager
 _VIEW_LIST = {
     "training-loss-curves": {"view_name": "training.metadata.loss_curves", "view_type": "epoch_selector"},
     "freq-over-time-plot": {
-        "view_name": "dominant_frequencies_over_time",
+        "view_name": "activations.mlp.dominant_frequencies_over_time",
         "view_type": "epoch_selector",
     },
     "neuron_frequency_range": {
@@ -26,7 +26,7 @@ _VIEW_LIST = {
         "view_name": "activations.attention.head_frequency_range",
         "view_type": "default_graph",
     },
-    "parameters-pca-3d-scatter": {"view_name": "parameters.pca.3d_scatter", "view_type": "default_graph"},
+    "parameters-pca-3d-scatter": {"view_name": "parameters.pca.scatter_3d", "view_type": "default_graph"},
     "parameters-pca-pc1-pc2": {"view_name": "parameters.pca.pc1_pc2", "view_type": "default_graph"},
     "parameters-pca-pc1-pc3": {
         "view_name": "parameters.pca.pc1_pc3",
@@ -36,7 +36,7 @@ _VIEW_LIST = {
         "view_name": "parameters.pca.pc2_pc3",
         "view_type": "default_graph",
     },
-    "velocity-plot": {"view_name": "parameter_velocity", "view_type": "default_graph"},
+    "velocity-plot": {"view_name": "parameters.pca.velocity", "view_type": "default_graph"},
     "dim-trajectory-plot": {
         "view_name": "parameters.effective_dimensionality",
         "view_type": "default_graph",

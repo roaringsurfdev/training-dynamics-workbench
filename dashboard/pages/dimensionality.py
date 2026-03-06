@@ -19,20 +19,20 @@ _VIEW_LIST = {
         "view_type": "epoch_selector",
     },
     "parameter-pca-summary-plot": {
-        "view_name": "trajectory_pca_variance",
+        "view_name": "parameters.pca.variance_explained",
         "view_type": "epoch_selector",
     },
     "centroid-class-pca-summary-plot": {
-        "view_name": "centroid_pca_variance",
+        "view_name": "geometry.centroid_pca_variance",
         "view_type": "epoch_selector",
     },
     "parameters-pca-3d-scatter": {
-        "view_name": "parameters.pca.3d_scatter",
+        "view_name": "parameters.pca.scatter_3d",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
     "parameters-pca-pc1-pc2": {
-        "view_name": "parameter_trajectory",
+        "view_name": "parameters.pca.pc1_pc2",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
@@ -46,7 +46,7 @@ _VIEW_LIST = {
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "velocity-plot": {"view_name": "parameters.component_velocity", "view_type": "epoch_selector"},
+    "velocity-plot": {"view_name": "parameters.pca.component_velocity", "view_type": "epoch_selector"},
     "dim-trajectory-plot": {
         "view_name": "parameters.effective_dimensionality",
         "view_type": "epoch_selector",

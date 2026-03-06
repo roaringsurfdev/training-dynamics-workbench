@@ -32,7 +32,7 @@ _VIEW_LIST = {
         "view_type": "epoch_selector",
     },
     "parameters-pca-3d-scatter": {
-        "view_name": "parameters.pca.3d_scatter",
+        "view_name": "parameters.pca.scatter_3d",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
@@ -51,7 +51,7 @@ _VIEW_LIST = {
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "velocity-plot": {"view_name": "parameters.component_velocity", "view_type": "epoch_selector"},
+    "velocity-plot": {"view_name": "parameters.pca.component_velocity", "view_type": "epoch_selector"},
     "dim-trajectory-plot": {
         "view_name": "parameters.effective_dimensionality",
         "view_type": "epoch_selector",

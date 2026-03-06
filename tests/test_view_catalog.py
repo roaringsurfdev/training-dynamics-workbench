@@ -286,8 +286,8 @@ class TestGlobalCatalog:
         assert view_def.epoch_source_analyzer is None
 
     def test_dominant_frequencies_has_epoch_source(self):
-        """dominant_frequencies has epoch_source_analyzer set."""
-        view_def = _catalog.get("dominant_frequencies")
+        """parameters.embeddings.fourier_coefficients has epoch_source_analyzer set."""
+        view_def = _catalog.get("parameters.embeddings.fourier_coefficients")
         assert view_def.epoch_source_analyzer == "dominant_frequencies"
 
 

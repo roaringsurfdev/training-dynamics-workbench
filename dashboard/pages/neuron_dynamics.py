@@ -5,12 +5,12 @@ from dashboard.components.analysis_page import AnalysisPageGraphManager
 
 _VIEW_LIST = {
     "parameters-pca-pc1-pc2": {
-        "view_name": "neuron_freq_trajectory",
+        "view_name": "activations.mlp.neuron_freq_trajectory",
         "view_type": "default_graph",
         "view_filter_set": "sort_order",
     },
-    "switch-plot": {"view_name": "switch_count_distribution", "view_type": "default_graph"},
-    "commitment-plot": {"view_name": "commitment_timeline", "view_type": "default_graph"},
+    "switch-plot": {"view_name": "activations.mlp.switch_count_distribution", "view_type": "default_graph"},
+    "commitment-plot": {"view_name": "activations.mlp.commitment_timeline", "view_type": "default_graph"},
 }
 
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "nd")
