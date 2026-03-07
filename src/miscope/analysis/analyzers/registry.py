@@ -173,6 +173,7 @@ class AnalyzerRegistry:
 
 def register_default_analyzers() -> None:
     """Register the built-in analyzers."""
+    from miscope.analysis.analyzers.attention_fourier import AttentionFourierAnalyzer
     from miscope.analysis.analyzers.attention_freq import AttentionFreqAnalyzer
     from miscope.analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
     from miscope.analysis.analyzers.centroid_dmd import CentroidDMD
@@ -190,6 +191,7 @@ def register_default_analyzers() -> None:
     from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
     from miscope.analysis.analyzers.repr_geometry import RepresentationalGeometryAnalyzer
 
+    AnalyzerRegistry.register(AttentionFourierAnalyzer)
     AnalyzerRegistry.register(AttentionFreqAnalyzer)
     AnalyzerRegistry.register(AttentionPatternsAnalyzer)
     AnalyzerRegistry.register(DominantFrequenciesAnalyzer)
