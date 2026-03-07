@@ -281,10 +281,18 @@ def _register_all() -> None:
             data["cross_epoch"], data["prime"], seed=data["seed"], **kwargs
         )
 
+    def _render_per_band_specialization(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.neuron_freq_clusters import (
+            render_per_band_specialization,
+        )
+
+        return render_per_band_specialization(data["cross_epoch"], data["prime"], **kwargs)
+
     for name, renderer in [
         ("activations.mlp.neuron_freq_trajectory", _render_neuron_freq_trajectory),
         ("activations.mlp.switch_count_distribution", _render_switch_count_distribution),
         ("activations.mlp.commitment_timeline", _render_commitment_timeline),
+        ("activations.mlp.per_band_specialization", _render_per_band_specialization),
     ]:
         _catalog.register(
             ViewDefinition(

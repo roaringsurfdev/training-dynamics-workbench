@@ -157,5 +157,66 @@ def _register_all(catalog: DataViewCatalog = _dataview_catalog) -> None:
         )
     )
 
+    # --- Neuron dynamics raw data (cross-epoch) ---
+    # Exposes dominant_freq and max_frac so consumers can compute per-band
+    # specialization at any threshold without knowing artifact internals.
+
+    _neuron_dynamics_schema = DataViewSchema(
+        fields=[
+            DataViewField(
+                name="epochs",
+                field_type="ndarray",
+                description="Epoch indices for each row of dominant_freq and max_frac.",
+                shape_or_columns="(n_epochs,)",
+            ),
+            DataViewField(
+                name="dominant_freq",
+                field_type="ndarray",
+                description=(
+                    "Dominant frequency index (0-indexed) per neuron per epoch. "
+                    "Shape: (n_epochs, d_mlp)."
+                ),
+                shape_or_columns="(n_epochs, d_mlp)",
+            ),
+            DataViewField(
+                name="max_frac",
+                field_type="ndarray",
+                description=(
+                    "Fraction of Fourier norm in dominant frequency per neuron per epoch. "
+                    "Shape: (n_epochs, d_mlp). Use this with a threshold to determine commitment."
+                ),
+                shape_or_columns="(n_epochs, d_mlp)",
+            ),
+            DataViewField(
+                name="stored_threshold",
+                field_type="ndarray",
+                description=(
+                    "Commitment threshold used at analysis time (3/n_freq). "
+                    "Shape: (1,). Reference value — consumers may apply any threshold to max_frac."
+                ),
+                shape_or_columns="(1,)",
+            ),
+        ]
+    )
+
+    def _load_neuron_dynamics_raw(variant: Variant, epoch: int | None) -> DataView:
+        data = variant.artifacts.load_cross_epoch("neuron_dynamics")
+        return DataView(
+            schema=_neuron_dynamics_schema,
+            epochs=data["epochs"],
+            dominant_freq=data["dominant_freq"],
+            max_frac=data["max_frac"],
+            stored_threshold=data["threshold"],
+        )
+
+    catalog.register(
+        DataViewDefinition(
+            name="neuron_dynamics.raw",
+            load_data=_load_neuron_dynamics_raw,
+            schema=_neuron_dynamics_schema,
+            epoch_source_analyzer=None,
+        )
+    )
+
 
 _register_all()
