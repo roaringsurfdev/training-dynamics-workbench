@@ -19,6 +19,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from miscope.analysis.band_concentration import (
+    compute_band_concentration_at_epoch,
+    compute_critical_mass_snapshot,
+    compute_slope_cv,
+)
+
 if TYPE_CHECKING:
     from miscope.families.variant import Variant
     from miscope.loaded_family import LoadedFamily
@@ -33,17 +39,26 @@ class ClassificationRules:
     Attributes:
         grokking_threshold: test_loss value below which the model is considered
             to have grokked (default 0.1).
+        early_grokking_epoch: grokking onset epoch below which a model is
+            classified as "early_grokker" (default 9000).
         late_grokking_epoch: grokking onset epoch above which a model is
-            classified as "late_grokker" (default 15000).
+            classified as "late_grokker" (default 12000).
         degraded_test_loss: final test_loss above which a model with slow
-            grokking is classified as "degraded" (default 0.005).
+            grokking is classified as "degraded" (default 1.0e-6).
         min_frequency_bands: minimum expected number of frequency bands for a
             healthy model. Models below this with slow grokking are flagged.
+    Notes:
+        - neuron specialization health metric 
+            (do neuron specialization counts rise together or out of balance)
+        - neuron specialization diversity metric
+            (is there enough frequency mix (low/mid/high)?)
+            (this probably boils down to: is there a low-frequency band?)
     """
 
     grokking_threshold: float = 0.1
-    late_grokking_epoch: int = 15000
-    degraded_test_loss: float = 0.005
+    early_grokking_epoch: int = 9000
+    late_grokking_epoch: int = 12000
+    degraded_test_loss: float = 1.0e-6
     min_frequency_bands: int = 2
 
 
@@ -77,6 +92,7 @@ def compute_variant_metrics(
     num_epochs = len(test_losses)
     final_test_loss = float(test_losses[-1])
 
+    # This captures grokking completion more than onset
     grokking_onset_epoch: int | None = None
     for i, loss in enumerate(test_losses):
         if loss < rules.grokking_threshold:
@@ -99,10 +115,21 @@ def compute_variant_metrics(
         "competition_window_duration": None,
         "final_circularity": None,
         "final_fisher_discriminant": None,
+        # REQ_058: band concentration health metrics
+        "midpoint_hhi": None,
+        "midpoint_active_band_count": None,
+        "midpoint_max_band_share": None,
+        "onset_hhi": None,
+        "onset_active_band_count": None,
+        "onset_max_band_share": None,
+        "slope_cv": None,
+        "critical_mass_epoch": None,
+        "critical_mass_hhi": None,
     }
 
     _load_neuron_dynamics_metrics(variant, metrics, prime)
     _load_repr_geometry_metrics(variant, metrics)
+    _load_band_concentration_metrics(variant, metrics, prime, grokking_onset_epoch, num_epochs)
 
     failure_mode, reasons = classify_failure_mode(metrics, rules)
     metrics["failure_mode"] = failure_mode
@@ -154,6 +181,50 @@ def _load_repr_geometry_metrics(variant: Variant, metrics: dict[str, Any]) -> No
         metrics["final_circularity"] = float(circularity[-1])
     if fisher is not None and len(fisher) > 0:
         metrics["final_fisher_discriminant"] = float(fisher[-1])
+
+
+_DEFAULT_CONCENTRATION_THRESHOLD = 0.75
+_DEFAULT_CRITICAL_MASS_N = 100
+
+
+def _load_band_concentration_metrics(
+    variant: Variant,
+    metrics: dict[str, Any],
+    prime: int,
+    grokking_onset_epoch: int | None,
+    num_epochs: int,
+    threshold: float = _DEFAULT_CONCENTRATION_THRESHOLD,
+    neuron_count_threshold: int = _DEFAULT_CRITICAL_MASS_N,
+) -> None:
+    """Populate band concentration metrics in place. No-op on missing artifact."""
+    try:
+        nd = variant.artifacts.load_cross_epoch("neuron_dynamics")
+    except FileNotFoundError:
+        return
+
+    epochs = nd["epochs"]
+    n_epochs = len(epochs)
+
+    midpoint_epoch_idx = n_epochs // 2
+    midpoint = compute_band_concentration_at_epoch(nd, midpoint_epoch_idx, threshold, prime)
+    metrics["midpoint_hhi"] = midpoint["hhi"]
+    metrics["midpoint_active_band_count"] = midpoint["active_band_count"]
+    metrics["midpoint_max_band_share"] = midpoint["max_band_share"]
+
+    if grokking_onset_epoch is not None:
+        onset_idx = int(np.searchsorted(epochs, grokking_onset_epoch))
+        onset_idx = min(onset_idx, n_epochs - 1)
+        onset = compute_band_concentration_at_epoch(nd, onset_idx, threshold, prime)
+        metrics["onset_hhi"] = onset["hhi"]
+        metrics["onset_active_band_count"] = onset["active_band_count"]
+        metrics["onset_max_band_share"] = onset["max_band_share"]
+
+    metrics["slope_cv"] = compute_slope_cv(nd, threshold, prime, grokking_onset_epoch)
+
+    snapshot = compute_critical_mass_snapshot(nd, threshold, prime, neuron_count_threshold)
+    if snapshot is not None:
+        metrics["critical_mass_epoch"] = snapshot["epoch"]
+        metrics["critical_mass_hhi"] = snapshot["hhi"]
 
 
 def classify_failure_mode(

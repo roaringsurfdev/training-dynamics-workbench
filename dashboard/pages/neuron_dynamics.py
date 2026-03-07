@@ -1,5 +1,5 @@
 import dash_bootstrap_components as dbc
-from dash import Dash, Input, Output, State, html
+from dash import Dash, Input, Output, State, dcc, html
 
 from dashboard.components.analysis_page import AnalysisPageGraphManager
 
@@ -11,6 +11,19 @@ _VIEW_LIST = {
     },
     "switch-plot": {"view_name": "activations.mlp.switch_count_distribution", "view_type": "default_graph"},
     "commitment-plot": {"view_name": "activations.mlp.commitment_timeline", "view_type": "default_graph"},
+    # Threshold-sensitive views
+    "per-band-specialization": {
+        "view_name": "activations.mlp.per_band_specialization",
+        "view_type": "default_graph"
+    },
+    "neuron-frequency-range": {
+        "view_name": "activations.mlp.neuron_frequency_range",
+        "view_type": "default_graph"
+    },
+    "band-concentration": {
+        "view_name": "analysis.band_concentration.trajectory",
+        "view_type": "default_graph"
+    },
 }
 
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "nd")
@@ -30,6 +43,21 @@ def create_neuron_dynamics_page_nav() -> html.Div:
                 value="natural",
                 className="mb-3",
             ),
+            dbc.Label("Specialization Threshold", className="fw-bold"),
+            dcc.Slider(
+                id="nd-specialization-threshold-slider",
+                min=0.0,
+                max=1.0,
+                step=0.05,
+                value=0.75,
+                marks={0: "0%", 0.5: "50%", 0.75: "75%", 1.0: "100%"},
+                tooltip={"placement": "bottom", "always_visible": False},
+            ),
+            html.Div(
+                id="nd-specialization-threshold-display",
+                children="Threshold: 75%",
+                className="text-muted small mb-3",
+            ),
         ]
     )
 
@@ -47,21 +75,29 @@ def create_neuron_dynamics_page_layout() -> html.Div:
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph(
-                                    "switch-plot",
-                                    "350px",
-                                ),
+                                _graph_manager.create_graph("switch-plot", "350px"),
                                 width=6,
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph(
-                                    "commitment-plot",
-                                    "350px",
-                                ),
+                                _graph_manager.create_graph("commitment-plot", "350px"),
                                 width=6,
                             ),
                         ]
                     ),
+                    # Threshold-sensitive views
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                _graph_manager.create_graph("per-band-specialization", "350px"),
+                                width=6,
+                            ),
+                            dbc.Col(
+                                _graph_manager.create_graph("neuron-frequency-range", "350px"),
+                                width=6,
+                            ),
+                        ]
+                    ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("band-concentration", "400px"))),
                 ],
             ),
         ]
@@ -91,7 +127,31 @@ def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
         _modified_timestamp: str | None, sort_value: str | None, variant_data: dict | None
     ):
         sorted_by_final = sort_value == "sorted"
-        view_kwargs = {"sorted_by_final": sorted_by_final}
         return _graph_manager.update_graphs(
-            variant_data=variant_data, view_filter_set="sort_order", view_kwargs=view_kwargs
+            variant_data=variant_data,
+            view_filter_set="sort_order",
+            view_kwargs={"sorted_by_final": sorted_by_final},
         )
+"""
+    @app.callback(
+        Output("nd-specialization-threshold-display", "children"),
+        Input("nd-specialization-threshold-slider", "value"),
+    )
+    def on_nd_threshold_display_update(threshold: float) -> str:
+        return f"Threshold: {int(threshold * 100)}%"
+
+    @app.callback(
+        [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("nd_specialization_threshold")],
+        Input("variant-selector-store", "modified_timestamp"),
+        Input("nd-specialization-threshold-slider", "value"),
+        State("variant-selector-store", "data"),
+    )
+    def on_nd_threshold_change(
+        modified_timestamp: str | None, threshold: float, variant_data: dict | None
+    ):
+        print("on_nd_threshold_change")
+        view_kwargs = {"threshold": threshold}
+        return _graph_manager.update_graphs(
+            variant_data=variant_data, view_filter_set="nd_specialization_threshold", view_kwargs=view_kwargs
+        )
+"""
