@@ -16,10 +16,11 @@ sys.path.append(parent_dir)
 
 from miscope import load_family
 from miscope.analysis import AnalysisPipeline
-from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
-from miscope.analysis.analyzers.neuron_fourier import NeuronFourierAnalyzer
-from miscope.analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
-from miscope.analysis.analyzers.fourier_frequency_quality import FourierFrequencyQualityAnalyzer
+from miscope.analysis.analyzers.attention_fourier import AttentionFourierAnalyzer
+#from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
+#from miscope.analysis.analyzers.neuron_fourier import NeuronFourierAnalyzer
+#from miscope.analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
+#from miscope.analysis.analyzers.fourier_frequency_quality import FourierFrequencyQualityAnalyzer
 
 # %% configuration
 FAMILY_NAME = "modulo_addition_1layer"
@@ -61,8 +62,8 @@ for i, variant in enumerate(variants):
 
     try:
         pipeline = AnalysisPipeline(variant)
-        pipeline.register(DominantFrequenciesAnalyzer())
-        pipeline.register_secondary(FourierFrequencyQualityAnalyzer())
+        pipeline.register(AttentionFourierAnalyzer())
+        #pipeline.register_secondary(FourierFrequencyQualityAnalyzer())
         pipeline.run(force=FORCE, progress_callback=progress_callback)
         elapsed = time.time() - start
         print(f"\n  DONE in {elapsed:.1f}s")
