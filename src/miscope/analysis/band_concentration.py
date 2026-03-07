@@ -281,7 +281,7 @@ def compute_slope_cv(
         return float("nan")
 
     for k in range(n_freq):
-        if not active_bands[k]:
+        if not active_bands[k]: # type: ignore
             continue
         slope = (t_centered * per_freq[:, k]).sum() / denom
         slopes.append(slope)
