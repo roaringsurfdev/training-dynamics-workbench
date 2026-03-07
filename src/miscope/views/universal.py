@@ -109,8 +109,6 @@ def _register_all() -> None:
     for name, analyzer, renderer_name in [
         ("activations.mlp.coarseness_trajectory", "coarseness", "render_coarseness_trajectory"),
         ("activations.mlp.blob_count_trajectory", "coarseness", "render_blob_count_trajectory"),
-        ("activations.mlp.neuron_frequency_range", "neuron_freq_norm", "render_specialization_trajectory"),
-        ("activations.mlp.neuron_frequency_specialization", "neuron_freq_norm", "render_specialization_by_frequency"),
         (
             "parameters.effective_dimensionality",
             "effective_dimensionality",
@@ -288,6 +286,47 @@ def _register_all() -> None:
 
         return render_per_band_specialization(data["cross_epoch"], data["prime"], **kwargs)
 
+    # --- Threshold-parameterized specialization summary views ---
+    # Recomputed from neuron_dynamics raw data at any threshold,
+    # so the dashboard threshold slider drives all three views.
+
+    def _render_specialization_trajectory_dynamic(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        from miscope.visualization.renderers.neuron_freq_clusters import (
+            compute_summary_from_dynamics,
+            render_specialization_trajectory,
+        )
+
+        threshold = kwargs.pop("threshold", 0.9)
+        summary = compute_summary_from_dynamics(data["cross_epoch"], data["prime"], threshold)
+        return render_specialization_trajectory(summary, epoch if epoch is not None else 0, **kwargs)
+
+    def _render_specialization_by_frequency_dynamic(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        from miscope.visualization.renderers.neuron_freq_clusters import (
+            compute_summary_from_dynamics,
+            render_specialization_by_frequency,
+        )
+
+        threshold = kwargs.pop("threshold", 0.9)
+        summary = compute_summary_from_dynamics(data["cross_epoch"], data["prime"], threshold)
+        return render_specialization_by_frequency(summary, epoch, **kwargs)
+
+    for name, renderer in [
+        ("activations.mlp.neuron_frequency_range", _render_specialization_trajectory_dynamic),
+        ("activations.mlp.neuron_frequency_specialization", _render_specialization_by_frequency_dynamic),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_neuron_dynamics,
+                renderer=renderer,
+                epoch_source_analyzer=None,
+            )
+        )
+
     for name, renderer in [
         ("activations.mlp.neuron_freq_trajectory", _render_neuron_freq_trajectory),
         ("activations.mlp.switch_count_distribution", _render_switch_count_distribution),
@@ -440,6 +479,30 @@ def _register_all() -> None:
                 epoch_source_analyzer=None,
             )
         )
+
+    # --- Attention Fourier views (REQ_055) ---
+    # Per-epoch heatmaps and stacked temporal alignment trajectory.
+
+    for name, analyzer, renderer_name in [
+        ("parameters.attention.qk_fourier_heatmap", "attention_fourier", "render_qk_freq_heatmap"),
+        ("parameters.attention.v_fourier_heatmap", "attention_fourier", "render_v_freq_heatmap"),
+    ]:
+        _catalog.register(_make_per_epoch(name, analyzer, getattr(viz, renderer_name)))
+
+    def _load_attention_fourier_stacked(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_epochs("attention_fourier")
+
+    def _render_head_alignment_trajectory(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_head_alignment_trajectory(data, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="parameters.attention.head_alignment_trajectory",
+            load_data=_load_attention_fourier_stacked,
+            renderer=_render_head_alignment_trajectory,
+            epoch_source_analyzer=None,
+        )
+    )
 
     # --- Loss curve (metadata-based, no artifact loader involved) ---
     # This is the canonical example of a non-artifact view source.

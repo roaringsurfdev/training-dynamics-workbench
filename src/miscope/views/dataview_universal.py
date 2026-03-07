@@ -219,4 +219,47 @@ def _register_all(catalog: DataViewCatalog = _dataview_catalog) -> None:
     )
 
 
+    # --- Attention Fourier spectrum (per-epoch) (REQ_055) ---
+
+    _attn_fourier_schema = DataViewSchema(
+        fields=[
+            DataViewField(
+                name="qk_freq_norms",
+                field_type="ndarray",
+                description=(
+                    "Per-head QK^T energy fraction in each Fourier frequency. "
+                    "Shape: (n_heads, n_freq). Rows sum to ~1."
+                ),
+                shape_or_columns="(n_heads, n_freq)",
+            ),
+            DataViewField(
+                name="v_freq_norms",
+                field_type="ndarray",
+                description=(
+                    "Per-head V energy fraction in each Fourier frequency. "
+                    "Shape: (n_heads, n_freq). Rows sum to ~1."
+                ),
+                shape_or_columns="(n_heads, n_freq)",
+            ),
+        ]
+    )
+
+    def _load_attn_fourier(variant: Variant, epoch: int | None) -> DataView:
+        epoch_data = variant.artifacts.load_epoch("attention_fourier", epoch)
+        return DataView(
+            schema=_attn_fourier_schema,
+            qk_freq_norms=epoch_data["qk_freq_norms"],
+            v_freq_norms=epoch_data["v_freq_norms"],
+        )
+
+    catalog.register(
+        DataViewDefinition(
+            name="attention.fourier.qk_spectrum",
+            load_data=_load_attn_fourier,
+            schema=_attn_fourier_schema,
+            epoch_source_analyzer="attention_fourier",
+        )
+    )
+
+
 _register_all()

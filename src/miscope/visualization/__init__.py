@@ -18,6 +18,11 @@ Usage:
 """
 
 from miscope.visualization.line_plot import line
+from miscope.visualization.renderers.attention_fourier import (
+    render_head_alignment_trajectory,
+    render_qk_freq_heatmap,
+    render_v_freq_heatmap,
+)
 from miscope.visualization.renderers.attention_freq import (
     render_attention_dominant_frequencies,
     render_attention_freq_heatmap,
@@ -118,6 +123,10 @@ __all__ = [
     # REQ_027: Neuron specialization summary
     "render_specialization_trajectory",
     "render_specialization_by_frequency",
+    # REQ_055: Attention Fourier decomposition
+    "render_qk_freq_heatmap",
+    "render_v_freq_heatmap",
+    "render_head_alignment_trajectory",
     # REQ_026: Attention frequency specialization
     "render_attention_freq_heatmap",
     "render_attention_specialization_trajectory",
