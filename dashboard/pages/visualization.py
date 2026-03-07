@@ -164,15 +164,15 @@ def create_visualization_page_layout() -> html.Div:
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("activation-plot", "300px"), width=3
+                                _graph_manager.create_graph("activation-plot", "300px"), width=6
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("attention-plot", "400px"), width=9
+                                _graph_manager.create_graph("attn-freq-plot", "450px"), width=6
                             ),
                         ]
                     ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("attention-plot", "400px"))),
                     # --- Attention Specialization (summary, click-to-navigate) ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("attn-freq-plot", "450px"))),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("attn-spec-plot", "450px"))),
                     # --- Trajectory (cross-epoch) ---
                     dbc.Row(

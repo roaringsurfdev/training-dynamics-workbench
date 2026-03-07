@@ -67,6 +67,8 @@ def render_neuron_heatmap(
         yaxis_title="a",
         xaxis=dict(constrain="domain"),
         yaxis=dict(scaleanchor="x", constrain="domain"),
+        width=450,
+        height=450,
         template="plotly_white",
     )
 
