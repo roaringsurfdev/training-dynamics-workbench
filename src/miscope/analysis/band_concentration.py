@@ -74,8 +74,8 @@ def compute_band_concentration_trajectory(
     ).astype(float)  # (n_epochs, n_freq)
 
     totals = per_freq.sum(axis=1)  # (n_epochs,)
-    #print(f"pre_freq: {per_freq}, totals: {totals[:, None]}")
-    shares = np.where(totals[:, None] > 0, per_freq / totals[:, None], 0.0)
+    safe_totals = np.where(totals[:, None] > 0, totals[:, None], 1.0)
+    shares = np.where(totals[:, None] > 0, per_freq / safe_totals, 0.0)
 
     hhi = (shares**2).sum(axis=1)
     hhi = np.where(totals > 0, hhi, np.nan)
@@ -210,8 +210,8 @@ def compute_rank_alignment_trajectory(
 
         emb_mags = compute_embedding_band_magnitudes(coeff_stack[df_idx], n_freq)
 
-        corr, _ = spearmanr(emb_mags[active_mask], per_freq[active_mask])
-        rank_correlation[t] = float(corr)
+        result = spearmanr(emb_mags[active_mask], per_freq[active_mask])
+        rank_correlation[t] = float(result[0])  # type: ignore[arg-type]
 
     return {
         "epochs": nd_epochs,
@@ -281,7 +281,7 @@ def compute_slope_cv(
         return float("nan")
 
     for k in range(n_freq):
-        if not active_bands[k]: # type: ignore
+        if not active_bands[k]:  # type: ignore[index]
             continue
         slope = (t_centered * per_freq[:, k]).sum() / denom
         slopes.append(slope)
