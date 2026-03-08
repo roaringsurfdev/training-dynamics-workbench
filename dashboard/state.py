@@ -102,16 +102,24 @@ def refresh_registry() -> None:
 # ---------------------------------------------------------------------------
 
 
-class VariantState:
+class VariantServerState:
+    """Server-side state for a loaded variant.
+
+    Distinct from miscope.families.VariantState, which tracks training status.
+    This class holds Dash-specific infrastructure: artifact loader access,
+    EpochContext cursor, and pre-computed availability lists.
+    """
+
     family_name: str | None = None
     variant: Variant
     context: EpochContext
     available_epochs: list[int] = [0]
-    available_views: list[str] = catalog.names()
+    available_views: list[str] = []
 
     def load_variant(self, family_name: str, variant_name: str) -> bool:
         """Load a variant's metadata and discover its artifacts.
 
+        Computes available_views once against the variant's actual artifacts.
         Returns True if the variant was found and loaded.
         """
         registry = get_registry()
@@ -134,6 +142,7 @@ class VariantState:
         self.variant = variant
         self.available_epochs = variant.get_available_checkpoints()
         self.context = variant.at(0)
+        self.available_views = catalog.available_names_for(variant)
 
         return True
 
@@ -154,4 +163,4 @@ class VariantState:
 
 
 # Global server state instance
-variant_state = VariantState()
+variant_server_state = VariantServerState()

@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from dash import dcc
 from dash.exceptions import PreventUpdate
 
-from dashboard.state import variant_state
+from dashboard.state import variant_server_state
 
 _SITE_OPTIONS = [
     {"label": "All Sites", "value": "all"},
@@ -103,11 +103,11 @@ class AnalysisPageGraphManager:
             print(views)
             for view_item in views:
                 view_name = self.view_list[view_item].get("view_name")
-                if view_name in variant_state.available_views:
+                if view_name in variant_server_state.available_views:
                     if view_kwargs:
-                        figures.append(variant_state.context.view(view_name).figure(**view_kwargs))
+                        figures.append(variant_server_state.context.view(view_name).figure(**view_kwargs))
                     else:
-                        figures.append(variant_state.context.view(view_name).figure())
+                        figures.append(variant_server_state.context.view(view_name).figure())
                 else:
                     figures.append(self.create_empty_figure("No view found"))
         else:

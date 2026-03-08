@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from miscope.views.catalog import AnalyzerRequirement, ArtifactKind
 from miscope.views.dataview_catalog import (
     DataView,
     DataViewCatalog,
@@ -91,6 +92,7 @@ def _register_all(catalog: DataViewCatalog = _dataview_catalog) -> None:
             load_data=_load_fourier_coefficients,
             schema=_fourier_schema,
             epoch_source_analyzer="dominant_frequencies",
+            required_analyzers=[AnalyzerRequirement("dominant_frequencies", ArtifactKind.EPOCH)],
         )
     )
 
@@ -154,6 +156,7 @@ def _register_all(catalog: DataViewCatalog = _dataview_catalog) -> None:
             load_data=_load_pca_trajectory,
             schema=_pca_trajectory_schema,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("parameter_trajectory", ArtifactKind.CROSS_EPOCH)],
         )
     )
 
@@ -215,6 +218,7 @@ def _register_all(catalog: DataViewCatalog = _dataview_catalog) -> None:
             load_data=_load_neuron_dynamics_raw,
             schema=_neuron_dynamics_schema,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH)],
         )
     )
 
@@ -258,6 +262,7 @@ def _register_all(catalog: DataViewCatalog = _dataview_catalog) -> None:
             load_data=_load_attn_fourier,
             schema=_attn_fourier_schema,
             epoch_source_analyzer="attention_fourier",
+            required_analyzers=[AnalyzerRequirement("attention_fourier", ArtifactKind.EPOCH)],
         )
     )
 
