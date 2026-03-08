@@ -368,7 +368,6 @@ class Variant:
         num_epochs: int | None = None,
         checkpoint_epochs: list[int] | None = None,
         training_fraction: float = 0.3,
-        data_seed: int = 598,
         device: str | torch.device | None = None,
         progress_callback: Callable[[float, str], None] | None = None,
     ) -> TrainingResult:
@@ -377,12 +376,14 @@ class Variant:
         Creates the model via family.create_model(), generates training data,
         runs the training loop, and saves checkpoints and metadata.
 
+        data_seed is sourced from self._params["data_seed"] and must be set
+        when creating the variant via FamilyRegistry.create_variant().
+
         Args:
             num_epochs: Total training epochs (default: from family config)
             checkpoint_epochs: Epochs at which to save checkpoints
                               (default: from family config)
             training_fraction: Fraction of data for training (default: 0.3)
-            data_seed: Random seed for train/test split (default: 598)
             device: Device for training (default: auto-detect CUDA)
             progress_callback: Optional callback for progress updates
                               (fraction: float, description: str)
@@ -418,7 +419,7 @@ class Variant:
             self._family.generate_training_dataset(
                 self._params,
                 training_fraction=training_fraction,
-                data_seed=data_seed,
+                data_seed=self._params["data_seed"],
                 device=device,
             )
         )
@@ -471,7 +472,7 @@ class Variant:
             saved_checkpoint_epochs.append(final_epoch)
 
         # Save config
-        self._save_config(model.cfg, data_seed, training_fraction)
+        self._save_config(model.cfg, self._params["data_seed"], training_fraction)
 
         # Save metadata
         self._save_metadata(

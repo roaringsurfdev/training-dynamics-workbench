@@ -259,7 +259,7 @@ def trained_variant(temp_dirs):
 
     registry = FamilyRegistry(model_families_dir=model_families_dir, results_dir=results_dir)
     family = registry.get_family("modulo_addition_1layer")
-    params = {"prime": 17, "seed": 42}
+    params = {"prime": 17, "seed": 42, "data_seed": 598}
     variant = registry.create_variant(family, params)
     variant.train(num_epochs=50, checkpoint_epochs=[0, 25, 49], device="cpu")
     return variant

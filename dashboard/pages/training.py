@@ -166,7 +166,7 @@ def _run_training_thread(
 
         registry = get_registry()
         family = registry.get_family(family_name)
-        params = {"prime": int(prime), "seed": int(seed)}
+        params = {"prime": int(prime), "seed": int(seed), "data_seed": int(data_seed)}
         variant = registry.create_variant(family, params)
 
         checkpoint_epochs = parse_checkpoint_epochs(checkpoint_str)
@@ -182,7 +182,6 @@ def _run_training_thread(
             num_epochs=int(num_epochs),
             checkpoint_epochs=checkpoint_epochs,
             training_fraction=train_fraction,
-            data_seed=int(data_seed),
             progress_callback=progress_callback,
         )
 
@@ -218,24 +217,26 @@ def register_training_page_callbacks(app: Dash) -> None:
         defaults = family.get_default_params()
         prime = defaults.get("prime", 113)
         seed = defaults.get("seed", 999)
-        variant_name = family.get_variant_directory_name({"prime": prime, "seed": seed})
+        data_seed = defaults.get("data_seed", 598)
+        variant_name = family.get_variant_directory_name({"prime": prime, "seed": seed, "data_seed": data_seed})
         return f"Variant: {variant_name}", prime, seed
 
     @app.callback(
         Output("training-variant-preview", "children", allow_duplicate=True),
         Input("training-prime-input", "value"),
         Input("training-seed-input", "value"),
+        Input("training-data-seed-input", "value"),
         State("training-family-dropdown", "value"),
         prevent_initial_call=True,
     )
-    def on_params_change(prime: int | None, seed: int | None, family_name: str | None):
+    def on_params_change(prime: int | None, seed: int | None, data_seed: int | None, family_name: str | None):
         if not family_name or prime is None or seed is None:
             return no_update
         try:
             registry = get_registry()
             family = registry.get_family(family_name)
             variant_name = family.get_variant_directory_name(
-                {"prime": int(prime), "seed": int(seed)}
+                {"prime": int(prime), "seed": int(seed), "data_seed": int(data_seed or 598)}
             )
             return f"Variant: {variant_name}"
         except Exception:

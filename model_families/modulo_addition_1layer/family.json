@@ -25,6 +25,11 @@
       "type": "int",
       "description": "Random seed for model initialization",
       "default": 999
+    },
+    "data_seed": {
+      "type": "int",
+      "description": "Random seed for train/test split of the (a, b) input grid",
+      "default": 598
     }
   },
 
@@ -79,5 +84,5 @@
     }
   },
 
-  "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}"
+  "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}_dseed{data_seed}"
 }

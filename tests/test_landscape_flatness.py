@@ -358,7 +358,7 @@ def trained_variant(registry_with_family):
     """Create a trained variant with minimal training."""
     registry, results_dir = registry_with_family
     family = registry.get_family("modulo_addition_1layer")
-    params = {"prime": 17, "seed": 42}
+    params = {"prime": 17, "seed": 42, "data_seed": 598}
     variant = registry.create_variant(family, params)
 
     variant.train(
