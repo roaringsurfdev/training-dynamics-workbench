@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from miscope.views.catalog import AnalyzerRequirement, ArtifactKind, _check_requirement
+
 if TYPE_CHECKING:
     from miscope.families.variant import Variant
 
@@ -94,12 +96,22 @@ class DataViewDefinition:
         epoch_source_analyzer: Analyzer name used to resolve a None epoch to
             the first available artifact epoch. None for cross-epoch and
             metadata-based views where no resolution is needed.
+        required_analyzers: Artifact requirements that must be satisfied for
+            this dataview to be available. Empty list means always available.
     """
 
     name: str
     load_data: Callable[..., DataView]
     schema: DataViewSchema
     epoch_source_analyzer: str | None = field(default=None)
+    required_analyzers: list[AnalyzerRequirement] = field(default_factory=list)
+
+    def is_available_for(self, variant: Variant) -> bool:
+        """Return True if all required artifacts exist for this variant."""
+        for req in self.required_analyzers:
+            if not _check_requirement(req, variant):
+                return False
+        return True
 
 
 class DataViewCatalog:
@@ -126,6 +138,13 @@ class DataViewCatalog:
     def names(self) -> list[str]:
         """Return sorted list of all registered dataview names."""
         return sorted(self._dataviews.keys())
+
+    def available_names_for(self, variant: Variant) -> list[str]:
+        """Return sorted list of dataview names whose requirements are met for this variant."""
+        return sorted(
+            name for name, dv_def in self._dataviews.items()
+            if dv_def.is_available_for(variant)
+        )
 
 
 class BoundDataView:

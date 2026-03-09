@@ -114,13 +114,17 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
     """Execute analysis pipeline in a background thread."""
     from miscope.analysis import AnalysisPipeline
     from miscope.analysis.analyzers import (
+        AttentionFourierAnalyzer,
         AttentionFreqAnalyzer,
         AttentionPatternsAnalyzer,
+        CentroidDMD,
         DominantFrequenciesAnalyzer,
         EffectiveDimensionalityAnalyzer,
+        GlobalCentroidPCA,
         LandscapeFlatnessAnalyzer,
         NeuronActivationsAnalyzer,
         NeuronDynamicsAnalyzer,
+        NeuronFourierAnalyzer,
         NeuronFreqClustersAnalyzer,
         ParameterSnapshotAnalyzer,
         ParameterTrajectoryPCA,
@@ -154,8 +158,12 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.register(LandscapeFlatnessAnalyzer())
         pipeline.register(RepresentationalGeometryAnalyzer())
+        pipeline.register(AttentionFourierAnalyzer())
+        pipeline.register_secondary(NeuronFourierAnalyzer())
         pipeline.register_cross_epoch(NeuronDynamicsAnalyzer())
         pipeline.register_cross_epoch(ParameterTrajectoryPCA())
+        pipeline.register_cross_epoch(GlobalCentroidPCA())
+        pipeline.register_cross_epoch(CentroidDMD())
         pipeline.run(progress_callback=progress_callback)
 
         refresh_registry()

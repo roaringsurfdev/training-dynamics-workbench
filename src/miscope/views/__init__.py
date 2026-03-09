@@ -26,7 +26,15 @@ Example usage:
 # Import universal registrations to populate the catalogs as a side effect.
 import miscope.views.dataview_universal  # noqa: F401
 import miscope.views.universal  # noqa: F401
-from miscope.views.catalog import BoundView, EpochContext, ViewCatalog, ViewDefinition, _catalog
+from miscope.views.catalog import (
+    AnalyzerRequirement,
+    ArtifactKind,
+    BoundView,
+    EpochContext,
+    ViewCatalog,
+    ViewDefinition,
+    _catalog,
+)
 from miscope.views.dataview_catalog import (
     BoundDataView,
     DataView,
@@ -49,6 +57,8 @@ from miscope.views.cross_variant import (  # noqa: E402
 )
 
 __all__ = [
+    "AnalyzerRequirement",
+    "ArtifactKind",
     "BoundDataView",
     "BoundView",
     "ClassificationRules",

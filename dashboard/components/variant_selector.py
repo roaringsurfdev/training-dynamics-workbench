@@ -6,7 +6,7 @@ import dash_bootstrap_components as dbc
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, set_props
 from dash.exceptions import PreventUpdate
 
-from dashboard.state import get_registry, variant_state
+from dashboard.state import get_registry, variant_server_state
 
 """
 Encapulated and reuseable component for handling standard 
@@ -278,10 +278,10 @@ def register_variant_selector_callbacks(app: Dash) -> None:
                     raise PreventUpdate
 
                 # load variant into server_state
-                variant_state.load_variant(stored_family_name, str(variant_name))
+                variant_server_state.load_variant(stored_family_name, str(variant_name))
                 # reset epoch and epoch_index
                 # get max epochs for new variant
-                max_epochs = max(0, len(variant_state.available_epochs) - 1)
+                max_epochs = max(0, len(variant_server_state.available_epochs) - 1)
                 print(
                     f"New variant selected: variant_name: {variant_name}, epoch: {epoch}, max_epochs:{max_epochs}"
                 )
@@ -347,8 +347,8 @@ def register_variant_selector_callbacks(app: Dash) -> None:
                         clicked_x = click_data_item["points"][0].get("x")
                         if clicked_x:
                             print(f"handling click event: {click_data}")
-                            epoch_index = variant_state.get_nearest_epoch_index(int(clicked_x))
-                            epoch = variant_state.available_epochs[epoch_index]
+                            epoch_index = variant_server_state.get_nearest_epoch_index(int(clicked_x))
+                            epoch = variant_server_state.available_epochs[epoch_index]
                             # Will need to explicitly update the slider since the event
                             # did not come through the slider
                             update_slider = True
@@ -359,13 +359,13 @@ def register_variant_selector_callbacks(app: Dash) -> None:
 
         # commit new epoch data if it has changed
         if stored_epoch_index != epoch_index:
-            epoch = variant_state.available_epochs[epoch_index]
+            epoch = variant_server_state.available_epochs[epoch_index]
 
             # save updated variant settings to store
             print("on_epoch_slider_changed: epoch changed, update dependencies")
 
             # load the variant at the newly selected epoch
-            variant_state.load_epoch(epoch)
+            variant_server_state.load_epoch(epoch)
 
             # update the store with updated selections
             set_props(

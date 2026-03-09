@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 import plotly.graph_objects as go
 
-from miscope.views.catalog import ViewDefinition, _catalog
+from miscope.views.catalog import AnalyzerRequirement, ArtifactKind, ViewDefinition, _catalog
 
 if TYPE_CHECKING:
     from miscope.families.variant import Variant
@@ -46,6 +46,7 @@ def _make_per_epoch(
         load_data=load_data,
         renderer=renderer,
         epoch_source_analyzer=analyzer_name,
+        required_analyzers=[AnalyzerRequirement(analyzer_name, ArtifactKind.EPOCH)],
     )
 
 
@@ -74,6 +75,7 @@ def _make_summary(
         load_data=load_data,
         renderer=renderer,
         epoch_source_analyzer=None,
+        required_analyzers=[AnalyzerRequirement(analyzer_name, ArtifactKind.SUMMARY)],
     )
 
 
@@ -150,6 +152,7 @@ def _register_all() -> None:
             load_data=_load_dominant_frequencies_over_time,
             renderer=_render_dominant_frequencies_over_time,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("dominant_frequencies", ArtifactKind.EPOCH)],
         )
     )
 
@@ -173,6 +176,8 @@ def _register_all() -> None:
 
         return renderer
 
+    _pca_req = [AnalyzerRequirement("parameter_trajectory", ArtifactKind.CROSS_EPOCH)]
+
     for name, render_fn in [
         ("parameters.pca.pc1_pc2", viz.render_parameter_trajectory),
         ("parameters.pca.pc1_pc3", viz.render_trajectory_pc1_pc3),
@@ -185,6 +190,7 @@ def _register_all() -> None:
                 load_data=_load_parameter_trajectory,
                 renderer=_make_pca_renderer(render_fn),
                 epoch_source_analyzer=None,
+                required_analyzers=_pca_req,
             )
         )
 
@@ -205,6 +211,7 @@ def _register_all() -> None:
             load_data=_load_parameter_trajectory,
             renderer=_render_explained_variance,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -223,6 +230,7 @@ def _register_all() -> None:
             load_data=_load_parameter_trajectory,
             renderer=_render_parameter_velocity,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -239,6 +247,7 @@ def _register_all() -> None:
             load_data=_load_parameter_trajectory,
             renderer=_render_component_velocity,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -314,20 +323,11 @@ def _register_all() -> None:
         summary = compute_summary_from_dynamics(data["cross_epoch"], data["prime"], threshold)
         return render_specialization_by_frequency(summary, epoch, **kwargs)
 
+    _nd_req = [AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH)]
+
     for name, renderer in [
         ("activations.mlp.neuron_frequency_range", _render_specialization_trajectory_dynamic),
         ("activations.mlp.neuron_frequency_specialization", _render_specialization_by_frequency_dynamic),
-    ]:
-        _catalog.register(
-            ViewDefinition(
-                name=name,
-                load_data=_load_neuron_dynamics,
-                renderer=renderer,
-                epoch_source_analyzer=None,
-            )
-        )
-
-    for name, renderer in [
         ("activations.mlp.neuron_freq_trajectory", _render_neuron_freq_trajectory),
         ("activations.mlp.switch_count_distribution", _render_switch_count_distribution),
         ("activations.mlp.commitment_timeline", _render_commitment_timeline),
@@ -339,6 +339,7 @@ def _register_all() -> None:
                 load_data=_load_neuron_dynamics,
                 renderer=renderer,
                 epoch_source_analyzer=None,
+                required_analyzers=_nd_req,
             )
         )
 
@@ -358,6 +359,7 @@ def _register_all() -> None:
             load_data=_load_centroid_pca_variance,
             renderer=_render_centroid_pca_variance,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
         )
     )
 
@@ -370,6 +372,7 @@ def _register_all() -> None:
             load_data=_load_parameter_trajectory,
             renderer=_render_trajectory_pca_variance,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -386,6 +389,7 @@ def _register_all() -> None:
             load_data=_load_repr_geometry_summary,
             renderer=_render_geometry_timeseries,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
         )
     )
 
@@ -420,6 +424,7 @@ def _register_all() -> None:
                 load_data=_load_repr_geometry_epoch,
                 renderer=renderer,
                 epoch_source_analyzer="repr_geometry",
+                required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.EPOCH)],
             )
         )
 
@@ -442,6 +447,7 @@ def _register_all() -> None:
             load_data=_load_global_centroid_pca,
             renderer=_render_centroid_global_pca,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("global_centroid_pca", ArtifactKind.CROSS_EPOCH)],
         )
     )
 
@@ -466,6 +472,8 @@ def _register_all() -> None:
         resolved_epoch = epoch if epoch is not None else int(epochs_arr[-1])
         return viz.render_dmd_reconstruction(data, resolved_epoch, site=site)
 
+    _dmd_req = [AnalyzerRequirement("centroid_dmd", ArtifactKind.CROSS_EPOCH)]
+
     for name, renderer in [
         ("geometry.dmd_eigenvalues", _render_dmd_eigenvalues),
         ("geometry.dmd_residual", _render_dmd_residual),
@@ -477,6 +485,7 @@ def _register_all() -> None:
                 load_data=_load_centroid_dmd,
                 renderer=renderer,
                 epoch_source_analyzer=None,
+                required_analyzers=_dmd_req,
             )
         )
 
@@ -501,6 +510,7 @@ def _register_all() -> None:
             load_data=_load_attention_fourier_stacked,
             renderer=_render_head_alignment_trajectory,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("attention_fourier", ArtifactKind.EPOCH)],
         )
     )
 
@@ -526,6 +536,7 @@ def _register_all() -> None:
             load_data=_load_band_concentration,
             renderer=_render_concentration_trajectory,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH)],
         )
     )
 
@@ -547,6 +558,10 @@ def _register_all() -> None:
             load_data=_load_rank_alignment,
             renderer=_render_rank_alignment_trajectory,
             epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH),
+                AnalyzerRequirement("dominant_frequencies", ArtifactKind.EPOCH),
+            ],
         )
     )
 
