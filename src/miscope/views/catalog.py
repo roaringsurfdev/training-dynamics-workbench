@@ -261,6 +261,8 @@ class EpochContext:
         """
         from miscope.views.dataview_catalog import (
             BoundDataView as _BoundDataView,
+        )
+        from miscope.views.dataview_catalog import (
             _dataview_catalog,
             _resolve_dataview_epoch,
         )
