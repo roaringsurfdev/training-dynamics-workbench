@@ -120,6 +120,7 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         CentroidDMD,
         DominantFrequenciesAnalyzer,
         EffectiveDimensionalityAnalyzer,
+        FourierNucleationAnalyzer,
         GlobalCentroidPCA,
         LandscapeFlatnessAnalyzer,
         NeuronActivationsAnalyzer,
@@ -159,6 +160,7 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         pipeline.register(LandscapeFlatnessAnalyzer())
         pipeline.register(RepresentationalGeometryAnalyzer())
         pipeline.register(AttentionFourierAnalyzer())
+        pipeline.register(FourierNucleationAnalyzer())
         pipeline.register_secondary(NeuronFourierAnalyzer())
         pipeline.register_cross_epoch(NeuronDynamicsAnalyzer())
         pipeline.register_cross_epoch(ParameterTrajectoryPCA())

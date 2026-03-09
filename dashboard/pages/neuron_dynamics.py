@@ -4,17 +4,18 @@ from dash import Dash, Input, Output, State, dcc, html
 from dashboard.components.analysis_page import AnalysisPageGraphManager
 
 _VIEW_LIST = {
-    "parameters-pca-pc1-pc2": {
+    "neuron_freq_trajectory": {
         "view_name": "activations.mlp.neuron_freq_trajectory",
         "view_type": "default_graph",
-        "view_filter_set": "sort_order",
+        "view_filter_set": "nd_specialization_threshold",
     },
     "switch-plot": {"view_name": "activations.mlp.switch_count_distribution", "view_type": "default_graph"},
     "commitment-plot": {"view_name": "activations.mlp.commitment_timeline", "view_type": "default_graph"},
     # Threshold-sensitive views
     "per-band-specialization": {
         "view_name": "activations.mlp.per_band_specialization",
-        "view_type": "default_graph"
+        "view_type": "default_graph",
+        "view_filter_set": "nd_specialization_threshold",
     },
     "neuron-frequency-range": {
         "view_name": "activations.mlp.neuron_frequency_range",
@@ -23,6 +24,24 @@ _VIEW_LIST = {
     "band-concentration": {
         "view_name": "analysis.band_concentration.trajectory",
         "view_type": "default_graph"
+    },
+    # REQ_063: Fourier nucleation — always epoch 0
+    "nucleation-heatmap": {
+        "view_name": "parameters.mlp.nucleation_heatmap",
+        "view_type": "default_graph",
+    },
+    "nucleation-gains": {
+        "view_name": "parameters.mlp.nucleation_frequency_gains",
+        "view_type": "default_graph",
+    },
+    # REQ_064: Data compatibility — epoch-independent, computed on demand
+    "data-compatibility-spectrum": {
+        "view_name": "analysis.data_compatibility.spectrum",
+        "view_type": "default_graph",
+    },
+    "data-compatibility-overlap": {
+        "view_name": "analysis.data_compatibility.overlap",
+        "view_type": "default_graph",
     },
 }
 
@@ -70,7 +89,7 @@ def create_neuron_dynamics_page_layout() -> html.Div:
             html.Div(
                 [
                     # Trajectory heatmap (full width)
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("parameters-pca-pc1-pc2", "600px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron_freq_trajectory", "600px"))),
                     # Switch distribution | Commitment timeline
                     dbc.Row(
                         [
@@ -85,19 +104,15 @@ def create_neuron_dynamics_page_layout() -> html.Div:
                         ]
                     ),
                     # Threshold-sensitive views
-                    dbc.Row(
-                        [
-                            dbc.Col(
-                                _graph_manager.create_graph("per-band-specialization", "350px"),
-                                width=6,
-                            ),
-                            dbc.Col(
-                                _graph_manager.create_graph("neuron-frequency-range", "350px"),
-                                width=6,
-                            ),
-                        ]
-                    ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("per-band-specialization", "400px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron-frequency-range", "400px"))),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("band-concentration", "400px"))),
+                    # REQ_063: Fourier nucleation (epoch 0, initialization-anchored)
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("nucleation-heatmap", "650px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("nucleation-gains", "350px"))),
+                    # REQ_064: Data compatibility (epoch-independent, on-demand)
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("data-compatibility-overlap", "450px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("data-compatibility-spectrum", "400px"))),
                 ],
             ),
         ]
@@ -117,6 +132,7 @@ def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
         print("on_nd_data_change")
         return _graph_manager.update_graphs(variant_data=variant_data)
 
+    """
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("sort_order")],
         Input("variant-selector-store", "modified_timestamp"),
@@ -132,11 +148,11 @@ def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
             view_filter_set="sort_order",
             view_kwargs={"sorted_by_final": sorted_by_final},
         )
-"""
     @app.callback(
         Output("nd-specialization-threshold-display", "children"),
         Input("nd-specialization-threshold-slider", "value"),
     )
+    """
     def on_nd_threshold_display_update(threshold: float) -> str:
         return f"Threshold: {int(threshold * 100)}%"
 
@@ -154,4 +170,3 @@ def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="nd_specialization_threshold", view_kwargs=view_kwargs
         )
-"""
