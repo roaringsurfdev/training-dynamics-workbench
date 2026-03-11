@@ -89,6 +89,12 @@ _VIEW_LIST = {
         "view_filter_set": "flatness_metric",
     },
     "perturbation-plot": {"view_name": "loss_landscape.perturbation_distribution", "view_type": "default_graph"},
+    # REQ_066: Multi-stream specialization
+    "multi-stream-specialization": {
+        "view_name": "multi_stream_specialization",
+        "view_type": "epoch_selector",
+        "view_filter_set": "multi_stream_thresholds",
+    },
 }
 
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "viz")
@@ -129,6 +135,39 @@ def create_visualization_page_nav() -> html.Div:
             html.Div(
                 id="specialization-threshold-display",
                 children="Threshold: 90%",
+                className="text-muted small mb-3",
+            ),
+            html.Hr(),
+            # Multi-stream MLP threshold (REQ_066)
+            dbc.Label("Multi-Stream: MLP Threshold", className="fw-bold"),
+            dcc.Slider(
+                id="multi-stream-mlp-threshold-slider",
+                min=0.0,
+                max=1.0,
+                step=0.05,
+                value=0.5,
+                marks={0: "0%", 0.5: "50%", 0.9: "90%", 1.0: "100%"},
+                tooltip={"placement": "bottom", "always_visible": False},
+            ),
+            html.Div(
+                id="multi-stream-mlp-threshold-display",
+                children="MLP Threshold: 50%",
+                className="text-muted small mb-3",
+            ),
+            # Multi-stream Embedding threshold (REQ_066)
+            dbc.Label("Multi-Stream: Embedding Threshold", className="fw-bold"),
+            dcc.Slider(
+                id="multi-stream-emb-threshold-slider",
+                min=0.0,
+                max=1.0,
+                step=0.05,
+                value=0.5,
+                marks={0: "0%", 0.5: "50%", 0.9: "90%", 1.0: "100%"},
+                tooltip={"placement": "bottom", "always_visible": False},
+            ),
+            html.Div(
+                id="multi-stream-emb-threshold-display",
+                children="Embedding Threshold: 50%",
                 className="text-muted small mb-3",
             ),
             html.Hr(),
@@ -249,6 +288,8 @@ def create_visualization_page_layout() -> html.Div:
                         dbc.Col(_graph_manager.create_graph("flatness-trajectory-plot", "400px"))
                     ),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("perturbation-plot", "400px"))),
+                    # --- Multi-stream specialization (REQ_066) ---
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("multi-stream-specialization", "1400px"))),
                 ],
             ),
         ]
@@ -385,4 +426,39 @@ def register_visualization_page_callbacks(app: Dash) -> None:
         view_kwargs = {"neuron_idx": neuron_id}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="neuron_id", view_kwargs=view_kwargs
+        )
+
+    @app.callback(
+        Output("multi-stream-mlp-threshold-display", "children"),
+        Input("multi-stream-mlp-threshold-slider", "value"),
+    )
+    def on_multi_stream_mlp_display_update(threshold: float) -> str:
+        return f"MLP Threshold: {int(threshold * 100)}%"
+
+    @app.callback(
+        Output("multi-stream-emb-threshold-display", "children"),
+        Input("multi-stream-emb-threshold-slider", "value"),
+    )
+    def on_multi_stream_emb_display_update(threshold: float) -> str:
+        return f"Embedding Threshold: {int(threshold * 100)}%"
+
+    @app.callback(
+        [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list("multi_stream_thresholds")],
+        Input("variant-selector-store", "modified_timestamp"),
+        Input("multi-stream-mlp-threshold-slider", "value"),
+        Input("multi-stream-emb-threshold-slider", "value"),
+        State("variant-selector-store", "data"),
+    )
+    def on_multi_stream_thresholds_change(
+        modified_timestamp: str | None,
+        threshold_mlp: float,
+        threshold_emb: float,
+        variant_data: dict | None,
+    ):
+        print("on_multi_stream_thresholds_change")
+        view_kwargs = {"threshold_mlp": threshold_mlp, "threshold_embedding": threshold_emb}
+        return _graph_manager.update_graphs(
+            variant_data=variant_data,
+            view_filter_set="multi_stream_thresholds",
+            view_kwargs=view_kwargs,
         )
