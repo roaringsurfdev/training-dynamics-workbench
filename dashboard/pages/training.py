@@ -25,7 +25,7 @@ def create_training_page_nav() -> html.Div:
 def create_training_page_layout() -> html.Div:
     """Create the Training page layout."""
     registry = get_registry()
-    family_choices = get_family_choices(registry)
+    family_choices = get_family_choices(registry, trainable_only=True)
     family_options = [{"label": display, "value": name} for display, name in family_choices]
     default_family = family_options[0]["value"] if family_options else None
 

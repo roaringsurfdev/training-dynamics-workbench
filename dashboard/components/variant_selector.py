@@ -31,17 +31,24 @@ if TYPE_CHECKING:
     from miscope.families import FamilyRegistry, Variant
 
 
-def get_family_choices(registry: FamilyRegistry) -> list[tuple[str, str]]:
+def get_family_choices(
+    registry: FamilyRegistry, trainable_only: bool = False
+) -> list[tuple[str, str]]:
     """Get choices for family dropdown.
 
     Args:
         registry: The FamilyRegistry instance
+        trainable_only: If True, exclude families that require programmatic
+            variant construction (ui_trainable=False). Use on the Training page
+            only; analysis pages should show all families.
 
     Returns:
         List of (display_name, family_name) tuples for gr.Dropdown
     """
     families = registry.list_families()
-    return [(f.display_name, f.name) for f in families if f.ui_trainable]
+    if trainable_only:
+        families = [f for f in families if f.ui_trainable]
+    return [(f.display_name, f.name) for f in families]
 
 
 def get_variant_choices(registry: FamilyRegistry, family_name: str | None) -> list[tuple[str, str]]:
