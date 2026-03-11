@@ -13,7 +13,7 @@ Public API:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -55,15 +55,17 @@ class ClassificationRules:
             (this probably boils down to: is there a low-frequency band?)
     """
 
-    grokking_threshold: float = 0.1
+    # TODO: Correct logic around grokking_threshold. Needs to use threshold diff in second descent
+    #   Can add threshold for measuring grokking success by difference between final train and test losses (within 1.0e-5)
+    #grokking_threshold: float = 0.1
     early_grokking_epoch: int = 9000
     late_grokking_epoch: int = 12000
     degraded_test_loss: float = 1.0e-6
     min_frequency_bands: int = 2
     # REQ_065: second descent diagnostics
-    second_descent_threshold: float = 0.8
+    second_descent_onset_diff_threshold: float = 0.8
     recovery_threshold: float = 0.2
-    first_mover_neuron_threshold: float = 0.2
+    first_mover_neuron_threshold: float = 0.2 # TODO: Revisit this threshold. Probably need to be higher
 
 
 def compute_variant_metrics(
@@ -91,44 +93,46 @@ def compute_variant_metrics(
     if rules is None:
         rules = ClassificationRules()
 
-    meta = variant.metadata
-    test_losses = list(meta["test_losses"])
-    num_epochs = len(test_losses)
-    final_test_loss = float(test_losses[-1])
-
-    # This captures grokking completion more than onset
-    grokking_onset_epoch: int | None = None
-    for i, loss in enumerate(test_losses):
-        if loss < rules.grokking_threshold:
-            grokking_onset_epoch = i
-            break
-
+    # Domain Parameters
     prime = int(variant.model_config.get("prime", 0))
     seed = variant.model_config.get("seed")
+    data_seed = variant.model_config.get("data_seed")
+
+    # Training Metadata
+    meta = variant.metadata
+    train_losses = list(meta["train_losses"])
+    test_losses = list(meta["test_losses"])
+    num_epochs = len(test_losses)
+    final_train_loss = float(train_losses[-1])
+    final_test_loss = float(test_losses[-1])
 
     metrics: dict[str, Any] = {
         "variant_name": variant.name,
         "prime": prime,
         "seed": seed,
-        "grokking_onset_epoch": grokking_onset_epoch,
+        "data_seed": data_seed,
+        #"grokking_onset_epoch": None,
+        "final_train_loss": final_train_loss,
         "final_test_loss": final_test_loss,
         "num_epochs": num_epochs,
+        # REQ_065: second descent diagnostics — test loss trajectory
+        "peak_test_loss": None,
+        "peak_test_loss_epoch": None,
+        "second_descent_onset_epoch": None,
+        "second_descent_completion_epoch": None,
+        "second_descent_survived": None,
+        "post_descent_test_loss_increase": None,
         "frequency_band_count": None,
+        # Competition Window metrics
         "competition_window_start": None,
         "competition_window_end": None,
         "competition_window_duration": None,
         "final_circularity": None,
         "final_fisher_discriminant": None,
-        # REQ_065: second descent diagnostics — test loss trajectory
-        "peak_test_loss": None,
-        "peak_test_loss_epoch": None,
-        "second_descent_onset_epoch": None,
-        "second_descent_survived": None,
-        "post_descent_recovery": None,
         # REQ_065: frequency portfolio at second descent onset
-        "descent_onset_frequency_bands": None,
-        "descent_onset_has_low_band": None,
-        "descent_onset_band_count": None,
+        "second_descent_onset_frequency_bands": None,
+        "second_descent_onset_has_low_band": None,
+        "second_descent_onset_band_count": None,
         # REQ_065: first-mover frequency
         "first_mover_frequency": None,
         "first_mover_epoch": None,
@@ -146,10 +150,10 @@ def compute_variant_metrics(
         "critical_mass_hhi": None,
     }
 
+    _load_second_descent_metrics(variant, metrics, test_losses, prime, rules)
     _load_neuron_dynamics_metrics(variant, metrics, prime)
     _load_repr_geometry_metrics(variant, metrics)
-    _load_band_concentration_metrics(variant, metrics, prime, grokking_onset_epoch, num_epochs)
-    _load_second_descent_metrics(variant, metrics, test_losses, prime, rules)
+    _load_band_concentration_metrics(variant, metrics, prime, num_epochs)
 
     failure_mode, reasons = classify_failure_mode(metrics, rules)
     metrics["failure_mode"] = failure_mode
@@ -211,7 +215,7 @@ def _load_band_concentration_metrics(
     variant: Variant,
     metrics: dict[str, Any],
     prime: int,
-    grokking_onset_epoch: int | None,
+    #grokking_onset_epoch: int | None,
     num_epochs: int,
     threshold: float = _DEFAULT_CONCENTRATION_THRESHOLD,
     neuron_count_threshold: int = _DEFAULT_CRITICAL_MASS_N,
@@ -231,6 +235,7 @@ def _load_band_concentration_metrics(
     metrics["midpoint_active_band_count"] = midpoint["active_band_count"]
     metrics["midpoint_max_band_share"] = midpoint["max_band_share"]
 
+    grokking_onset_epoch = metrics["second_descent_onset_epoch"]
     if grokking_onset_epoch is not None:
         onset_idx = int(np.searchsorted(epochs, grokking_onset_epoch))
         onset_idx = min(onset_idx, n_epochs - 1)
@@ -292,9 +297,9 @@ def _compute_test_loss_trajectory(
 
     # Second descent onset: first epoch after peak where descent_fraction >= threshold
     onset_epoch = None
-    for i in range(peak_epoch, len(test_losses)):
+    for i in range(peak_epoch, len(test_losses)):        
         descent_fraction = (peak_loss - test_losses[i]) / peak_loss
-        if descent_fraction >= rules.second_descent_threshold:
+        if descent_fraction >= rules.second_descent_onset_diff_threshold:
             onset_epoch = i
             break
 
@@ -304,14 +309,14 @@ def _compute_test_loss_trajectory(
         return
 
     final_loss = test_losses[-1]
-    metrics["second_descent_survived"] = final_loss <= rules.grokking_threshold
+    metrics["second_descent_survived"] = final_loss <= rules.degraded_test_loss
 
     # Recovery: test loss climbs back by more than recovery_threshold * peak after onset
     min_post_onset = min(test_losses[onset_epoch:])
     recovery_floor = min_post_onset
     recovery_ceiling = recovery_floor + rules.recovery_threshold * peak_loss
     post_onset_max = max(test_losses[onset_epoch:])
-    metrics["post_descent_recovery"] = post_onset_max > recovery_ceiling
+    metrics["post_descent_test_loss_increase"] = post_onset_max > recovery_ceiling
 
 
 def _compute_first_mover_metrics(
@@ -368,15 +373,15 @@ def _compute_descent_onset_portfolio(
     active_freqs = set(int(f) for f in dominant_freq[onset_idx][committed_mask])
 
     if not active_freqs:
-        metrics["descent_onset_frequency_bands"] = []
-        metrics["descent_onset_has_low_band"] = False
-        metrics["descent_onset_band_count"] = 0
+        metrics["second_descent_onset_frequency_bands"] = []
+        metrics["second_descent_onset_has_low_band"] = False
+        metrics["second_descent_onset_band_count"] = 0
         return
 
     bands = [_classify_frequency_band(f, prime) for f in active_freqs]
-    metrics["descent_onset_frequency_bands"] = bands
-    metrics["descent_onset_has_low_band"] = "low" in bands
-    metrics["descent_onset_band_count"] = len(set(bands))
+    metrics["second_descent_onset_frequency_bands"] = bands
+    metrics["second_descent_onset_has_low_band"] = "low" in bands
+    metrics["second_descent_onset_band_count"] = len(set(bands))
 
 
 def classify_failure_mode(
@@ -406,24 +411,24 @@ def classify_failure_mode(
         rules = ClassificationRules()
 
     reasons: list[str] = []
-    onset = metrics.get("grokking_onset_epoch")
+    onset = metrics.get("second_descent_onset_epoch")
     final_loss = metrics.get("final_test_loss")
     band_count = metrics.get("frequency_band_count")
     second_descent_onset = metrics.get("second_descent_onset_epoch")
-    post_descent_recovery = metrics.get("post_descent_recovery")
+    post_descent_recovery = metrics.get("post_descent_test_loss_increase")
 
     # 1. no_grokking: never crossed threshold
     if onset is None:
-        reasons.append(f"never reached test_loss < {rules.grokking_threshold}")
+        reasons.append(f"never reached test_loss < {rules.degraded_test_loss}")
         return "no_grokking", reasons
 
     # 2. degraded_recovery: entered second descent, test loss climbed back
     if second_descent_onset is not None and post_descent_recovery is True and (
-        final_loss is None or final_loss > rules.grokking_threshold
+        final_loss is None or final_loss > rules.degraded_test_loss
     ):
         reasons.append(f"second_descent_onset={second_descent_onset}, post-descent recovery detected")
         if final_loss is not None:
-            reasons.append(f"final_test_loss={final_loss:.4f} > {rules.grokking_threshold}")
+            reasons.append(f"final_test_loss={final_loss:.4f} > {rules.degraded_test_loss}")
         return "degraded_recovery", reasons
 
     # 3. degraded: high final loss, never properly descended
@@ -473,7 +478,7 @@ def load_family_comparison(
     df = pd.DataFrame(rows)
 
     # Sort: healthy variants by grokking onset, degraded/no-grokking last.
-    df["_sort_onset"] = df["grokking_onset_epoch"].fillna(float("inf"))
+    df["_sort_onset"] = df["second_descent_onset_epoch"].fillna(float("inf"))
     df = df.sort_values(["_sort_onset", "final_test_loss"]).drop(columns=["_sort_onset"])
     df = df.reset_index(drop=True)
 
