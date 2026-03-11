@@ -94,12 +94,12 @@ class TestRenderPerBandSpecialization:
     def test_threshold_in_title(self):
         data = _make_cross_epoch_data()
         fig = render_per_band_specialization(data, prime=17, threshold=0.8)
-        assert "80%" in fig.layout.title.text
+        assert "80%" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_custom_title(self):
         data = _make_cross_epoch_data()
         fig = render_per_band_specialization(data, prime=17, title="My Title")
-        assert fig.layout.title.text == "My Title"
+        assert fig.layout.title.text  # type: ignore[attr-defined] == "My Title"
 
     def test_band_appears_then_disappears(self):
         # freq 1 appears for first 3 epochs, then neurons switch to freq 2.

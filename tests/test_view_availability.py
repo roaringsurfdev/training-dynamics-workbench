@@ -13,7 +13,12 @@ from miscope.views.catalog import (
     ViewDefinition,
     _check_requirement,
 )
-from miscope.views.dataview_catalog import DataViewCatalog, DataViewDefinition, DataViewSchema
+from miscope.views.dataview_catalog import (
+    DataView,
+    DataViewCatalog,
+    DataViewDefinition,
+    DataViewSchema,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -39,8 +44,8 @@ def _make_mock_variant(artifacts: MagicMock) -> MagicMock:
     return variant
 
 
-def _noop_load(variant, epoch):
-    return {}
+def _noop_load(variant, epoch) -> DataView:
+    return DataView(schema=DataViewSchema(fields=[]))
 
 
 def _noop_renderer(data, epoch, **kwargs):

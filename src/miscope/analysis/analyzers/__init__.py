@@ -11,6 +11,7 @@ from miscope.analysis.analyzers.attention_fourier import AttentionFourierAnalyze
 from miscope.analysis.analyzers.attention_freq import AttentionFreqAnalyzer
 from miscope.analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
 from miscope.analysis.analyzers.centroid_dmd import CentroidDMD
+from miscope.analysis.analyzers.coarseness import CoarsenessAnalyzer
 from miscope.analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
 from miscope.analysis.analyzers.effective_dimensionality import EffectiveDimensionalityAnalyzer
 from miscope.analysis.analyzers.fourier_frequency_quality import FourierFrequencyQualityAnalyzer
@@ -48,5 +49,6 @@ __all__ = [
     "ParameterTrajectoryPCA",
     "RepresentationalGeometryAnalyzer",
     "GlobalCentroidPCA",
-    "CentroidDMD"
+    "CentroidDMD",
+    "CoarsenessAnalyzer",
 ]

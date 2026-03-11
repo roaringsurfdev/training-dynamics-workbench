@@ -9,7 +9,7 @@ import pytest
 
 # Add scripts/ to path so we can import migrate_dseed
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-import migrate_dseed
+import migrate_dseed  # type: ignore[import]
 
 
 @pytest.fixture

@@ -94,8 +94,8 @@ def render_concentration_trajectory(
             fig.add_vline(
                 x=grokking_onset_epoch,
                 line=dict(color=_COLOR_GROKKING, width=2, dash="dash"),
-                row=row,
-                col=1,
+                row=row,  # type: ignore[arg-type]
+                col=1,  # type: ignore[arg-type]
             )
 
     fig.update_yaxes(title_text="HHI", range=[0, 1.05], row=1, col=1)
@@ -197,7 +197,7 @@ def render_concentration_scatter(
     failure_modes = df["failure_mode"].unique() if "failure_mode" in df.columns else []
 
     for mode in failure_modes:
-        subset = df[df["failure_mode"] == mode]
+        subset: pd.DataFrame = df[df["failure_mode"] == mode]  # type: ignore[assignment]
         color = _FAILURE_MODE_COLORS.get(str(mode), "#888")
 
         x_vals = subset[hhi_col].values if hhi_col in subset.columns else np.full(len(subset), np.nan)

@@ -140,13 +140,13 @@ class TestDataView:
     def test_attribute_access(self, simple_schema):
         df = pd.DataFrame({"epoch": [1], "train_loss": [2.0]})
         view = DataView(schema=simple_schema, losses=df)
-        assert isinstance(view.losses, pd.DataFrame)
+        assert isinstance(view.losses, pd.DataFrame)  # type: ignore[attr-defined]
 
     def test_ndarray_field(self, simple_schema):
         arr = np.ones((5, 3))
         view = DataView(schema=simple_schema, coefficients=arr)
-        assert isinstance(view.coefficients, np.ndarray)
-        assert view.coefficients.shape == (5, 3)
+        assert isinstance(view.coefficients, np.ndarray)  # type: ignore[attr-defined]
+        assert view.coefficients.shape == (5, 3)  # type: ignore[attr-defined]
 
     def test_schema_accessible(self, simple_schema):
         view = DataView(schema=simple_schema, losses=pd.DataFrame())
@@ -405,9 +405,9 @@ class TestUniversalDataViewLoaders:
         dv_def = _dataview_catalog.get("training.metadata.loss_curves")
         result = dv_def.load_data(temp_variant, None)
         assert isinstance(result, DataView)
-        assert isinstance(result.losses, pd.DataFrame)
-        assert list(result.losses.columns) == ["epoch", "train_loss", "test_loss"]
-        assert len(result.losses) == 3
+        assert isinstance(result.losses, pd.DataFrame)  # type: ignore[attr-defined]
+        assert list(result.losses.columns) == ["epoch", "train_loss", "test_loss"]  # type: ignore[attr-defined]
+        assert len(result.losses) == 3  # type: ignore[attr-defined]
 
     def test_loss_curve_schema_accessible_before_load(self):
         dv_def = _dataview_catalog.get("training.metadata.loss_curves")

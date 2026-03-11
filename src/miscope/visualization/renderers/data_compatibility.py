@@ -148,6 +148,7 @@ def render_data_compatibility_overlap(
 
     # Color bars by overlap score when available, else by compatibility
     if has_nucleation:
+        assert top_quartile_mask is not None
         bar_colors = _overlap_colors(overlap_score, top_quartile_mask)
     else:
         bar_colors = _compatibility_colors(compatibility)
@@ -191,6 +192,7 @@ def render_data_compatibility_overlap(
         )
 
         # Annotate top-quartile frequencies
+        assert top_quartile_mask is not None
         _add_winner_annotations(fig, frequencies, overlap_score, top_quartile_mask)
 
     subtitle = "" if has_nucleation else " (nucleation artifact not available)"
@@ -274,7 +276,7 @@ def _add_winner_annotations(
     mask: np.ndarray,
 ) -> None:
     """Add star annotations above top-quartile frequency bars."""
-    annotations = list(fig.layout.annotations or [])
+    annotations = list(fig.layout.annotations or [])  # type: ignore[attr-defined]
     for i, k in enumerate(frequencies):
         if mask[i]:
             annotations.append(

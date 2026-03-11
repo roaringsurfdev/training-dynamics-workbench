@@ -89,7 +89,7 @@ def render_nucleation_heatmap(
             line_width=1,
             line_dash="dot",
             line_color="rgba(255, 200, 80, 0.5)",
-            row=1, col=1,
+            row=1, col=1,  # type: ignore[arg-type]
         )
 
     # --- Row 2 left: Neuron peak histogram (final iteration) ---
@@ -143,7 +143,7 @@ def render_nucleation_heatmap(
         showlegend=True,
         legend=dict(x=1.0, y=0.3, xanchor="left"),
         annotations=[
-            *fig.layout.annotations,
+            *fig.layout.annotations,  # type: ignore[attr-defined]
             dict(
                 text=f"Sharpness: {int(sharpness * 100)}% | Iterations: {n_iters}",
                 xref="paper", yref="paper",

@@ -57,9 +57,9 @@ class AttentionFourierAnalyzer:
         n_freq = p // 2
 
         W_E_tok = model.embed.W_E.detach()[:p]  # (p, d_model) — token rows only
-        W_Q = model.blocks[0].attn.W_Q.detach()  # (n_heads, d_model, d_head)
-        W_K = model.blocks[0].attn.W_K.detach()  # (n_heads, d_model, d_head)
-        W_V = model.blocks[0].attn.W_V.detach()  # (n_heads, d_model, d_head)
+        W_Q = model.blocks[0].attn.W_Q.detach()  # type: ignore[union-attr]  # (n_heads, d_model, d_head)
+        W_K = model.blocks[0].attn.W_K.detach()  # type: ignore[union-attr]  # (n_heads, d_model, d_head)
+        W_V = model.blocks[0].attn.W_V.detach()  # type: ignore[union-attr]  # (n_heads, d_model, d_head)
 
         n_heads = W_Q.shape[0]
         qk_freq_norms = np.zeros((n_heads, n_freq), dtype=np.float32)

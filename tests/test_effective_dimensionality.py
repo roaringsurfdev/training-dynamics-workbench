@@ -256,7 +256,7 @@ class TestRenderDimensionalityTrajectory:
     def test_custom_title(self, summary_data):
         """Custom title is applied."""
         fig = render_dimensionality_trajectory(summary_data, current_epoch=200, title="Custom")
-        assert fig.layout.title.text == "Custom"
+        assert fig.layout.title.text  # type: ignore[attr-defined] == "Custom"
 
 
 class TestRenderSingularValueSpectrum:
@@ -285,22 +285,22 @@ class TestRenderSingularValueSpectrum:
     def test_default_matrix_is_W_in(self, epoch_data):
         """Default matrix is W_in."""
         fig = render_singular_value_spectrum(epoch_data, epoch=100)
-        assert "W_in" in fig.layout.title.text
+        assert "W_in" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_attention_matrix_default_head(self, epoch_data):
         """Attention matrix uses head 0 by default."""
         fig = render_singular_value_spectrum(epoch_data, epoch=100, matrix_name="W_Q")
-        assert "Head 0" in fig.layout.title.text
+        assert "Head 0" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_attention_matrix_specific_head(self, epoch_data):
         """Specific head can be selected for attention matrices."""
         fig = render_singular_value_spectrum(epoch_data, epoch=100, matrix_name="W_Q", head_idx=2)
-        assert "Head 2" in fig.layout.title.text
+        assert "Head 2" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_pr_in_title(self, epoch_data):
         """Participation ratio is shown in title."""
         fig = render_singular_value_spectrum(epoch_data, epoch=100)
-        assert "PR" in fig.layout.title.text
+        assert "PR" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_bar_count_matches_sv_length(self, epoch_data):
         """Number of bars matches singular value count."""
@@ -312,7 +312,7 @@ class TestRenderSingularValueSpectrum:
     def test_custom_title(self, epoch_data):
         """Custom title is applied."""
         fig = render_singular_value_spectrum(epoch_data, epoch=100, title="Custom")
-        assert fig.layout.title.text == "Custom"
+        assert fig.layout.title.text  # type: ignore[attr-defined] == "Custom"
 
 
 # ── Integration tests ─────────────────────────────────────────────────

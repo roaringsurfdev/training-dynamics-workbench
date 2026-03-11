@@ -47,7 +47,7 @@ def _build_fourier_basis(prime: int) -> tuple[np.ndarray, np.ndarray, np.ndarray
     return frequencies, cos_basis, sin_basis
 
 
-def _project(R: np.ndarray, cos_basis: np.ndarray, sin_basis: np.ndarray) -> np.ndarray:
+def _project(R: np.ndarray, cos_basis: np.ndarray, sin_basis: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Project neuron response matrix onto Fourier basis.
 
     Args:
@@ -172,7 +172,7 @@ class FourierNucleationAnalyzer:
         """
         prime = int(context["params"]["prime"])
 
-        W_in = model.blocks[0].mlp.W_in.detach().cpu().numpy()  # (d_mlp, d_model)
+        W_in = model.blocks[0].mlp.W_in.detach().cpu().numpy()  # type: ignore[union-attr]  # (d_mlp, d_model)
         W_E = model.embed.W_E.detach().cpu().numpy()  # (vocab_size, d_model)
 
         # W_in is (d_model, d_mlp) in TransformerLens convention.
