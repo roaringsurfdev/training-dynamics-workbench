@@ -11,9 +11,10 @@ Covers:
 
 from __future__ import annotations
 
-import torch
 import pytest
+import torch
 
+from miscope.analysis.library import get_fourier_basis
 from miscope.families.implementations.frequency_gain_hook import (
     ATTN_OUT_HOOK,
     MIN_GAIN,
@@ -23,7 +24,6 @@ from miscope.families.implementations.frequency_gain_hook import (
     _compute_ramp_factor,
     build_frequency_directions,
 )
-from miscope.analysis.library import get_fourier_basis
 
 PRIME = 59
 N_FREQS = PRIME // 2  # 29
