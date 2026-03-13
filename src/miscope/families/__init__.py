@@ -46,6 +46,7 @@ from miscope.families.types import (
     ParameterSpec,
     VariantState,
 )
+from miscope.families.intervention_variant import InterventionVariant
 from miscope.families.variant import TrainingResult, Variant
 
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     "ModelFamily",
     # Classes
     "FamilyRegistry",
+    "InterventionVariant",
     "JsonModelFamily",
     "ModuloAddition1LayerFamily",
     "TrainingResult",

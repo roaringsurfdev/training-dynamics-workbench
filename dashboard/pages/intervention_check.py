@@ -5,9 +5,11 @@ for a selected intervention variant and checkpoint epoch.  Lets the user
 confirm that the FrequencyGainHook is applying the intended gain to the
 intended frequencies before running further experiments.
 
+Selection hierarchy: family → variant → intervention → epoch.
+
 This page maintains its own local state (separate from the global
-variant-selector-store) because it needs to select intervention variants
-specifically and runs model forward passes rather than reading artifacts.
+variant-selector-store) because it loads model checkpoints and runs
+forward passes rather than reading artifacts.
 """
 
 from __future__ import annotations
@@ -20,11 +22,10 @@ import plotly.graph_objects as go
 from dash import Dash, Input, Output, State, dcc, html, set_props
 from dash.exceptions import PreventUpdate
 
+from dashboard.components.variant_selector import get_family_choices, get_variant_choices
 from dashboard.state import get_registry
 from miscope.families.implementations.frequency_gain_hook import compute_hook_verification
 from miscope.visualization.renderers.intervention_check import render_hook_verification_chart
-
-_INTERVENTION_FAMILY = "modadd_intervention"
 
 
 # ---------------------------------------------------------------------------
@@ -34,9 +35,10 @@ _INTERVENTION_FAMILY = "modadd_intervention"
 
 @dataclass
 class _InterventionCheckState:
-    """Holds the last computed verification result to avoid redundant recomputes."""
+    """Caches the last computed verification result to avoid redundant recomputes."""
 
     variant_name: str | None = None
+    intervention_name: str | None = None
     epoch: int | None = None
     last_result: dict[str, Any] | None = None
     available_checkpoints: list[int] = field(default_factory=list)
@@ -45,66 +47,78 @@ class _InterventionCheckState:
 _state = _InterventionCheckState()
 
 
-def _get_intervention_variant_options() -> list[dict]:
-    """Return dropdown options for all variants in the intervention family."""
+def _get_intervention_options(family_name: str | None, variant_name: str | None) -> list[dict]:
+    """Return dropdown options for all interventions on the selected variant."""
+    if not family_name or not variant_name:
+        return []
     try:
         registry = get_registry()
-        family = registry.get_family(_INTERVENTION_FAMILY)
+        family = registry.get_family(family_name)
         variants = registry.get_variants(family)
-    except KeyError:
+        variant = next((v for v in variants if v.name == variant_name), None)
+        if variant is None:
+            return []
+        options = []
+        for iv in variant.interventions:
+            label = iv.intervention_config.get("label", iv.name)
+            options.append({"label": label, "value": iv.name})
+        return options
+    except Exception:
         return []
 
-    options = []
-    for v in sorted(variants, key=lambda x: x.name):
-        # Try to surface the label from intervention config for readability
-        try:
-            cfg = v.model_config
-            iv = cfg.get("intervention", {})
-            label = iv.get("label", v.name)
-        except Exception:
-            label = v.name
-        options.append({"label": label, "value": v.name})
-    return options
 
-
-def _load_variant_checkpoints(variant_name: str) -> list[int]:
-    """Return sorted checkpoint epochs for the given variant."""
+def _load_intervention_checkpoints(
+    family_name: str, variant_name: str, intervention_name: str
+) -> list[int]:
+    """Return sorted checkpoint epochs for the given intervention."""
     try:
         registry = get_registry()
-        family = registry.get_family(_INTERVENTION_FAMILY)
+        family = registry.get_family(family_name)
         variants = registry.get_variants(family)
-        for v in variants:
-            if v.name == variant_name:
-                return v.get_available_checkpoints()
+        variant = next((v for v in variants if v.name == variant_name), None)
+        if variant is None:
+            return []
+        iv = next((i for i in variant.interventions if i.name == intervention_name), None)
+        return iv.get_available_checkpoints() if iv else []
     except Exception:
-        pass
-    return []
+        return []
 
 
-def _compute_and_cache(variant_name: str, epoch: int) -> dict[str, Any] | None:
-    """Run compute_hook_verification if variant/epoch changed; return cached result otherwise."""
-    if _state.variant_name == variant_name and _state.epoch == epoch and _state.last_result is not None:
+def _compute_and_cache(
+    family_name: str, variant_name: str, intervention_name: str, epoch: int
+) -> dict[str, Any] | None:
+    """Run compute_hook_verification if inputs changed; return cached result otherwise."""
+    if (
+        _state.variant_name == variant_name
+        and _state.intervention_name == intervention_name
+        and _state.epoch == epoch
+        and _state.last_result is not None
+    ):
         return _state.last_result
 
     try:
         registry = get_registry()
-        family = registry.get_family(_INTERVENTION_FAMILY)
+        family = registry.get_family(family_name)
         variants = registry.get_variants(family)
         variant = next((v for v in variants if v.name == variant_name), None)
         if variant is None:
             return None
-        result = compute_hook_verification(variant, epoch, device="cpu")
+        iv = next((i for i in variant.interventions if i.name == intervention_name), None)
+        if iv is None:
+            return None
+        result = compute_hook_verification(iv, epoch, device="cpu")
     except Exception as exc:
-        print(f"intervention_check: compute failed for {variant_name} epoch {epoch}: {exc}")
+        print(f"intervention_check: compute failed [{intervention_name} epoch {epoch}]: {exc}")
         return None
 
     _state.variant_name = variant_name
+    _state.intervention_name = intervention_name
     _state.epoch = epoch
     _state.last_result = result
     return result
 
 
-def _empty_figure(message: str = "Select a variant") -> go.Figure:
+def _empty_figure(message: str = "Select an intervention") -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
         text=message,
@@ -130,18 +144,43 @@ def _empty_figure(message: str = "Select a variant") -> go.Figure:
 
 
 def create_intervention_check_page_nav() -> html.Div:
+    registry = get_registry()
+    family_options = [
+        {"label": display, "value": name} for display, name in get_family_choices(registry)
+    ]
+
     return html.Div(
         children=[
             dcc.Store(
                 id="intervention-check-store",
                 storage_type="memory",
-                data={"variant_name": None, "epoch_index": 0, "max_index": 0},
+                data={
+                    "family_name": None,
+                    "variant_name": None,
+                    "intervention_name": None,
+                    "epoch_index": 0,
+                    "max_index": 0,
+                },
             ),
-            dbc.Label("Intervention Variant", className="fw-bold"),
+            dbc.Label("Family", className="fw-bold"),
+            dcc.Dropdown(
+                id="intervention-check-family-dropdown",
+                placeholder="Select family...",
+                options=family_options,
+            ),
+            html.Br(),
+            dbc.Label("Variant", className="fw-bold"),
             dcc.Dropdown(
                 id="intervention-check-variant-dropdown",
-                placeholder="Select intervention variant...",
-                options=_get_intervention_variant_options(),
+                placeholder="Select variant...",
+                options=[],
+            ),
+            html.Br(),
+            dbc.Label("Intervention", className="fw-bold"),
+            dcc.Dropdown(
+                id="intervention-check-intervention-dropdown",
+                placeholder="Select intervention...",
+                options=[],
             ),
             html.Br(),
             dbc.Label("Epoch", className="fw-bold"),
@@ -185,7 +224,7 @@ def create_intervention_check_page_nav() -> html.Div:
             html.Hr(),
             html.Div(
                 id="intervention-check-status",
-                children="No variant selected",
+                children="No intervention selected",
                 className="text-muted small",
             ),
         ]
@@ -224,28 +263,66 @@ def register_intervention_check_callbacks(app: Dash) -> None:
     """Register all callbacks for the Intervention Check page."""
 
     @app.callback(
+        Output("intervention-check-variant-dropdown", "options"),
+        Output("intervention-check-variant-dropdown", "value"),
+        Input("intervention-check-family-dropdown", "value"),
+        prevent_initial_call=True,
+    )
+    def on_family_selected(family_name: str | None):
+        if family_name is None:
+            raise PreventUpdate
+        registry = get_registry()
+        choices = get_variant_choices(registry, family_name)
+        options = [{"label": display, "value": name} for display, name in choices]
+        return options, None
+
+    @app.callback(
+        Output("intervention-check-intervention-dropdown", "options"),
+        Output("intervention-check-intervention-dropdown", "value"),
+        Input("intervention-check-variant-dropdown", "value"),
+        State("intervention-check-family-dropdown", "value"),
+        prevent_initial_call=True,
+    )
+    def on_variant_selected(variant_name: str | None, family_name: str | None):
+        if not variant_name:
+            raise PreventUpdate
+        options = _get_intervention_options(family_name, variant_name)
+        set_props(
+            "intervention-check-store",
+            {"data": {"family_name": family_name, "variant_name": variant_name,
+                      "intervention_name": None, "epoch_index": 0, "max_index": 0}},
+        )
+        return options, None
+
+    @app.callback(
         Output("intervention-check-epoch-slider", "max"),
         Output("intervention-check-epoch-slider", "value"),
         Output("intervention-check-status", "children"),
-        Input("intervention-check-variant-dropdown", "value"),
+        Input("intervention-check-intervention-dropdown", "value"),
+        State("intervention-check-store", "data"),
         prevent_initial_call=True,
     )
-    def on_variant_selected(variant_name: str | None):
-        if variant_name is None:
+    def on_intervention_selected(intervention_name: str | None, store_data: dict | None):
+        stored = store_data or {}
+        family_name = stored.get("family_name")
+        variant_name = stored.get("variant_name")
+
+        if not intervention_name or not variant_name or not family_name:
             raise PreventUpdate
 
-        checkpoints = _load_variant_checkpoints(variant_name)
+        checkpoints = _load_intervention_checkpoints(family_name, variant_name, intervention_name)
         _state.available_checkpoints = checkpoints
 
         if not checkpoints:
-            return 0, 0, f"{variant_name} — no checkpoints found"
+            return 0, 0, f"{intervention_name} — no checkpoints found"
 
         max_index = len(checkpoints) - 1
         set_props(
             "intervention-check-store",
-            {"data": {"variant_name": variant_name, "epoch_index": 0, "max_index": max_index}},
+            {"data": {**stored, "intervention_name": intervention_name,
+                      "epoch_index": 0, "max_index": max_index}},
         )
-        return max_index, 0, f"{variant_name} — {len(checkpoints)} checkpoints"
+        return max_index, 0, f"{intervention_name} — {len(checkpoints)} checkpoints"
 
     @app.callback(
         Output("intervention-check-epoch-display", "children"),
@@ -256,9 +333,11 @@ def register_intervention_check_callbacks(app: Dash) -> None:
     )
     def on_epoch_changed(epoch_index: int, store_data: dict | None):
         stored = store_data or {}
+        family_name = stored.get("family_name")
         variant_name = stored.get("variant_name")
+        intervention_name = stored.get("intervention_name")
 
-        if not variant_name or not _state.available_checkpoints:
+        if not intervention_name or not _state.available_checkpoints:
             raise PreventUpdate
 
         epoch_index = max(0, min(epoch_index, len(_state.available_checkpoints) - 1))
@@ -266,15 +345,10 @@ def register_intervention_check_callbacks(app: Dash) -> None:
 
         set_props(
             "intervention-check-store",
-            {
-                "data": {
-                    **stored,
-                    "epoch_index": epoch_index,
-                }
-            },
+            {"data": {**stored, "epoch_index": epoch_index}},
         )
 
-        result = _compute_and_cache(variant_name, epoch)
+        result = _compute_and_cache(family_name, variant_name, intervention_name, epoch)
         if result is None:
             return f"Epoch {epoch}", _empty_figure(f"Failed to compute for epoch {epoch}")
 
@@ -287,9 +361,7 @@ def register_intervention_check_callbacks(app: Dash) -> None:
         State("intervention-check-store", "data"),
         prevent_initial_call=True,
     )
-    def on_epoch_nav(
-        _prev: int, _next: int, store_data: dict | None
-    ) -> None:
+    def on_epoch_nav(_prev: int, _next: int, store_data: dict | None) -> None:
         from dash import ctx
 
         stored = store_data or {}

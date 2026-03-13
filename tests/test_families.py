@@ -377,3 +377,108 @@ class TestPathResolution:
         # Subdirectories
         assert variant.checkpoints_dir == expected_variant_dir / "checkpoints"
         assert variant.artifacts_dir == expected_variant_dir / "artifacts"
+
+
+# ---------------------------------------------------------------------------
+# InterventionVariant Tests (REQ_071)
+# ---------------------------------------------------------------------------
+
+
+class TestInterventionVariant:
+    """Tests for InterventionVariant and Variant.interventions / create_intervention_variant."""
+
+    @pytest.fixture
+    def base_variant(self, sample_family_config, tmp_path):
+        family = JsonModelFamily(sample_family_config)
+        results_dir = tmp_path / "results"
+        return Variant(family, {"prime": 59, "seed": 485, "data_seed": 598}, results_dir)
+
+    @pytest.fixture
+    def iv_config(self):
+        return {
+            "type": "frequency_gain",
+            "label": "v1",
+            "target_frequencies": [4, 10, 12],
+            "gain": {"4": 0.3, "10": 0.3, "12": 0.3},
+            "epoch_start": 1500,
+            "epoch_end": 6500,
+            "ramp_epochs": 200,
+        }
+
+    def test_name_uses_label(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv = InterventionVariant(base_variant, iv_config)
+        assert iv.name == "v1"
+
+    def test_name_falls_back_to_hash(self, base_variant):
+        from miscope.families.intervention_variant import InterventionVariant, compute_intervention_id
+        config = {"type": "frequency_gain", "target_frequencies": [4], "gain": {"4": 0.3},
+                  "epoch_start": 1500, "epoch_end": 6500}
+        iv = InterventionVariant(base_variant, config)
+        assert iv.name == compute_intervention_id(config)
+        assert len(iv.name) == 8
+
+    def test_variant_dir_nested_under_parent(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv = InterventionVariant(base_variant, iv_config)
+        assert iv.variant_dir == base_variant.variant_dir / "interventions" / "v1"
+
+    def test_checkpoints_dir(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv = InterventionVariant(base_variant, iv_config)
+        assert iv.checkpoints_dir == iv.variant_dir / "checkpoints"
+
+    def test_parent_reference(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv = InterventionVariant(base_variant, iv_config)
+        assert iv.parent is base_variant
+
+    def test_intervention_config_copy(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv = InterventionVariant(base_variant, iv_config)
+        returned = iv.intervention_config
+        assert returned == iv_config
+        returned["label"] = "mutated"
+        assert iv.intervention_config["label"] == "v1"  # original unchanged
+
+    def test_create_intervention_variant_returns_iv(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv = base_variant.create_intervention_variant(iv_config)
+        assert isinstance(iv, InterventionVariant)
+        assert iv.name == "v1"
+
+    def test_create_intervention_variant_raises_if_exists(self, base_variant, iv_config, tmp_path):
+        iv = base_variant.create_intervention_variant(iv_config)
+        iv.variant_dir.mkdir(parents=True, exist_ok=True)
+        with pytest.raises(ValueError, match="already exists"):
+            base_variant.create_intervention_variant(iv_config)
+
+    def test_interventions_empty_when_no_directory(self, base_variant):
+        assert base_variant.interventions == []
+
+    def test_interventions_discovers_from_filesystem(self, base_variant, iv_config):
+        import json as _json
+        # Simulate a migrated intervention: write config.json into interventions/v1/
+        iv_dir = base_variant.variant_dir / "interventions" / "v1"
+        iv_dir.mkdir(parents=True)
+        config_on_disk = {**base_variant.params, "intervention": iv_config}
+        with open(iv_dir / "config.json", "w") as f:
+            _json.dump(config_on_disk, f)
+
+        ivs = base_variant.interventions
+        assert len(ivs) == 1
+        assert ivs[0].name == "v1"
+        assert ivs[0].intervention_config["label"] == "v1"
+        assert ivs[0].parent.name == base_variant.name
+
+    def test_hash_stable(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv1 = InterventionVariant(base_variant, iv_config)
+        iv2 = InterventionVariant(base_variant, iv_config)
+        assert hash(iv1) == hash(iv2)
+
+    def test_eq(self, base_variant, iv_config):
+        from miscope.families.intervention_variant import InterventionVariant
+        iv1 = InterventionVariant(base_variant, iv_config)
+        iv2 = InterventionVariant(base_variant, iv_config)
+        assert iv1 == iv2

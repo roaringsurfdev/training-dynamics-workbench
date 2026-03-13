@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from transformer_lens import ActivationCache, HookedTransformer
 
     from miscope.analysis.artifact_loader import ArtifactLoader
+    from miscope.families.intervention_variant import InterventionVariant
     from miscope.families.protocols import ModelFamily
     from miscope.views.catalog import BoundView, EpochContext
     from miscope.views.dataview_catalog import BoundDataView
@@ -357,6 +358,71 @@ class Variant:
         return self.at(epoch=None).dataview(name)
 
     # --- End notebook convenience properties ---
+
+    # --- Intervention sub-variants ---
+
+    @property
+    def interventions(self) -> list[InterventionVariant]:
+        """Discover intervention sub-variants nested under this variant.
+
+        Scans ``{variant_dir}/interventions/`` for subdirectories that
+        contain a config.json with an ``intervention`` block.
+
+        Returns:
+            Sorted list of InterventionVariant instances (by directory name).
+        """
+        from miscope.families.intervention_variant import InterventionVariant
+
+        interventions_dir = self.variant_dir / "interventions"
+        if not interventions_dir.exists():
+            return []
+
+        result = []
+        for d in sorted(interventions_dir.iterdir()):
+            if not d.is_dir():
+                continue
+            config_path = d / "config.json"
+            if not config_path.exists():
+                continue
+            with open(config_path) as f:
+                config = json.load(f)
+            intervention_config = config.get("intervention")
+            if intervention_config is None:
+                continue
+            result.append(InterventionVariant(self, intervention_config))
+        return result
+
+    def create_intervention_variant(
+        self,
+        intervention_config: dict[str, Any],
+    ) -> InterventionVariant:
+        """Create an InterventionVariant nested under this variant.
+
+        The directory name is taken from the config's optional ``label``
+        field; if absent, the 8-char config hash is used.  Raises
+        ``ValueError`` if a directory with that name already exists.
+
+        Args:
+            intervention_config: Intervention parameter dict.
+
+        Returns:
+            InterventionVariant ready for training.
+
+        Raises:
+            ValueError: If an intervention with the same name already exists.
+        """
+        from miscope.families.intervention_variant import InterventionVariant
+
+        iv = InterventionVariant(self, intervention_config)
+        target = iv.variant_dir
+        if target.exists():
+            raise ValueError(
+                f"Intervention '{iv.name}' already exists at {target}. "
+                "Use a different label or choose a different config."
+            )
+        return iv
+
+    # --- End intervention sub-variants ---
 
     def ensure_directories(self) -> None:
         """Create variant directories if they don't exist."""
