@@ -22,6 +22,7 @@ def create_sitenav() -> dbc.NavbarSimple:
             dbc.NavItem(dbc.NavLink("Centroid DMD", href="/centroid-dmd")),
             dbc.NavItem(dbc.NavLink("Training", href="/training")),
             dbc.NavItem(dbc.NavLink("Analysis Run", href="/analysis-run")),
+            dbc.NavItem(dbc.NavLink("Intervention Check", href="/intervention-check")),
         ],
         brand=f"MechInterp Scope v{__version__}",
         brand_href="/",
@@ -63,6 +64,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
         create_training_page_layout,
         create_training_page_nav,
     )
+    from dashboard.pages.intervention_check import (
+        create_intervention_check_page_layout,
+        create_intervention_check_page_nav,
+    )
     from dashboard.pages.visualization import (
         create_visualization_page_layout,
         create_visualization_page_nav,
@@ -90,5 +95,7 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_training_page_nav(), create_training_page_layout()]
         elif pathname == "/analysis-run":
             return [create_analysis_run_page_nav(), create_analysis_run_page_layout()]
+        elif pathname == "/intervention-check":
+            return [create_intervention_check_page_nav(), create_intervention_check_page_layout()]
         else:
             return [create_visualization_page_nav(), create_visualization_page_layout()]

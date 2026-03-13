@@ -14,6 +14,7 @@ from dashboard.pages.neuron_dynamics import register_neuron_dynamics_page_callba
 from dashboard.pages.repr_geometry import register_repr_geometry_page_callbacks
 from dashboard.pages.summary import register_summary_page_callbacks
 from dashboard.pages.training import register_training_page_callbacks
+from dashboard.pages.intervention_check import register_intervention_check_callbacks
 from dashboard.pages.visualization import register_visualization_page_callbacks
 
 
@@ -40,6 +41,7 @@ def create_app() -> Dash:
     register_multistream_page_callbacks(app)
     register_training_page_callbacks(app)
     register_visualization_page_callbacks(app)
+    register_intervention_check_callbacks(app)
     return app
 
 

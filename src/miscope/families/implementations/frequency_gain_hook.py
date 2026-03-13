@@ -178,6 +178,101 @@ def _apply_frequency_gain(
     return value + sin_delta + cos_delta
 
 
+def compute_hook_verification(
+    variant: Any,
+    epoch: int,
+    device: str = "cpu",
+) -> dict[str, Any]:
+    """Compute per-frequency amplitude of hook_attn_out: baseline vs. hook-modified.
+
+    Reconstructs D_sin/D_cos from the plateau checkpoint's W_E (matching what
+    was used during training), then runs the full analysis dataset at the
+    selected epoch to measure the frequency content of hook_attn_out before
+    and after the gain function is applied.
+
+    Args:
+        variant: Intervention Variant with a valid intervention config in config.json
+        epoch: Checkpoint epoch to analyze
+        device: Device for model and tensor operations
+
+    Returns:
+        dict with:
+            baseline_power:     (n_freqs,) ndarray — RMS amplitude per frequency
+            modified_power:     (n_freqs,) ndarray — RMS amplitude after hook
+            freq_labels:        list[int] — 1-based frequency labels
+            ramp_factor:        float — gain interpolation factor for this epoch
+            target_frequencies: list[int] — 1-based target freq labels from config
+            gain:               dict[int, float] — per-frequency gain values
+            epoch_start:        int
+            epoch_end:          int
+            ramp_epochs:        int
+            plateau_epoch:      int — epoch whose W_E was used for D_sin/D_cos
+            epoch:              int — the analyzed epoch
+            prime:              int
+    """
+    import torch
+
+    config = variant.model_config
+    intervention_config = config["intervention"]
+    prime = int(config["prime"])
+    plateau_epoch = int(intervention_config["epoch_start"])
+
+    # Build frequency directions from W_E at the plateau checkpoint —
+    # this matches exactly what FrequencyGainHook used during training.
+    model_plateau = variant.load_model_at_checkpoint(plateau_epoch)
+    model_plateau.to(device)
+    W_E = model_plateau.embed.W_E.detach()
+    ctx = variant.analysis_context(device=device)
+    D_sin, D_cos = build_frequency_directions(ctx["fourier_basis"], W_E, prime=prime)
+    del model_plateau
+
+    # Load model at the selected epoch and run the analysis probe with cache.
+    model = variant.load_model_at_checkpoint(epoch)
+    model.to(device)
+    probe = variant.analysis_dataset(device=device)
+
+    with torch.inference_mode():
+        _, cache = model.run_with_cache(probe)
+    del model
+
+    attn_out = cache[ATTN_OUT_HOOK]  # (batch, seq_len, d_model)
+
+    # Project onto frequency directions: (batch, seq_len, n_freqs)
+    amp_sin = attn_out @ D_sin.T
+    amp_cos = attn_out @ D_cos.T
+    # RMS amplitude averaged across all batch items and sequence positions
+    baseline_power = (amp_sin**2 + amp_cos**2).mean(dim=(0, 1)).sqrt()
+
+    # Apply the gain function at this epoch's ramp factor
+    ramp_factor = _compute_ramp_factor(epoch, intervention_config)
+    n_freqs = D_sin.shape[0]
+    gain_vector = _build_gain_vector(intervention_config, n_freqs).to(device)
+    modified = _apply_frequency_gain(attn_out, D_sin, D_cos, gain_vector, ramp_factor)
+
+    mod_sin = modified @ D_sin.T
+    mod_cos = modified @ D_cos.T
+    modified_power = (mod_sin**2 + mod_cos**2).mean(dim=(0, 1)).sqrt()
+
+    # Normalize gain dict to int keys (JSON round-trip may produce string keys)
+    raw_gain: dict[str, Any] = intervention_config.get("gain", {})
+    gain_normalized = {int(k): float(v) for k, v in raw_gain.items()}
+
+    return {
+        "baseline_power": baseline_power.cpu().numpy(),
+        "modified_power": modified_power.cpu().numpy(),
+        "freq_labels": list(range(1, n_freqs + 1)),
+        "ramp_factor": ramp_factor,
+        "target_frequencies": [int(f) for f in intervention_config.get("target_frequencies", [])],
+        "gain": gain_normalized,
+        "epoch_start": int(intervention_config["epoch_start"]),
+        "epoch_end": int(intervention_config["epoch_end"]),
+        "ramp_epochs": int(intervention_config.get("ramp_epochs", DEFAULT_RAMP_EPOCHS)),
+        "plateau_epoch": plateau_epoch,
+        "epoch": epoch,
+        "prime": prime,
+    }
+
+
 class FrequencyGainHook:
     """Training hook applying frequency-selective gain to hook_attn_out.
 

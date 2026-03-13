@@ -397,6 +397,22 @@ The v3 result (boosting a supported frequency delays grokking) is the clearest c
 
 ---
 
+## 2026-03-12: Intervention Reorients the Torus Rather Than Reshaping It
+
+Reviewing the Centroid Class PCA 3D Scatter across intervention variants today, the primary visible effect was not a change in the shape or topology of the torus but a **rotation of its orientation** in PCA space. The geometry appears preserved; only the orientation changed.
+
+This is mechanically consistent with how the hook operates: it rescales components of `hook_attn_out` in W_E-defined frequency directions. If the residual stream's representational geometry is organized along a torus and the hook's frequency directions don't align with the principal axes of that torus, the modification would look like a rotation in PCA space — preserving the topological structure while reorienting it.
+
+Two interpretations, both worth investigating:
+
+1. **Alignment gap**: W_E-based frequency directions and the attention head's actual frequency directions have diverged by epoch 1500 (due to learned Q/K/V rotations). The hook is applying gain in W_E-space but the attention computation's frequency structure lives in a rotated subspace. The net effect is a projection onto a misaligned basis, which acts as a rotation rather than a per-frequency scale.
+
+2. **Geometry is self-stabilizing**: The torus shape is determined by properties deeper than `hook_attn_out` (Q/K/V weights, embedding structure). Modifying activations at this point changes the "pointing direction" but not the manifold structure itself. Consistent with the snap-back behavior observed at epoch 5800.
+
+This finding raises the core question for the intervention verification page (REQ_070): what are the frequency directions the attention computation is *actually* using, and how much do they differ from the W_E-based directions? If the gap is large, the hook design may need to be revised before further experiments.
+
+---
+
 ## 2026-03-11: The Mismatch Hypothesis — Thrasher Failure Mode
 
 **Observation**: At plateau onset (epoch 1500), there is a structural mismatch between what the Thrasher's attention heads are prioritizing and what its MLPs and embeddings are prioritizing. Attention spreads across 8+ frequencies (competition failure mode). MLPs and embeddings have already committed to a different frequency set (notably Freq 15 strong in MLP/embeddings, weak in attention).
