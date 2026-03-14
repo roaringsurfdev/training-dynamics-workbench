@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from miscope import EpochContext, catalog
-from miscope.families import FamilyRegistry, Variant
+from miscope.families import FamilyRegistry, InterventionVariant, Variant
 
 # ---------------------------------------------------------------------------
 # Job progress tracking (thread-safe)
@@ -115,8 +115,11 @@ class VariantServerState:
     context: EpochContext
     available_epochs: list[int] = [0]
     available_views: list[str] = []
+    intervention_name: str | None = None
+    interventions: list[InterventionVariant] = []
+    intervention: InterventionVariant | None = None
 
-    def load_variant(self, family_name: str, variant_name: str) -> bool:
+    def load_variant(self, family_name: str, variant_name: str, intervention_name: str | None = None) -> bool:
         """Load a variant's metadata and discover its artifacts.
 
         Computes available_views once against the variant's actual artifacts.
@@ -139,16 +142,35 @@ class VariantServerState:
         if variant is None:
             return False
 
+        intervention = None
+        if intervention_name is not None:
+            for iv in variant.interventions:
+                if iv.name == intervention_name:
+                    print(f"Intervention found: {iv.name}")
+                    intervention = iv
+
         self.variant = variant
-        self.available_epochs = variant.get_available_checkpoints()
-        self.context = variant.at(0)
-        self.available_views = catalog.available_names_for(variant)
+        self.intervention_name = intervention_name
+        self.interventions = variant.interventions
+        self.intervention = intervention
+
+        if self.intervention is not None:
+            self.available_epochs = self.intervention.get_available_checkpoints()
+            self.context = self.intervention.at(0)
+            self.available_views = catalog.available_names_for(self.intervention)
+        else:
+            self.available_epochs = variant.get_available_checkpoints()
+            self.context = variant.at(0)
+            self.available_views = catalog.available_names_for(variant)
 
         return True
-
+    
     def load_epoch(self, epoch: int) -> bool:
         if epoch in self.available_epochs:
-            self.context = self.variant.at(epoch)
+            if self.intervention is not None:
+                self.context = self.intervention.at(epoch)
+            else:
+                self.context = self.variant.at(epoch)
 
         # TODO: Add error handling. This is currently just proof-of-concept
         # for wiring architecture

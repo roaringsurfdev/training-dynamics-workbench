@@ -93,14 +93,13 @@ class AnalysisPageGraphManager:
             no_data = self.create_empty_figure("Select a variant")
             figures = [no_data for pid in self.view_list.keys()]
 
-        if last_field_updated in ["variant_name", "epoch"]:
+        if last_field_updated in ["variant_name", "intervention_name", "epoch"]:
             # Update graphs
             views = [
                 key
                 for key in self.view_list.keys()
                 if self.view_list[key].get("view_filter_set") == view_filter_set
             ]
-            print(views)
             for view_item in views:
                 view_name = self.view_list[view_item].get("view_name")
                 if view_name in variant_server_state.available_views:
