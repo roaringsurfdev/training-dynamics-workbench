@@ -124,23 +124,29 @@ class TestPageLayouts:
 
     def test_training_layout_renders(self):
         """create_training_page_layout returns a valid component."""
+        from dashboard.app import create_app
         from dashboard.pages.training import create_training_page_layout
 
-        layout = create_training_page_layout()
+        app = create_app()
+        layout = create_training_page_layout(app)
         assert layout is not None
 
     def test_analysis_run_layout_renders(self):
         """create_analysis_run_page_layout returns a valid component."""
+        from dashboard.app import create_app
         from dashboard.pages.analysis_run import create_analysis_run_page_layout
 
-        layout = create_analysis_run_page_layout()
+        app = create_app()
+        layout = create_analysis_run_page_layout(app)
         assert layout is not None
 
     def test_main_layout_has_url_and_page_content(self):
         """create_default_layout includes dcc.Location and page-content container."""
+        from dashboard.app import create_app
         from dashboard.layout import create_default_layout
 
-        layout = create_default_layout()
+        app = create_app()
+        layout = create_default_layout(app)
         assert layout is not None
         assert layout.children is not None
 

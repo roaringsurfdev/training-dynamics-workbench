@@ -27,7 +27,7 @@ def create_app() -> Dash:
         external_stylesheets=[dbc.themes.BOOTSTRAP],
         suppress_callback_exceptions=True,
     )
-    app.server.logger.setLevel(logging.DEBUG)
+    app.server.logger.setLevel(logging.INFO)
     app.title = "MechInterp Scope"
     app.layout = create_default_layout(app)
     # core application callbacks
