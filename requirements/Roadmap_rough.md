@@ -11,9 +11,6 @@ Once this capability is created for Analysis, it would be ideal to add Asynchron
 ### Support for Choosing Subset for Analysis Runs
 The Representational Geometry Analyzer is incredibly powerful and useful. However, it is a long-running Analyzer compared to the others. We may have other Analyzers that are similarly long-running. This might create friction for creating and exploring new Variants, since all Analyzers must run in order to Analyze a Variant. It would be nice to be able to choose which Analyzers to run.
 
-### UI for Increasing/Descreasing Epoch Indexes
-Right now, we have a slider and we have an ability to click on a graph to select a given epoch. Sometimes I'd like to select an epoch and the step forward or back one checkpoint at a time. Currently, the UI does not allow this, and I have to try to estimate or be extra careful with the slider. Adding Forward/Back or +/- buttons would help.
-
 ### Add support for Loading and Editing Variant Checkpoint Data
 The current Training interface assumes I'm only creating new variants. I would like to be able edit an existing variant's checkpoints - for example, adding checkpoint for models whose grokking window falls outside the default grokking window. It would also be nice to be able to delete unecessary checkpoints and their artifacts through a single interface to make sure everything remains in sync. This requirement is coming from a need to rerun 107/485 with additional checkpoints. There were mistakes made on my end, and there's no way to gracefully recover without deleting and retraining/reanalyzing the entire model.
 
