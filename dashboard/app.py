@@ -1,4 +1,6 @@
 # imports
+import logging
+
 import dash_bootstrap_components as dbc
 from dash import Dash
 
@@ -25,8 +27,9 @@ def create_app() -> Dash:
         external_stylesheets=[dbc.themes.BOOTSTRAP],
         suppress_callback_exceptions=True,
     )
+    app.server.logger.setLevel(logging.DEBUG)
     app.title = "MechInterp Scope"
-    app.layout = create_default_layout()
+    app.layout = create_default_layout(app)
     # core application callbacks
     register_left_nav_callbacks(app)
     register_sitenav_callbacks(app)

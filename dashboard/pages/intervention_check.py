@@ -142,7 +142,7 @@ def _empty_figure(message: str = "Select an intervention") -> go.Figure:
 # ---------------------------------------------------------------------------
 
 
-def create_intervention_check_page_nav() -> html.Div:
+def create_intervention_check_page_nav(app: Dash) -> html.Div:
     registry = get_registry()
     family_options = [
         {"label": display, "value": name} for display, name in get_family_choices(registry)
@@ -230,7 +230,7 @@ def create_intervention_check_page_nav() -> html.Div:
     )
 
 
-def create_intervention_check_page_layout() -> html.Div:
+def create_intervention_check_page_layout(app: Dash) -> html.Div:
     return html.Div(
         children=[
             html.H4("Intervention Hook Verification", className="mb-3"),

@@ -80,22 +80,22 @@ def register_sitenav_callbacks(app: Dash) -> None:
     )
     def display_page(pathname: str | None) -> list[html.Div]:
         if pathname == "/multistream":
-            return [create_multistream_page_nav(), create_multistream_page_layout()]
+            return [create_multistream_page_nav(app), create_multistream_page_layout(app)]
         if pathname == "/neuron-dynamics":
-            return [create_neuron_dynamics_page_nav(), create_neuron_dynamics_page_layout()]
+            return [create_neuron_dynamics_page_nav(app), create_neuron_dynamics_page_layout(app)]
         elif pathname == "/repr-geometry":
-            return [create_repr_geometry_page_nav(), create_repr_geometry_page_layout()]
+            return [create_repr_geometry_page_nav(app), create_repr_geometry_page_layout(app)]
         elif pathname == "/summary":
-            return [create_summary_page_nav(), create_summary_page_layout()]
+            return [create_summary_page_nav(app), create_summary_page_layout(app)]
         elif pathname == "/dimensionality":
-            return [create_dimensionality_page_nav(), create_dimensionality_page_layout()]
+            return [create_dimensionality_page_nav(app), create_dimensionality_page_layout(app)]
         elif pathname == "/centroid-dmd":
-            return [create_centroid_dmd_nav(), create_centroid_dmd_layout()]
+            return [create_centroid_dmd_nav(app), create_centroid_dmd_layout(app)]
         elif pathname == "/training":
-            return [create_training_page_nav(), create_training_page_layout()]
+            return [create_training_page_nav(app), create_training_page_layout(app)]
         elif pathname == "/analysis-run":
-            return [create_analysis_run_page_nav(), create_analysis_run_page_layout()]
+            return [create_analysis_run_page_nav(app), create_analysis_run_page_layout(app)]
         elif pathname == "/intervention-check":
-            return [create_intervention_check_page_nav(), create_intervention_check_page_layout()]
+            return [create_intervention_check_page_nav(app), create_intervention_check_page_layout(app)]
         else:
-            return [create_visualization_page_nav(), create_visualization_page_layout()]
+            return [create_visualization_page_nav(app), create_visualization_page_layout(app)]

@@ -16,11 +16,11 @@ from dashboard.components.variant_selector import get_family_choices, get_varian
 from dashboard.state import analysis_progress, get_registry, refresh_registry
 
 
-def create_analysis_run_page_nav() -> html.Div:
+def create_analysis_run_page_nav(app: Dash) -> html.Div:
     return html.Div()
 
 
-def create_analysis_run_page_layout() -> html.Div:
+def create_analysis_run_page_layout(app: Dash) -> html.Div:
     """Create the Analysis Run page layout."""
     registry = get_registry()
     family_choices = get_family_choices(registry)

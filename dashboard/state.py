@@ -146,7 +146,6 @@ class VariantServerState:
         if intervention_name is not None:
             for iv in variant.interventions:
                 if iv.name == intervention_name:
-                    print(f"Intervention found: {iv.name}")
                     intervention = iv
 
         self.variant = variant

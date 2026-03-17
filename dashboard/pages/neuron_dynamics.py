@@ -51,8 +51,8 @@ _VIEW_LIST = {
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "nd")
 
 
-def create_neuron_dynamics_page_nav() -> html.Div:
-    print("create_neuron_dynamics_page_nav")
+def create_neuron_dynamics_page_nav(app: Dash) -> html.Div:
+    app.server.logger.debug("create_neuron_dynamics_page_nav")
     return html.Div(
         children=[
             dbc.Label("Sort Order", className="fw-bold"),
@@ -84,8 +84,8 @@ def create_neuron_dynamics_page_nav() -> html.Div:
     )
 
 
-def create_neuron_dynamics_page_layout() -> html.Div:
-    print("create_neuron_dynamics_page_layout")
+def create_neuron_dynamics_page_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_neuron_dynamics_page_layout")
     return html.Div(
         children=[
             html.H4("Neuron Dynamics", className="mb-3"),
@@ -124,7 +124,7 @@ def create_neuron_dynamics_page_layout() -> html.Div:
 
 def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
-    print("register_neuron_dynamics_page_callbacks")
+    app.server.logger.debug("register_neuron_dynamics_page_callbacks")
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -132,7 +132,7 @@ def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_nd_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_nd_data_change")
+        app.server.logger.debug("on_nd_data_change")
         return _graph_manager.update_graphs(variant_data=variant_data)
 
     """
@@ -168,7 +168,7 @@ def register_neuron_dynamics_page_callbacks(app: Dash) -> None:
     def on_nd_threshold_change(
         modified_timestamp: str | None, threshold: float, variant_data: dict | None
     ):
-        print("on_nd_threshold_change")
+        app.server.logger.debug("on_nd_threshold_change")
         view_kwargs = {"threshold": threshold}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="nd_specialization_threshold", view_kwargs=view_kwargs

@@ -18,11 +18,11 @@ from dashboard.state import get_registry, refresh_registry, training_progress
 from dashboard.utils import parse_checkpoint_epochs
 
 
-def create_training_page_nav() -> html.Div:
+def create_training_page_nav(app: Dash) -> html.Div:
     return html.Div()
 
 
-def create_training_page_layout() -> html.Div:
+def create_training_page_layout(app: Dash) -> html.Div:
     """Create the Training page layout."""
     registry = get_registry()
     family_choices = get_family_choices(registry, trainable_only=True)

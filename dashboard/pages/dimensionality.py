@@ -61,8 +61,8 @@ _VIEW_LIST = {
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "dim")
 
 
-def create_dimensionality_page_nav() -> html.Div:
-    print("create_dimensionality_page_nav")
+def create_dimensionality_page_nav(app: Dash) -> html.Div:
+    app.server.logger.debug("create_dimensionality_page_nav")
     return html.Div(
         children=[
             # Neuron slider
@@ -94,8 +94,8 @@ def create_dimensionality_page_nav() -> html.Div:
     )
 
 
-def create_dimensionality_page_layout() -> html.Div:
-    print("create_dimensionality_page_layout")
+def create_dimensionality_page_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_dimensionality_page_layout")
     return html.Div(
         children=[
             html.H4("Dimensionality", className="mb-3"),
@@ -164,7 +164,7 @@ def create_dimensionality_page_layout() -> html.Div:
 
 def register_dimensionality_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
-    print("register_dimensionality_page_callbacks")
+    app.server.logger.debug("register_dimensionality_page_callbacks")
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -172,7 +172,7 @@ def register_dimensionality_page_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_vz_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_vz_data_change")
+        app.server.logger.debug("on_vz_data_change")
         return _graph_manager.update_graphs(variant_data, None)
 
     @app.callback(
@@ -184,7 +184,7 @@ def register_dimensionality_page_callbacks(app: Dash) -> None:
     def on_vz_sv_matrix_change(
         modified_timestamp: str | None, matrix_name: str, variant_data: dict | None
     ):
-        print("on_vz_sv_matrix_change")
+        app.server.logger.debug("on_vz_sv_matrix_change")
         view_kwargs = {"matrix_name": matrix_name}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="matrix_name", view_kwargs=view_kwargs
@@ -199,7 +199,7 @@ def register_dimensionality_page_callbacks(app: Dash) -> None:
     def on_vz_trajectory_group_change(
         modified_timestamp: str | None, trajectory_group: str, variant_data: dict | None
     ):
-        print("on_vz_trajectory_group_change")
+        app.server.logger.debug("on_vz_trajectory_group_change")
         view_kwargs = {"group_label": trajectory_group, "group": trajectory_group}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="trajectory_group", view_kwargs=view_kwargs

@@ -36,7 +36,7 @@ _VIEW_LIST = {**_SUMMARY_VIEW_LIST, **_SNAPSHOT_VIEW_LIST}
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "rg")
 
 
-def create_repr_geometry_page_nav() -> html.Div:
+def create_repr_geometry_page_nav(app: Dash) -> html.Div:
     return html.Div(
         children=[
             dbc.Label("Activation Site", className="fw-bold"),
@@ -50,7 +50,7 @@ def create_repr_geometry_page_nav() -> html.Div:
     )
 
 
-def create_repr_geometry_page_layout() -> html.Div:
+def create_repr_geometry_page_layout(app: Dash) -> html.Div:
     return html.Div(
         id="repr_geometry_content",
         children=[
@@ -92,7 +92,7 @@ def register_repr_geometry_page_callbacks(app: Dash) -> None:
     def on_rg_site_value_change(
         _modified_timestamp: str | None, site_value: str | None, variant_data: dict | None
     ):
-        print("on_rg_site_value_change")
+        app.server.logger.debug("on_rg_site_value_change")
         view_kwargs = {"site": site_value}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="site", view_kwargs=view_kwargs

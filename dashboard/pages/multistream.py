@@ -16,8 +16,8 @@ _VIEW_LIST = {
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "multi")
 
 
-def create_multistream_page_nav() -> html.Div:
-    print("create_multistream_page_nav")
+def create_multistream_page_nav(app: Dash) -> html.Div:
+    app.server.logger.debug("create_multistream_page_nav")
     return html.Div(
         children=[
             # Multi-stream MLP threshold (REQ_066)
@@ -73,8 +73,8 @@ def create_multistream_page_nav() -> html.Div:
     )
 
 
-def create_multistream_page_layout() -> html.Div:
-    print("create_multistream_page_layout")
+def create_multistream_page_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_multistream_page_layout")
     return html.Div(
         children=[
             html.H4("Visualization", className="mb-3"),
@@ -92,7 +92,7 @@ def create_multistream_page_layout() -> html.Div:
 
 def register_multistream_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Multistream page."""
-    print("register_multistream_page_callbacks")
+    app.server.logger.debug("register_multistream_page_callbacks")
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -100,7 +100,7 @@ def register_multistream_page_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_multi_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_multi_data_change")
+        app.server.logger.debug("on_multi_data_change")
         return _graph_manager.update_graphs(variant_data, None)
 
     @app.callback(
@@ -139,7 +139,7 @@ def register_multistream_page_callbacks(app: Dash) -> None:
         attn_floor: float,
         variant_data: dict | None,
     ):
-        print("on_multi_stream_thresholds_change")
+        app.server.logger.debug("on_multi_stream_thresholds_change")
         view_kwargs = {
             "threshold_mlp": threshold_mlp,
             "threshold_embedding": threshold_emb,

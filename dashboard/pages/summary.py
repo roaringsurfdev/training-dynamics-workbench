@@ -46,13 +46,13 @@ _VIEW_LIST = {
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "sum")
 
 
-def create_summary_page_nav() -> html.Div:
-    print("create_summary_page_nav")
+def create_summary_page_nav(app: Dash) -> html.Div:
+    app.server.logger.debug("create_summary_page_nav")
     return html.Div()
 
 
-def create_summary_page_layout() -> html.Div:
-    print("create_summary_page_layout")
+def create_summary_page_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_summary_page_layout")
     # set_props("variant-selector-store", {"data": {"stale_data": "1"}})
     return html.Div(
         children=[
@@ -109,7 +109,7 @@ def create_summary_page_layout() -> html.Div:
 
 def register_summary_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Summary page."""
-    print("register_summary_page_callbacks")
+    app.server.logger.debug("register_summary_page_callbacks")
 
     @app.callback(
         *[Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -117,5 +117,5 @@ def register_summary_page_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_summary_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_summary_data_change")
+        app.server.logger.debug("on_summary_data_change")
         return _graph_manager.update_graphs(variant_data)

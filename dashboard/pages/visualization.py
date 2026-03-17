@@ -94,8 +94,8 @@ _VIEW_LIST = {
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "viz")
 
 
-def create_visualization_page_nav() -> html.Div:
-    print("create_visualization_page_nav")
+def create_visualization_page_nav(app: Dash) -> html.Div:
+    app.server.logger.debug("create_visualization_page_nav")
     return html.Div(
         children=[
             # Neuron slider
@@ -184,8 +184,8 @@ def create_visualization_page_nav() -> html.Div:
     )
 
 
-def create_visualization_page_layout() -> html.Div:
-    print("create_visualization_page_layout")
+def create_visualization_page_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_visualization_page_layout")
     return html.Div(
         children=[
             html.H4("Visualization", className="mb-3"),
@@ -257,7 +257,7 @@ def create_visualization_page_layout() -> html.Div:
 
 def register_visualization_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
-    print("register_visualization_page_callbacks")
+    app.server.logger.debug("register_visualization_page_callbacks")
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -265,7 +265,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_vz_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_vz_data_change")
+        app.server.logger.debug("on_vz_data_change")
         return _graph_manager.update_graphs(variant_data, None)
 
     @app.callback(
@@ -277,7 +277,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_attention_pair_change(
         modified_timestamp: str | None, attention_pair: str, variant_data: dict | None
     ):
-        print("on_vz_attention_pair_change")
+        app.server.logger.debug("on_vz_attention_pair_change")
         attention_pair_value = dict(item.split(":") for item in attention_pair.split(","))
         view_kwargs = {key: int(value) for key, value in attention_pair_value.items()}
         return _graph_manager.update_graphs(
@@ -293,7 +293,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_sv_matrix_change(
         modified_timestamp: str | None, matrix_name: str, variant_data: dict | None
     ):
-        print("on_vz_sv_matrix_change")
+        app.server.logger.debug("on_vz_sv_matrix_change")
         view_kwargs = {"matrix_name": matrix_name}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="matrix_name", view_kwargs=view_kwargs
@@ -308,7 +308,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_trajectory_group_change(
         modified_timestamp: str | None, trajectory_group: str, variant_data: dict | None
     ):
-        print("on_vz_trajectory_group_change")
+        app.server.logger.debug("on_vz_trajectory_group_change")
         view_kwargs = {"group_label": trajectory_group, "group": trajectory_group}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="trajectory_group", view_kwargs=view_kwargs
@@ -323,7 +323,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_flatness_metric_change(
         modified_timestamp: str | None, metric_name: str, variant_data: dict | None
     ):
-        print("on_vz_flatness_metric_change")
+        app.server.logger.debug("on_vz_flatness_metric_change")
         view_kwargs = {"metric": metric_name}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="flatness_metric", view_kwargs=view_kwargs
@@ -345,7 +345,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_threshold_change(
         modified_timestamp: str | None, threshold: float, variant_data: dict | None
     ):
-        print("on_vz_threshold_change")
+        app.server.logger.debug("on_vz_threshold_change")
         view_kwargs = {"threshold": threshold}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="specialization_threshold", view_kwargs=view_kwargs
@@ -364,7 +364,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
         click_data: list[dict | None],
         variant_data: dict | None,
     ):
-        print("on_vz_neuron_slider_change")
+        app.server.logger.debug("on_vz_neuron_slider_change")
 
         if ctx.triggered_id != "neuron-slider":
             click_data_component_id = ctx.triggered_id
@@ -373,7 +373,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
                     if click_data_item:
                         clicked_x = click_data_item["points"][0].get("x")
                         if clicked_x:
-                            print(f"handling click event: {click_data}")
+                            app.server.logger.debug(f"handling click event: {click_data}")
                             neuron_id = int(clicked_x)
                             # Reset clickData so that there's only one entry in click_data at a time
                             if click_data_component_id:
