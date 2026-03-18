@@ -27,7 +27,7 @@ converted to 1-indexed by adding 1 before reporting.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -44,7 +44,7 @@ CANONICAL_SPECIALIZATION_THRESHOLD: float = 0.10
 # Per-neuron quality gate: max_frac must exceed this for a neuron to count as
 # "genuinely specialized".  Matches the threshold used in cross_variant.py
 # (_compute_first_mover_metrics, _compute_descent_onset_portfolio).
-NEURON_SPECIALIZATION_THRESHOLD: float = 0.75
+NEURON_SPECIALIZATION_THRESHOLD: float = 0.7
 
 
 def extract_learned_frequencies(
@@ -216,12 +216,14 @@ def compute_variant_summary(
         "model_seed": model_seed,
         "data_seed": data_seed,
         "family": variant.family.name,
-        "computed_at": datetime.now(timezone.utc).isoformat(),
+        "computed_at": datetime.now(UTC).isoformat(),
         # Learned frequencies
         "learned_frequencies": learned_frequencies,
         "learned_frequency_count": learned_frequency_count,
         "canonical_specialization_threshold": canonical_threshold,
         # Second descent window
+        "second_descent_onset_committed_frequencies": base.get("second_descent_onset_committed_frequencies"),
+        "second_descent_onset_bands": base.get("second_descent_onset_bands"),
         "second_descent_onset_epoch": base.get("second_descent_onset_epoch"),
         "second_descent_completion_epoch": base.get("second_descent_completion_epoch"),
         "second_descent_survived": base.get("second_descent_survived"),

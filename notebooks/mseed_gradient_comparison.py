@@ -119,6 +119,7 @@ fig_overlay.update_layout(
 fig_overlay.update_xaxes(title_text="Frequency k")
 fig_overlay.update_yaxes(title_text="RMS gradient energy")
 fig_overlay.show()
+fig_overlay.write_image("Plot1_OverlaidProfiles.png", format="png")
 
 
 # %% Plot 2: Difference profiles — (mseed=999) − (mseed=485)
@@ -158,6 +159,7 @@ fig_diff.update_layout(
 fig_diff.update_xaxes(title_text="Frequency k")
 fig_diff.update_yaxes(title_text="Energy difference")
 fig_diff.show()
+fig_diff.write_image("Plot2_DifferenceProfiles.png", format="png")
 
 
 # %% Plot 3: Normalized profiles — divide each by its own mean
@@ -196,5 +198,6 @@ fig_norm.update_layout(
 fig_norm.update_xaxes(title_text="Frequency k")
 fig_norm.update_yaxes(title_text="Energy / mean energy")
 fig_norm.show()
+fig_norm.write_image("Plot3_NormalizedProfiles.png", format="png")
 
 # %%
