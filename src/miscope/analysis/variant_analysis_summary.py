@@ -23,6 +23,11 @@ _ATTENTION_FRAC_EXPLAINED_BY_FREQUENCY_FLOOR = 0.7
 _NEURON_FRAC_EXPLAINED_BY_FREQUENCY = 0.7
 _SPECIALIZATION_FLOOR: float = 0.10
 
+_EARLY_SECOND_DESCENT_EPOCH: int = 9000
+_LATE_SECOND_DESCENT_EPOCH: int = 12000
+_SUCCESSFUL_TEST_LOSS_THRESHOLD: float = 1.0e-6
+_REBOUND_TEST_LOSS_THRESHOLD: float = 0.2
+
 @dataclass
 class VariantAnalysisData:
     variant: Variant
@@ -146,6 +151,66 @@ class VariantAnalysisSummary:
             frequencies_over_threshold = list(set(frequency_idx + 1 for frequency_idx in dominant_freq[epoch_index, neurons_over_threshold]))
 
         return frequencies_over_threshold
+
+    def _get_variant_preformance_classification(self) -> tuple[str, list[str]]:
+        """Classify a variant's failure mode from its metrics.
+
+        Returns a (category, reasons) tuple. Reasons list the specific rules that
+        fired — classification is fully auditable.
+
+        Categories (in priority order):
+            no_grokking: never crossed the grokking threshold during training
+            degraded_recovery: entered second descent, test loss climbed back
+            degraded: high final test loss, never properly descended
+            late_grokker: grokked but significantly past the expected window
+            healthy: grokked on time, final loss acceptable
+
+        Args:
+            metrics: Dict as returned by compute_variant_metrics.
+            rules: ClassificationRules instance. If None, uses defaults.
+
+        Returns:
+            Tuple of (category_str, reasons_list).
+        """
+        reasons: list[str] = []
+        second_descent_onset_epoch = self.summary_data["second_descent_onset_epoch"]
+        final_test_loss = self.summary_data["test_loss_final"]
+        #band_count = metrics.get("frequency_band_count")
+        min_test_loss = self.summary_data["test_loss_min"]
+        post_descent_rebound = (final_test_loss - min_test_loss) >= _REBOUND_TEST_LOSS_THRESHOLD
+
+        # 1. no_grokking: never crossed threshold
+        if second_descent_onset_epoch is None or second_descent_onset_epoch == 0:
+            reasons.append(f"test loss never dropped more than {_SECOND_DESCENT_ONSET_DIFF_THRESHOLD} between epochs")
+            return "no_second_descent", reasons
+
+        # 2. degraded_recovery: entered second descent, test loss climbed back
+        if (
+            second_descent_onset_epoch is not None 
+            and second_descent_onset_epoch > 0
+            and post_descent_rebound is True
+            and (final_test_loss is None or final_test_loss > _SUCCESSFUL_TEST_LOSS_THRESHOLD)
+        ):
+            reasons.append(
+                f"second_descent_onset={second_descent_onset_epoch}, post-descent recovery detected"
+            )
+            if final_test_loss is not None:
+                reasons.append(f"final_test_loss={final_test_loss:.6f} > {_SUCCESSFUL_TEST_LOSS_THRESHOLD}")
+            return "degraded_rebound", reasons
+
+        # 3. degraded: high final loss, never properly descended
+        if final_test_loss is not None and final_test_loss > _SUCCESSFUL_TEST_LOSS_THRESHOLD:
+            reasons.append(f"final_test_loss={final_test_loss:.6f} > {_SUCCESSFUL_TEST_LOSS_THRESHOLD}")
+            return "degraded", reasons
+
+        # 4. late_grokker: grokked but past expected window
+        if second_descent_onset_epoch > _LATE_SECOND_DESCENT_EPOCH:
+            reasons.append(f"second_descent_onset={second_descent_onset_epoch} > {_LATE_SECOND_DESCENT_EPOCH}")
+            return "late_grokker", reasons
+
+        # 5. healthy
+        reasons.append("grokking onset on time, final loss acceptable")
+        return "healthy", reasons
 
     def _load_train_test_loss_metrics(self) -> None:
         
@@ -326,7 +391,7 @@ class VariantAnalysisSummary:
     def _load_window_metrics(self, window_name: str) -> None:
         
         prime = self.variant.params["prime"]
-        
+
         # load data
         if not self.analysis_data.losses_loaded:
             self.analysis_data.load_loss_data()
@@ -391,6 +456,7 @@ class VariantAnalysisSummary:
         self._load_window_metrics("plateau")
         self._load_window_metrics("cascade")
         self._load_window_metrics("final")
+        self.summary_data["performance_classification"] = self._get_variant_preformance_classification()
 
     def _write_summary(self) -> Path:
         output_path = self.variant.variant_dir / "variant_summary.json"

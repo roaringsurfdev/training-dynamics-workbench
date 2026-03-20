@@ -39,10 +39,9 @@ analysis_summary.analyze()
 
 # %% Create files for all variants
 for variant in family.list_variants():
-    if variant.name in ["modulo_addition_1layer_p101_seed485_dseed598", "modulo_addition_1layer_p109_seed485_dseed598"]:
-        print(f"creating summary file for {variant.name}")
-        analysis_summary = VariantAnalysisSummary(variant)
-        analysis_summary.analyze()
+    print(f"creating summary file for {variant.name}")
+    analysis_summary = VariantAnalysisSummary(variant)
+    analysis_summary.analyze()
 
 
 # %%
