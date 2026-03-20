@@ -21,6 +21,7 @@ _SECOND_DESCENT_ONSET_DIFF_THRESHOLD: float = 0.8
 _EMBED_FRAC_EXPLAINED_BY_FREQUENCY = 0.3
 _ATTENTION_FRAC_EXPLAINED_BY_FREQUENCY_FLOOR = 0.7
 _NEURON_FRAC_EXPLAINED_BY_FREQUENCY = 0.7
+_SPECIALIZATION_FLOOR: float = 0.10
 
 @dataclass
 class VariantAnalysisData:
@@ -256,32 +257,32 @@ class VariantAnalysisSummary:
         second_descent_onset_epoch_nearest = 0
         train_loss_threshold_first_epoch_nearest = 0
 
-        first_descent_window = [0, 0]
-        plateau_window = [0, 0]
-        cascade_window = [0, 0]
-        second_descent_window = [0, 0]
-        final_window = [0, 0]
+        first_descent_window = {"start_epoch": 0, "end_epoch": 0}
+        plateau_window = {"start_epoch": 0, "end_epoch": 0}
+        cascade_window = {"start_epoch": 0, "end_epoch": 0}
+        second_descent_window = {"start_epoch": 0, "end_epoch": 0}
+        final_window = {"start_epoch": 0, "end_epoch": 0}
 
         # First Descent
         if self.summary_data["train_loss_threshold_first_epoch"]:
             train_loss_threshold_first_epoch_nearest = self._get_nearest_checkpoint_epoch(int(self.summary_data["train_loss_threshold_first_epoch"]))
-            first_descent_window = [0, train_loss_threshold_first_epoch_nearest]
+            first_descent_window = {"start_epoch": 0, "end_epoch": train_loss_threshold_first_epoch_nearest}
         
         # Second Descent
         if self.summary_data["second_descent_onset_epoch"] and self.summary_data["train_loss_threshold_first_epoch"]:
             second_descent_onset_epoch_nearest = self._get_nearest_checkpoint_epoch(int(self.summary_data["second_descent_onset_epoch"]))
             train_loss_threshold_first_epoch_nearest = self._get_nearest_checkpoint_epoch(int(self.summary_data["train_loss_threshold_first_epoch"]))
-            second_descent_window = [second_descent_onset_epoch_nearest, train_loss_threshold_first_epoch_nearest]
+            second_descent_window = {"start_epoch": second_descent_onset_epoch_nearest, "end_epoch": train_loss_threshold_first_epoch_nearest}
 
         # Plateau
-        plateau_window = [first_descent_window[1], second_descent_window[0]]
+        plateau_window = {"start_epoch": first_descent_window["end_epoch"], "end_epoch": second_descent_window["start_epoch"]}
 
         # Cascade
         if self.summary_data["first_mover_frequency_count_threshold_epoch"] and self.summary_data["effective_dimensionality_cross_over_epoch"]:
-            cascade_window = [int(self.summary_data["first_mover_frequency_count_threshold_epoch"]), int(self.summary_data["effective_dimensionality_cross_over_epoch"])]
+            cascade_window = {"start_epoch": int(self.summary_data["first_mover_frequency_count_threshold_epoch"]), "end_epoch": int(self.summary_data["effective_dimensionality_cross_over_epoch"])}
 
         # Final
-        final_window = [second_descent_window[1], self.variant.get_available_checkpoints()[-1]] # TODO: capture final epoch/epoch checkpoint
+        final_window = {"start_epoch": second_descent_window["end_epoch"], "end_epoch": self.variant.get_available_checkpoints()[-1]}
         
         self.summary_data["first_descent_window"] = first_descent_window
         self.summary_data["plateau_window"] = plateau_window
@@ -306,32 +307,36 @@ class VariantAnalysisSummary:
             self.analysis_data.load_geometry()
 
         if self.summary_data[f"{window_name}_window"]:
-            start_epoch = self.summary_data[f"{window_name}_window"][0]
-            end_epoch = self.summary_data[f"{window_name}_window"][1]
+            start_epoch = self.summary_data[f"{window_name}_window"]["start_epoch"]
+            end_epoch = self.summary_data[f"{window_name}_window"]["end_epoch"]
             start_epoch_index = self._get_nearest_checkpoint_epoch_index(start_epoch)
             end_epoch_index = self._get_nearest_checkpoint_epoch_index(end_epoch)
 
+            window_metrics = self.summary_data[f"{window_name}_window"]
+
             # losses
-            self.summary_data[f"{window_name}_window_start_train_loss"] = train_losses[start_epoch]
-            self.summary_data[f"{window_name}_window_end_train_loss"] = train_losses[end_epoch]
-            self.summary_data[f"{window_name}_window_start_test_loss"] = test_losses[start_epoch]
-            self.summary_data[f"{window_name}_window_end_test_loss"] = test_losses[end_epoch]
+            window_metrics["train_loss_start"] = train_losses[start_epoch]
+            window_metrics["train_loss_end"] = train_losses[end_epoch]
+            window_metrics["test_loss_start"] = test_losses[start_epoch]
+            window_metrics["test_loss_end"] = test_losses[end_epoch]
             # start/end metrics to capture:
             #   neuron, attention, embedding frequencies
             #   neuron, attention, embedding frequency bands
             #   effective dimensionality/SV Participation Ratio
-            self.summary_data[f"{window_name}_window_start_resid_post_effective_dimensionality_pr_w_in"] = self.analysis_data.effective_dimensionality_pr_w_in[start_epoch_index]
-            self.summary_data[f"{window_name}_window_end_resid_post_effective_dimensionality_pr_w_in"] = self.analysis_data.effective_dimensionality_pr_w_in[end_epoch_index]
-            self.summary_data[f"{window_name}_window_start_resid_post_effective_dimensionality_pr_w_out"] = self.analysis_data.effective_dimensionality_pr_w_out[start_epoch_index]
-            self.summary_data[f"{window_name}_window_end_resid_post_effective_dimensionality_pr_w_out"] = self.analysis_data.effective_dimensionality_pr_w_out[end_epoch_index]
+            window_metrics["resid_post_pr_w_in_start"] = self.analysis_data.effective_dimensionality_pr_w_in[start_epoch_index]
+            window_metrics["resid_post_pr_w_in_end"] = self.analysis_data.effective_dimensionality_pr_w_in[end_epoch_index]
+            window_metrics["resid_post_pr_w_out_start"] = self.analysis_data.effective_dimensionality_pr_w_out[start_epoch_index]
+            window_metrics["resid_post_pr_w_out_end"] = self.analysis_data.effective_dimensionality_pr_w_out[end_epoch_index]
 
             #   circularity
-            self.summary_data[f"{window_name}_window_start_resid_post_circularity"] = self.analysis_data.geometry_resid_post_circularity[start_epoch_index]
-            self.summary_data[f"{window_name}_window_end_resid_post_circularity"] = self.analysis_data.geometry_resid_post_circularity[end_epoch_index]
+            window_metrics["resid_post_circularity_start"] = self.analysis_data.geometry_resid_post_circularity[start_epoch_index]
+            window_metrics["resid_post_circularity_end"] = self.analysis_data.geometry_resid_post_circularity[end_epoch_index]
             #   fischer discriminant
-            self.summary_data[f"{window_name}_window_start_resid_post_fisher_mean"] = self.analysis_data.geometry_resid_post_fisher_mean[start_epoch_index]
-            self.summary_data[f"{window_name}_window_end_resid_post_fisher_mean"] = self.analysis_data.geometry_resid_post_fisher_mean[end_epoch_index]
+            window_metrics["resid_post_fisher_mean_start"] = self.analysis_data.geometry_resid_post_fisher_mean[start_epoch_index]
+            window_metrics["resid_post_fisher_mean_end"] = self.analysis_data.geometry_resid_post_fisher_mean[end_epoch_index]
             #   competition
+
+            self.summary_data[f"{window_name}_window"] = window_metrics
 
         pass
 
