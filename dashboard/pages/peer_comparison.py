@@ -6,9 +6,9 @@ for the selected anchor variant against its data-seed or model-seed peers.
 
 from __future__ import annotations
 
+import dash_bootstrap_components as dbc
 import numpy as np
 import plotly.graph_objects as go
-import dash_bootstrap_components as dbc
 from dash import Dash, Input, Output, State, ctx, dcc, html
 from dash.exceptions import PreventUpdate
 from plotly.subplots import make_subplots

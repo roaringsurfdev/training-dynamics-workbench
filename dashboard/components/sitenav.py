@@ -54,13 +54,13 @@ def register_sitenav_callbacks(app: Dash) -> None:
         create_multistream_page_layout,
         create_multistream_page_nav,
     )
-    from dashboard.pages.peer_comparison import (
-        create_peer_comparison_page_layout,
-        create_peer_comparison_page_nav,
-    )
     from dashboard.pages.neuron_dynamics import (
         create_neuron_dynamics_page_layout,
         create_neuron_dynamics_page_nav,
+    )
+    from dashboard.pages.peer_comparison import (
+        create_peer_comparison_page_layout,
+        create_peer_comparison_page_nav,
     )
     from dashboard.pages.repr_geometry import (
         create_repr_geometry_page_layout,

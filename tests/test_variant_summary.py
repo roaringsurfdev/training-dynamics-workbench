@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
 from miscope.analysis.variant_summary import (
-    CANONICAL_SPECIALIZATION_THRESHOLD,
     build_variant_registry,
     compute_variant_summary,
     extract_learned_frequencies,
     write_variant_summary,
 )
-from miscope.views.cross_variant import ClassificationRules
 
 # ---------------------------------------------------------------------------
 # Helpers
