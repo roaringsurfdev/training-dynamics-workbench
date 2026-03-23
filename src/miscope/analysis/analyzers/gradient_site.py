@@ -160,7 +160,7 @@ class GradientSiteAnalyzer:
 
         cross_epoch_path.parent.mkdir(parents=True, exist_ok=True)
         temp_base = str(cross_epoch_path.parent / ".cross_epoch_tmp")
-        np.savez_compressed(temp_base, **result)
+        np.savez_compressed(temp_base, **result)  # type: ignore[reportArgumentType]
         shutil.move(temp_base + ".npz", str(cross_epoch_path))
 
 

@@ -176,8 +176,8 @@ def render_site_gradient_heatmap(
                 line_dash="dash",
                 line_color="white",
                 opacity=0.6,
-                row=1,
-                col=col_idx + 1,
+                row=1,  # type: ignore[reportArgumentType]
+                col=col_idx + 1,  # type: ignore[reportArgumentType]
             )
 
     for ep in window_epochs:
