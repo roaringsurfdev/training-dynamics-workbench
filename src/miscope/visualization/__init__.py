@@ -47,10 +47,6 @@ from miscope.visualization.renderers.data_compatibility import (
     render_data_compatibility_overlap,
     render_data_compatibility_spectrum,
 )
-from miscope.visualization.renderers.gradient_site import (
-    render_site_gradient_convergence,
-    render_site_gradient_heatmap,
-)
 from miscope.visualization.renderers.dmd import (
     render_dmd_eigenvalues,
     render_dmd_reconstruction,
@@ -72,6 +68,10 @@ from miscope.visualization.renderers.fourier_frequency_quality import (
 from miscope.visualization.renderers.fourier_nucleation import (
     render_nucleation_frequency_gains,
     render_nucleation_heatmap,
+)
+from miscope.visualization.renderers.gradient_site import (
+    render_site_gradient_convergence,
+    render_site_gradient_heatmap,
 )
 from miscope.visualization.renderers.landscape_flatness import (
     FLATNESS_METRICS,

@@ -177,13 +177,13 @@ def register_default_analyzers() -> None:
     from miscope.analysis.analyzers.attention_freq import AttentionFreqAnalyzer
     from miscope.analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
     from miscope.analysis.analyzers.centroid_dmd import CentroidDMD
-    from miscope.analysis.analyzers.gradient_site import GradientSiteAnalyzer
     from miscope.analysis.analyzers.coarseness import CoarsenessAnalyzer
     from miscope.analysis.analyzers.dominant_frequencies import DominantFrequenciesAnalyzer
     from miscope.analysis.analyzers.effective_dimensionality import EffectiveDimensionalityAnalyzer
     from miscope.analysis.analyzers.fourier_frequency_quality import FourierFrequencyQualityAnalyzer
     from miscope.analysis.analyzers.fourier_nucleation import FourierNucleationAnalyzer
     from miscope.analysis.analyzers.global_centroid_pca import GlobalCentroidPCA
+    from miscope.analysis.analyzers.gradient_site import GradientSiteAnalyzer
     from miscope.analysis.analyzers.landscape_flatness import LandscapeFlatnessAnalyzer
     from miscope.analysis.analyzers.neuron_activations import NeuronActivationsAnalyzer
     from miscope.analysis.analyzers.neuron_dynamics import NeuronDynamicsAnalyzer
