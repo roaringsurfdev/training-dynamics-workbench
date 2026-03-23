@@ -9,19 +9,6 @@ _VIEW_LIST = {
         "view_type": "epoch_selector",
         "view_filter_set": "nd_specialization_threshold",
     },
-    "neuron_freq_distribution": {
-        "view_name": "activations.mlp.neuron_freq_distribution",
-        "view_type": "epoch_selector",
-    },
-    "neuron-frequency-clusters": {
-        "view_name": "activations.mlp.neuron_frequency_clusters",
-        "view_type": "neuron_selector",
-    },
-    "spec-freq-plot": {
-        "view_name": "activations.mlp.neuron_frequency_specialization",
-        "view_type": "epoch_selector",
-        "view_filter_set": "nd_specialization_threshold",
-    },
     "switch-plot": {
         "view_name": "activations.mlp.switch_count_distribution",
         "view_type": "default_graph",
@@ -43,6 +30,24 @@ _VIEW_LIST = {
     "band-concentration": {
         "view_name": "analysis.band_concentration.trajectory",
         "view_type": "epoch_selector",
+    },
+    # REQ_063: Fourier nucleation — always epoch 0
+    "nucleation-heatmap": {
+        "view_name": "parameters.mlp.nucleation_heatmap",
+        "view_type": "default_graph",
+    },
+    "nucleation-gains": {
+        "view_name": "parameters.mlp.nucleation_frequency_gains",
+        "view_type": "default_graph",
+    },
+    # REQ_064: Data compatibility — epoch-independent, computed on demand
+    "data-compatibility-spectrum": {
+        "view_name": "analysis.data_compatibility.spectrum",
+        "view_type": "default_graph",
+    },
+    "data-compatibility-overlap": {
+        "view_name": "analysis.data_compatibility.overlap",
+        "view_type": "default_graph",
     },
 }
 
@@ -86,16 +91,13 @@ def create_neuron_dynamics_page_layout(app: Dash) -> html.Div:
     app.server.logger.debug("create_neuron_dynamics_page_layout")
     return html.Div(
         children=[
-            html.H4("Neuron Competition", className="mb-3"),
+            html.H4("Neuron Dynamics", className="mb-3"),
             html.Div(
                 [
                     # Trajectory heatmap (full width)
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron_freq_trajectory", "600px"))),
-                    # Frequency Distribution
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron_freq_distribution", "600px"))),
-                    # --- Neuron Specialization (summary, click-to-navigate) ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron-frequency-clusters", "600px"))),
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("spec-freq-plot", "350px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("neuron_freq_trajectory", "600px"))
+                    ),
                     # Switch distribution | Commitment timeline
                     dbc.Row(
                         [
@@ -111,12 +113,22 @@ def create_neuron_dynamics_page_layout(app: Dash) -> html.Div:
                     ),
                     # Threshold-sensitive views
                     dbc.Row(
-                        dbc.Col(_graph_manager.create_graph("per-band-specialization", "350px"))
+                        dbc.Col(_graph_manager.create_graph("per-band-specialization", "400px"))
                     ),
                     dbc.Row(
-                        dbc.Col(_graph_manager.create_graph("neuron-frequency-range", "350px"))
+                        dbc.Col(_graph_manager.create_graph("neuron-frequency-range", "400px"))
                     ),
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("band-concentration", "350px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("band-concentration", "400px"))),
+                    # REQ_063: Fourier nucleation (epoch 0, initialization-anchored)
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("nucleation-heatmap", "650px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("nucleation-gains", "350px"))),
+                    # REQ_064: Data compatibility (epoch-independent, on-demand)
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("data-compatibility-overlap", "450px"))
+                    ),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("data-compatibility-spectrum", "400px"))
+                    ),
                 ],
             ),
         ]

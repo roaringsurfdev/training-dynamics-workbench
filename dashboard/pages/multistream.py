@@ -80,7 +80,7 @@ def create_multistream_page_layout(app: Dash) -> html.Div:
     app.server.logger.debug("create_multistream_page_layout")
     return html.Div(
         children=[
-            html.H4("Visualization", className="mb-3"),
+            html.H4("Frequency Specialization", className="mb-3"),
             html.Div(
                 [
                     # --- Loss ---

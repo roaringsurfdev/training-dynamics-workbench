@@ -12,18 +12,6 @@ _VIEW_LIST = {
         "view_name": "training.metadata.loss_curves",
         "view_type": "epoch_selector",
     },
-    "neuron_frequency_range": {
-        "view_name": "activations.mlp.neuron_frequency_range",
-        "view_type": "epoch_selector",
-    },
-    "spec-freq-plot": {
-        "view_name": "activations.mlp.neuron_frequency_specialization",
-        "view_type": "epoch_selector",
-    },
-    "attn-spec-plot": {
-        "view_name": "activations.attention.frequency_clusters",
-        "view_type": "epoch_selector",
-    },
     "parameter-pca-summary-plot": {
         "view_name": "parameters.pca.variance_explained",
         "view_type": "epoch_selector",
@@ -112,20 +100,7 @@ def create_dimensionality_page_layout(app: Dash) -> html.Div:
                 [
                     # --- Loss ---
                     dbc.Row(dbc.Col(_graph_manager.create_graph("training-loss-curves", "350px"))),
-                    # --- Neuron Specialization  ---
-                    dbc.Row(
-                        dbc.Col(_graph_manager.create_graph("neuron_frequency_range", "350px"))
-                    ),
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("spec-freq-plot", "450px"))),
-                    # --- Attention Specialization (summary, click-to-navigate) ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("attn-spec-plot", "450px"))),
-                    dbc.Row(
-                        children=[
-                            dbc.Col("Parameter Space PCA", style={"align": "center"}),
-                            dbc.Col("Centroid Class PCA", style={"align": "center"}),
-                        ],
-                        style={"height": "50px"},
-                    ),
+                    dbc.Row(children=[dbc.Col(children=["Parameter Space"]), dbc.Col(children=["Activation Space"])]),
                     dbc.Row(
                         children=[
                             dbc.Col(
