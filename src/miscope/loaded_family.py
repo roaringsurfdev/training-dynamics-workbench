@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from miscope.families.protocols import ModelFamily
@@ -86,6 +87,26 @@ class LoadedFamily:
             List of parameter dicts (e.g., [{"prime": 113, "seed": 999}, ...])
         """
         return [v.params for v in self.list_variants()]
+
+    def create_intervention_variant(
+        self,
+        prime: int,
+        seed: int,
+        data_seed: int,
+        intervention_config: dict[str, Any],
+        results_dir: Path | str | None = None,
+    ) -> Variant:
+        """Create an intervention variant nested under the specified parent variant.
+
+        Args:
+            prime: Modulus for the addition task
+            seed: Random seed for model initialization
+            data_seed: Random seed for train/test split
+            intervention_config: Intervention parameter dict
+            results_dir: Unused; kept for backwards compatibility.
+        """
+        parent = self.get_variant(prime=prime, seed=seed, data_seed=data_seed)
+        return parent.create_intervention_variant(intervention_config)
 
     def __repr__(self) -> str:
         n_variants = len(self.list_variants())

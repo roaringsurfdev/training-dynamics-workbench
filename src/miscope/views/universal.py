@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 import plotly.graph_objects as go
 
-from miscope.views.catalog import ViewDefinition, _catalog
+from miscope.views.catalog import AnalyzerRequirement, ArtifactKind, ViewDefinition, _catalog
 
 if TYPE_CHECKING:
     from miscope.families.variant import Variant
@@ -46,6 +46,7 @@ def _make_per_epoch(
         load_data=load_data,
         renderer=renderer,
         epoch_source_analyzer=analyzer_name,
+        required_analyzers=[AnalyzerRequirement(analyzer_name, ArtifactKind.EPOCH)],
     )
 
 
@@ -74,6 +75,7 @@ def _make_summary(
         load_data=load_data,
         renderer=renderer,
         epoch_source_analyzer=None,
+        required_analyzers=[AnalyzerRequirement(analyzer_name, ArtifactKind.SUMMARY)],
     )
 
 
@@ -90,43 +92,75 @@ def _register_all() -> None:
     # --- Per-epoch views ---
 
     for name, analyzer, renderer_name in [
-        ("dominant_frequencies", "dominant_frequencies", "render_dominant_frequencies"),
-        ("neuron_heatmap", "neuron_activations", "render_neuron_heatmap"),
-        ("freq_clusters", "neuron_freq_norm", "render_freq_clusters"),
-        ("coarseness_distribution", "coarseness", "render_coarseness_distribution"),
-        ("coarseness_by_neuron", "coarseness", "render_coarseness_by_neuron"),
-        ("attention_heads", "attention_patterns", "render_attention_heads"),
-        ("attention_freq_heatmap", "attention_freq", "render_attention_freq_heatmap"),
-        ("singular_value_spectrum", "effective_dimensionality", "render_singular_value_spectrum"),
-        ("perturbation_distribution", "landscape_flatness", "render_perturbation_distribution"),
-        ("neuron_fourier_heatmap", "neuron_fourier", "render_neuron_fourier_heatmap"),
-        ("neuron_fourier_heatmap_output", "neuron_fourier", "render_neuron_fourier_heatmap_output"),
+        (
+            "parameters.embeddings.fourier_coefficients",
+            "dominant_frequencies",
+            "render_dominant_frequencies",
+        ),
+        ("activations.mlp.neuron_heatmap", "neuron_activations", "render_neuron_heatmap"),
+        ("activations.mlp.neuron_frequency_clusters", "neuron_freq_norm", "render_freq_clusters"),
+        (
+            "activations.mlp.neuron_freq_distribution",
+            "neuron_freq_norm",
+            "render_neuron_freq_distribution",
+        ),
+        ("activations.mlp.coarseness_distribution", "coarseness", "render_coarseness_distribution"),
+        ("activations.mlp.coarseness_by_neuron", "coarseness", "render_coarseness_by_neuron"),
+        ("activations.attention.head_heatmap", "attention_patterns", "render_attention_heads"),
+        (
+            "activations.attention.head_frequency_clusters",
+            "attention_freq",
+            "render_attention_freq_heatmap",
+        ),
+        (
+            "parameters.singular_value_spectrum",
+            "effective_dimensionality",
+            "render_singular_value_spectrum",
+        ),
+        (
+            "loss_landscape.perturbation_distribution",
+            "landscape_flatness",
+            "render_perturbation_distribution",
+        ),
+        (
+            "activations.mlp.neuron_fourier_heatmap",
+            "neuron_fourier",
+            "render_neuron_fourier_heatmap",
+        ),
+        (
+            "activations.mlp.neuron_fourier_heatmap_output",
+            "neuron_fourier",
+            "render_neuron_fourier_heatmap_output",
+        ),
     ]:
         _catalog.register(_make_per_epoch(name, analyzer, getattr(viz, renderer_name)))
 
     # --- Summary (cross-epoch aggregate) views ---
 
     for name, analyzer, renderer_name in [
-        ("coarseness_trajectory", "coarseness", "render_coarseness_trajectory"),
-        ("blob_count_trajectory", "coarseness", "render_blob_count_trajectory"),
-        ("specialization_trajectory", "neuron_freq_norm", "render_specialization_trajectory"),
-        ("specialization_by_frequency", "neuron_freq_norm", "render_specialization_by_frequency"),
+        ("activations.mlp.coarseness_trajectory", "coarseness", "render_coarseness_trajectory"),
+        ("activations.mlp.blob_count_trajectory", "coarseness", "render_blob_count_trajectory"),
         (
-            "dimensionality_trajectory",
+            "parameters.effective_dimensionality",
             "effective_dimensionality",
             "render_dimensionality_trajectory",
         ),
         (
-            "attention_specialization_trajectory",
+            "activations.attention.frequency_clusters",
             "attention_freq",
             "render_attention_specialization_trajectory",
         ),
         (
-            "attention_dominant_frequencies",
+            "activations.attention.head_frequency_range",
             "attention_freq",
             "render_attention_dominant_frequencies",
         ),
-        ("flatness_trajectory", "landscape_flatness", "render_flatness_trajectory"),
+        ("loss_landscape.flatness_trajectory", "landscape_flatness", "render_flatness_trajectory"),
+        (
+            "activations.mlp.fourier_quality_trajectory",
+            "fourier_frequency_quality",
+            "render_fourier_quality_trajectory",
+        ),
     ]:
         _catalog.register(_make_summary(name, analyzer, getattr(viz, renderer_name)))
 
@@ -143,10 +177,11 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="dominant_frequencies_over_time",
+            name="activations.mlp.dominant_frequencies_over_time",
             load_data=_load_dominant_frequencies_over_time,
             renderer=_render_dominant_frequencies_over_time,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("dominant_frequencies", ArtifactKind.EPOCH)],
         )
     )
 
@@ -170,11 +205,13 @@ def _register_all() -> None:
 
         return renderer
 
+    _pca_req = [AnalyzerRequirement("parameter_trajectory", ArtifactKind.CROSS_EPOCH)]
+
     for name, render_fn in [
-        ("parameter_trajectory", viz.render_parameter_trajectory),
-        ("trajectory_3d", viz.render_trajectory_3d),
-        ("trajectory_pc1_pc3", viz.render_trajectory_pc1_pc3),
-        ("trajectory_pc2_pc3", viz.render_trajectory_pc2_pc3),
+        ("parameters.pca.pc1_pc2", viz.render_parameter_trajectory),
+        ("parameters.pca.pc1_pc3", viz.render_trajectory_pc1_pc3),
+        ("parameters.pca.pc2_pc3", viz.render_trajectory_pc2_pc3),
+        ("parameters.pca.scatter_3d", viz.render_trajectory_3d),
     ]:
         _catalog.register(
             ViewDefinition(
@@ -182,6 +219,59 @@ def _register_all() -> None:
                 load_data=_load_parameter_trajectory,
                 renderer=_make_pca_renderer(render_fn),
                 epoch_source_analyzer=None,
+                required_analyzers=_pca_req,
+            )
+        )
+
+    # --- Group overlay: normalized per-group trajectories on shared axes ---
+
+    def _make_overlay_renderer(col_x: int, col_y: int) -> Any:
+        def renderer(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+            epochs_arr = data["epochs"].tolist()
+            current_epoch = epoch if epoch is not None else epochs_arr[-1]
+            return viz.render_trajectory_group_overlay(
+                data, epochs_arr, current_epoch, col_x=col_x, col_y=col_y, **kwargs
+            )
+
+        return renderer
+
+    for name, col_x, col_y in [
+        ("parameters.pca.group_overlay", 0, 1),
+        ("parameters.pca.group_overlay_pc2_pc3", 1, 2),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_parameter_trajectory,
+                renderer=_make_overlay_renderer(col_x, col_y),
+                epoch_source_analyzer=None,
+                required_analyzers=_pca_req,
+            )
+        )
+
+    # --- Group proximity: pairwise L2 distance between normalized trajectories ---
+
+    def _make_proximity_renderer(col_x: int, col_y: int) -> Any:
+        def renderer(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+            epochs_arr = data["epochs"].tolist()
+            current_epoch = epoch if epoch is not None else epochs_arr[-1]
+            return viz.render_trajectory_proximity(
+                data, epochs_arr, current_epoch, col_x=col_x, col_y=col_y, **kwargs
+            )
+
+        return renderer
+
+    for name, col_x, col_y in [
+        ("parameters.pca.proximity", 0, 1),
+        ("parameters.pca.proximity_pc2_pc3", 1, 2),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_parameter_trajectory,
+                renderer=_make_proximity_renderer(col_x, col_y),
+                epoch_source_analyzer=None,
+                required_analyzers=_pca_req,
             )
         )
 
@@ -198,10 +288,11 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="explained_variance",
+            name="parameters.pca.explained_variance",
             load_data=_load_parameter_trajectory,
             renderer=_render_explained_variance,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -216,10 +307,11 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="parameter_velocity",
+            name="parameters.pca.velocity",
             load_data=_load_parameter_trajectory,
             renderer=_render_parameter_velocity,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -232,10 +324,11 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="component_velocity",
+            name="parameters.pca.component_velocity",
             load_data=_load_parameter_trajectory,
             renderer=_render_component_velocity,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -276,10 +369,55 @@ def _register_all() -> None:
             data["cross_epoch"], data["prime"], seed=data["seed"], **kwargs
         )
 
+    def _render_per_band_specialization(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.neuron_freq_clusters import (
+            render_per_band_specialization,
+        )
+
+        return render_per_band_specialization(data["cross_epoch"], data["prime"], **kwargs)
+
+    # --- Threshold-parameterized specialization summary views ---
+    # Recomputed from neuron_dynamics raw data at any threshold,
+    # so the dashboard threshold slider drives all three views.
+
+    def _render_specialization_trajectory_dynamic(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        from miscope.visualization.renderers.neuron_freq_clusters import (
+            compute_summary_from_dynamics,
+            render_specialization_trajectory,
+        )
+
+        threshold = kwargs.pop("threshold", 0.9)
+        summary = compute_summary_from_dynamics(data["cross_epoch"], data["prime"], threshold)
+        return render_specialization_trajectory(
+            summary, epoch if epoch is not None else 0, **kwargs
+        )
+
+    def _render_specialization_by_frequency_dynamic(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        from miscope.visualization.renderers.neuron_freq_clusters import (
+            compute_summary_from_dynamics,
+            render_specialization_by_frequency,
+        )
+
+        threshold = kwargs.pop("threshold", 0.9)
+        summary = compute_summary_from_dynamics(data["cross_epoch"], data["prime"], threshold)
+        return render_specialization_by_frequency(summary, epoch, **kwargs)
+
+    _nd_req = [AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH)]
+
     for name, renderer in [
-        ("neuron_freq_trajectory", _render_neuron_freq_trajectory),
-        ("switch_count_distribution", _render_switch_count_distribution),
-        ("commitment_timeline", _render_commitment_timeline),
+        ("activations.mlp.neuron_frequency_range", _render_specialization_trajectory_dynamic),
+        (
+            "activations.mlp.neuron_frequency_specialization",
+            _render_specialization_by_frequency_dynamic,
+        ),
+        ("activations.mlp.neuron_freq_trajectory", _render_neuron_freq_trajectory),
+        ("activations.mlp.switch_count_distribution", _render_switch_count_distribution),
+        ("activations.mlp.commitment_timeline", _render_commitment_timeline),
+        ("activations.mlp.per_band_specialization", _render_per_band_specialization),
     ]:
         _catalog.register(
             ViewDefinition(
@@ -287,6 +425,7 @@ def _register_all() -> None:
                 load_data=_load_neuron_dynamics,
                 renderer=renderer,
                 epoch_source_analyzer=None,
+                required_analyzers=_nd_req,
             )
         )
 
@@ -302,10 +441,11 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="centroid_pca_variance",
+            name="geometry.centroid_pca_variance",
             load_data=_load_centroid_pca_variance,
             renderer=_render_centroid_pca_variance,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
         )
     )
 
@@ -314,10 +454,11 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="trajectory_pca_variance",
+            name="parameters.pca.variance_explained",
             load_data=_load_parameter_trajectory,
             renderer=_render_trajectory_pca_variance,
             epoch_source_analyzer=None,
+            required_analyzers=_pca_req,
         )
     )
 
@@ -330,10 +471,11 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="geometry_timeseries",
+            name="geometry.timeseries",
             load_data=_load_repr_geometry_summary,
             renderer=_render_geometry_timeseries,
             epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
         )
     )
 
@@ -358,9 +500,9 @@ def _register_all() -> None:
         return viz.render_fisher_heatmap(data["epoch_data"], epoch or 0, site=site, p=data["prime"])
 
     for name, renderer in [
-        ("centroid_pca", _render_centroid_pca),
-        ("centroid_distances", _render_centroid_distances),
-        ("fisher_heatmap", _render_fisher_heatmap),
+        ("geometry.centroid_pca", _render_centroid_pca),
+        ("geometry.centroid_distances", _render_centroid_distances),
+        ("geometry.fisher_heatmap", _render_fisher_heatmap),
     ]:
         _catalog.register(
             ViewDefinition(
@@ -368,6 +510,7 @@ def _register_all() -> None:
                 load_data=_load_repr_geometry_epoch,
                 renderer=renderer,
                 epoch_source_analyzer="repr_geometry",
+                required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.EPOCH)],
             )
         )
 
@@ -386,10 +529,13 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="centroid_global_pca",
+            name="geometry.global_centroid_pca",
             load_data=_load_global_centroid_pca,
             renderer=_render_centroid_global_pca,
             epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("global_centroid_pca", ArtifactKind.CROSS_EPOCH)
+            ],
         )
     )
 
@@ -414,10 +560,12 @@ def _register_all() -> None:
         resolved_epoch = epoch if epoch is not None else int(epochs_arr[-1])
         return viz.render_dmd_reconstruction(data, resolved_epoch, site=site)
 
+    _dmd_req = [AnalyzerRequirement("centroid_dmd", ArtifactKind.CROSS_EPOCH)]
+
     for name, renderer in [
-        ("centroid_dmd_eigenvalues", _render_dmd_eigenvalues),
-        ("centroid_dmd_residual", _render_dmd_residual),
-        ("centroid_dmd_reconstruction", _render_dmd_reconstruction),
+        ("geometry.dmd_eigenvalues", _render_dmd_eigenvalues),
+        ("geometry.dmd_residual", _render_dmd_residual),
+        ("geometry.dmd_reconstruction", _render_dmd_reconstruction),
     ]:
         _catalog.register(
             ViewDefinition(
@@ -425,6 +573,248 @@ def _register_all() -> None:
                 load_data=_load_centroid_dmd,
                 renderer=renderer,
                 epoch_source_analyzer=None,
+                required_analyzers=_dmd_req,
+            )
+        )
+
+    # --- Attention Fourier views (REQ_055) ---
+    # Per-epoch heatmaps and stacked temporal alignment trajectory.
+
+    for name, analyzer, renderer_name in [
+        ("parameters.attention.qk_fourier_heatmap", "attention_fourier", "render_qk_freq_heatmap"),
+        ("parameters.attention.v_fourier_heatmap", "attention_fourier", "render_v_freq_heatmap"),
+    ]:
+        _catalog.register(_make_per_epoch(name, analyzer, getattr(viz, renderer_name)))
+
+    def _load_attention_fourier_stacked(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_epochs("attention_fourier")
+
+    def _render_head_alignment_trajectory(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_head_alignment_trajectory(data, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="parameters.attention.head_alignment_trajectory",
+            load_data=_load_attention_fourier_stacked,
+            renderer=_render_head_alignment_trajectory,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("attention_fourier", ArtifactKind.EPOCH)],
+        )
+    )
+
+    # --- Band concentration views (REQ_058) ---
+    # Concentration trajectory and rank alignment trajectory per variant.
+    # Both load from neuron_dynamics cross_epoch; rank alignment also loads
+    # dominant_frequencies to get embedding band magnitudes.
+
+    def _load_band_concentration(variant: Variant, epoch: int | None) -> dict:
+        from miscope.analysis.band_concentration import compute_band_concentration_trajectory
+
+        cross_epoch = variant.artifacts.load_cross_epoch("neuron_dynamics")
+        prime = int(variant.model_config["prime"])
+        threshold = 0.75
+        return compute_band_concentration_trajectory(cross_epoch, threshold, prime)
+
+    def _render_concentration_trajectory(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_concentration_trajectory(data, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="analysis.band_concentration.trajectory",
+            load_data=_load_band_concentration,
+            renderer=_render_concentration_trajectory,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH)],
+        )
+    )
+
+    def _load_rank_alignment(variant: Variant, epoch: int | None) -> dict:
+        from miscope.analysis.band_concentration import compute_rank_alignment_trajectory
+
+        cross_epoch = variant.artifacts.load_cross_epoch("neuron_dynamics")
+        coeff_epochs = variant.artifacts.load_epochs("dominant_frequencies")
+        prime = int(variant.model_config["prime"])
+        threshold = 0.75
+        return compute_rank_alignment_trajectory(cross_epoch, coeff_epochs, threshold, prime)
+
+    def _render_rank_alignment_trajectory(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_rank_alignment_trajectory(data, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="analysis.band_concentration.rank_alignment",
+            load_data=_load_rank_alignment,
+            renderer=_render_rank_alignment_trajectory,
+            epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH),
+                AnalyzerRequirement("dominant_frequencies", ArtifactKind.EPOCH),
+            ],
+        )
+    )
+
+    # --- Fourier nucleation views (REQ_063) ---
+    # Always load epoch 0 — these are initialization-anchored views.
+    # The epoch slider is intentionally ignored; epoch 0 is the nucleation snapshot.
+
+    def _load_nucleation(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_epoch("fourier_nucleation", 0)
+
+    def _render_nucleation_heatmap(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_nucleation_heatmap(data, epoch=0, **kwargs)
+
+    def _render_nucleation_frequency_gains(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        return viz.render_nucleation_frequency_gains(data, epoch=0, **kwargs)
+
+    _nucleation_req = [AnalyzerRequirement("fourier_nucleation", ArtifactKind.EPOCH)]
+
+    for name, renderer in [
+        ("parameters.mlp.nucleation_heatmap", _render_nucleation_heatmap),
+        ("parameters.mlp.nucleation_frequency_gains", _render_nucleation_frequency_gains),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_nucleation,
+                renderer=renderer,
+                epoch_source_analyzer=None,
+                required_analyzers=_nucleation_req,
+            )
+        )
+
+    # --- Data compatibility views (REQ_064) ---
+    # Computed on demand from variant params (prime, data_seed).
+    # No artifact required — always available for modular addition variants.
+    # The overlap view additionally tries to load the nucleation artifact
+    # (epoch 0) and degrades gracefully when it is absent.
+
+    def _load_data_compatibility(variant: Variant, epoch: int | None) -> dict:
+        from miscope.analysis.data_compatibility import compute_data_compatibility
+
+        prime = int(variant.model_config["prime"])
+        data_seed = int(variant.model_config["data_seed"])
+        return compute_data_compatibility(prime, data_seed)
+
+    def _render_data_compatibility_spectrum(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        return viz.render_data_compatibility_spectrum(data, epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="analysis.data_compatibility.spectrum",
+            load_data=_load_data_compatibility,
+            renderer=_render_data_compatibility_spectrum,
+            epoch_source_analyzer=None,
+            required_analyzers=[],
+        )
+    )
+
+    def _load_data_compatibility_overlap(variant: Variant, epoch: int | None) -> dict:
+        from miscope.analysis.data_compatibility import compute_data_compatibility
+
+        prime = int(variant.model_config["prime"])
+        data_seed = int(variant.model_config["data_seed"])
+        compat = compute_data_compatibility(prime, data_seed)
+
+        nucleation = None
+        try:
+            nucleation = variant.artifacts.load_epoch("fourier_nucleation", 0)
+        except (FileNotFoundError, KeyError, OSError):
+            pass
+
+        return {"compatibility": compat, "nucleation": nucleation}
+
+    def _render_data_compatibility_overlap(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        return viz.render_data_compatibility_overlap(data, epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="analysis.data_compatibility.overlap",
+            load_data=_load_data_compatibility_overlap,
+            renderer=_render_data_compatibility_overlap,
+            epoch_source_analyzer=None,
+            required_analyzers=[],
+        )
+    )
+
+    # --- Multi-stream specialization (REQ_066) ---
+    # Loads from four artifact sources; W_E loaded selectively to avoid
+    # pulling all weight matrices from parameter_snapshot across all epochs.
+
+    def _load_multi_stream_specialization(variant: Variant, _epoch: int | None) -> dict:
+        return {
+            "neuron_dynamics": variant.artifacts.load_cross_epoch("neuron_dynamics"),
+            "attn_fourier_epochs": variant.artifacts.load_epochs("attention_fourier"),
+            "embedding_w_e": variant.artifacts.load_epochs("parameter_snapshot", fields=["W_E"]),
+            "eff_dim_summary": variant.artifacts.load_summary("effective_dimensionality"),
+            "prime": int(variant.model_config["prime"]),
+        }
+
+    def _render_multi_stream_specialization(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        from miscope.visualization.renderers.multi_stream_specialization import (
+            render_multi_stream_specialization,
+        )
+
+        threshold_mlp = kwargs.pop("threshold_mlp", 0.5)
+        threshold_embedding = kwargs.pop("threshold_embedding", 0.5)
+        attn_floor = kwargs.pop("attn_floor", 0.02)
+        return render_multi_stream_specialization(
+            data,
+            epoch,
+            threshold_mlp=threshold_mlp,
+            threshold_embedding=threshold_embedding,
+            attn_floor=attn_floor,
+            **kwargs,
+        )
+
+    _catalog.register(
+        ViewDefinition(
+            name="multi_stream_specialization",
+            load_data=_load_multi_stream_specialization,
+            renderer=_render_multi_stream_specialization,
+            epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("neuron_dynamics", ArtifactKind.CROSS_EPOCH),
+                AnalyzerRequirement("attention_fourier", ArtifactKind.EPOCH),
+                AnalyzerRequirement("parameter_snapshot", ArtifactKind.EPOCH),
+                AnalyzerRequirement("effective_dimensionality", ArtifactKind.SUMMARY),
+            ],
+        )
+    )
+
+    # --- Site gradient convergence (REQ_077) ---
+    # Both views load from gradient_site cross_epoch.npz.
+    # Epoch is unused (full training arc); kept in signature for catalog compatibility.
+
+    def _load_gradient_site(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_cross_epoch("gradient_site")
+
+    def _render_site_gradient_convergence(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_site_gradient_convergence(data, epoch, **kwargs)
+
+    def _render_site_gradient_heatmap(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_site_gradient_heatmap(data, epoch, **kwargs)
+
+    _gradient_site_req = [AnalyzerRequirement("gradient_site", ArtifactKind.CROSS_EPOCH)]
+
+    for name, renderer in [
+        ("analysis.gradient.site_convergence", _render_site_gradient_convergence),
+        ("analysis.gradient.site_heatmap", _render_site_gradient_heatmap),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_gradient_site,
+                renderer=renderer,
+                epoch_source_analyzer=None,
+                required_analyzers=_gradient_site_req,
             )
         )
 
@@ -450,7 +840,7 @@ def _register_all() -> None:
 
     _catalog.register(
         ViewDefinition(
-            name="loss_curve",
+            name="training.metadata.loss_curves",
             load_data=_load_loss_curve,
             renderer=_render_loss_curve,
             epoch_source_analyzer=None,

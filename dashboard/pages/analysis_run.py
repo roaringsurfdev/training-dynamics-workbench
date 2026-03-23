@@ -16,11 +16,11 @@ from dashboard.components.variant_selector import get_family_choices, get_varian
 from dashboard.state import analysis_progress, get_registry, refresh_registry
 
 
-def create_analysis_run_page_nav() -> html.Div:
+def create_analysis_run_page_nav(app: Dash) -> html.Div:
     return html.Div()
 
 
-def create_analysis_run_page_layout() -> html.Div:
+def create_analysis_run_page_layout(app: Dash) -> html.Div:
     """Create the Analysis Run page layout."""
     registry = get_registry()
     family_choices = get_family_choices(registry)
@@ -114,13 +114,18 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
     """Execute analysis pipeline in a background thread."""
     from miscope.analysis import AnalysisPipeline
     from miscope.analysis.analyzers import (
+        AttentionFourierAnalyzer,
         AttentionFreqAnalyzer,
         AttentionPatternsAnalyzer,
+        CentroidDMD,
         DominantFrequenciesAnalyzer,
         EffectiveDimensionalityAnalyzer,
+        FourierNucleationAnalyzer,
+        GlobalCentroidPCA,
         LandscapeFlatnessAnalyzer,
         NeuronActivationsAnalyzer,
         NeuronDynamicsAnalyzer,
+        NeuronFourierAnalyzer,
         NeuronFreqClustersAnalyzer,
         ParameterSnapshotAnalyzer,
         ParameterTrajectoryPCA,
@@ -154,8 +159,13 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.register(LandscapeFlatnessAnalyzer())
         pipeline.register(RepresentationalGeometryAnalyzer())
+        pipeline.register(AttentionFourierAnalyzer())
+        pipeline.register(FourierNucleationAnalyzer())
+        pipeline.register_secondary(NeuronFourierAnalyzer())
         pipeline.register_cross_epoch(NeuronDynamicsAnalyzer())
         pipeline.register_cross_epoch(ParameterTrajectoryPCA())
+        pipeline.register_cross_epoch(GlobalCentroidPCA())
+        pipeline.register_cross_epoch(CentroidDMD())
         pipeline.run(progress_callback=progress_callback)
 
         refresh_registry()

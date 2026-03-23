@@ -460,4 +460,4 @@ class TestRenderFisherHeatmap:
 
     def test_title_contains_min_pair(self, epoch_data):
         fig = render_fisher_heatmap(epoch_data, epoch=100, site="resid_post")
-        assert "Min pair" in fig.layout.title.text
+        assert "Min pair" in fig.layout.title.text  # type: ignore[attr-defined]

@@ -259,7 +259,7 @@ def trained_variant(temp_dirs):
 
     registry = FamilyRegistry(model_families_dir=model_families_dir, results_dir=results_dir)
     family = registry.get_family("modulo_addition_1layer")
-    params = {"prime": 17, "seed": 42}
+    params = {"prime": 17, "seed": 42, "data_seed": 598}
     variant = registry.create_variant(family, params)
     variant.train(num_epochs=50, checkpoint_epochs=[0, 25, 49], device="cpu")
     return variant
@@ -396,15 +396,15 @@ class TestRenderersWithPrecomputedData:
         pca_result, _, epochs, _ = precomputed_data
         fig = render_trajectory_pc1_pc3(pca_result, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
-        assert "PC1" in fig.layout.xaxis.title.text
-        assert "PC3" in fig.layout.yaxis.title.text
+        assert "PC1" in fig.layout.xaxis.title.text  # type: ignore[attr-defined]
+        assert "PC3" in fig.layout.yaxis.title.text  # type: ignore[attr-defined]
 
     def test_render_trajectory_pc2_pc3(self, precomputed_data):
         pca_result, _, epochs, _ = precomputed_data
         fig = render_trajectory_pc2_pc3(pca_result, epochs, current_epoch=50)
         assert isinstance(fig, go.Figure)
-        assert "PC2" in fig.layout.xaxis.title.text
-        assert "PC3" in fig.layout.yaxis.title.text
+        assert "PC2" in fig.layout.xaxis.title.text  # type: ignore[attr-defined]
+        assert "PC3" in fig.layout.yaxis.title.text  # type: ignore[attr-defined]
 
     def test_render_explained_variance(self, precomputed_data):
         pca_result, _, _, _ = precomputed_data

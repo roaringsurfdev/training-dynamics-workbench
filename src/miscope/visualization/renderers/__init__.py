@@ -6,6 +6,9 @@ from miscope.visualization.renderers.dominant_frequencies import (
     render_dominant_frequencies,
     render_dominant_frequencies_over_time,
 )
+from miscope.visualization.renderers.multi_stream_specialization import (
+    render_multi_stream_specialization,
+)
 from miscope.visualization.renderers.neuron_activations import (
     get_most_active_neurons,
     render_neuron_across_epochs,
@@ -54,4 +57,6 @@ __all__ = [
     "render_centroid_distances",
     # REQ_045: Fisher minimum pair
     "render_fisher_heatmap",
+    # REQ_066: Multi-stream specialization
+    "render_multi_stream_specialization",
 ]

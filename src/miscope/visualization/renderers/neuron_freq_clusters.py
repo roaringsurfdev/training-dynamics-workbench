@@ -5,6 +5,9 @@ what fraction of each neuron's activation is explained by each frequency.
 
 REQ_042 adds cross-epoch neuron dynamics renderers: frequency trajectory
 heatmap, switch count distribution, and commitment timeline.
+
+render_neuron_freq_distribution: stacked bar chart showing per-neuron
+frequency distribution, sorted by dominant frequency by default.
 """
 
 import colorsys
@@ -98,6 +101,117 @@ def render_freq_clusters(
         template="plotly_white",
         # Minimal margins to maximize data visibility
         margin=dict(l=60, r=80, t=50, b=50),
+    )
+
+    return fig
+
+
+def render_neuron_freq_distribution(
+    epoch_data: dict[str, np.ndarray],
+    epoch: int,
+    threshold: float = 0.10,
+    sort_by: str = "dominant",
+    height: int = 500,
+    width: int = 1100,
+) -> go.Figure:
+    """Stacked bar chart of per-neuron frequency distribution.
+
+    Each bar represents one neuron; segments show each frequency's fraction
+    of that neuron's Fourier norm. Segments below `threshold` are collapsed
+    into a single grey band. Neurons are sorted by dominant frequency by
+    default, making block structure and commitment diffuseness immediately
+    visible.
+
+    Args:
+        epoch_data: Dict containing 'norm_matrix' array of shape (n_freq, d_mlp).
+        epoch: Epoch number (used for title).
+        threshold: Segments below this fraction are collapsed into grey.
+        sort_by: Neuron ordering — "dominant" (group by dominant freq, then
+            by its frac strength), "entropy" (most concentrated first), or
+            "index" (original neuron order).
+        height: Figure height in pixels.
+        width: Figure width in pixels.
+
+    Returns:
+        Plotly Figure with stacked bars.
+    """
+    data = epoch_data["norm_matrix"]  # (n_freq, d_mlp)
+    n_freq, d_mlp = data.shape
+
+    if sort_by == "dominant":
+        dominant_freq = np.argmax(data, axis=0)
+        dominant_frac = data[dominant_freq, np.arange(d_mlp)]
+        order = np.lexsort((-dominant_frac, dominant_freq))
+    elif sort_by == "entropy":
+        p = np.clip(data, 1e-9, None)
+        entropy = -np.sum(p * np.log(p), axis=0)
+        order = np.argsort(entropy)
+    else:
+        order = np.arange(d_mlp)
+
+    data = data[:, order]
+    x_labels = [str(order[i]) for i in range(d_mlp)]
+    tick_step = max(1, d_mlp // 20)
+
+    fig = go.Figure()
+
+    below_thresh = np.where(data < threshold, data, 0.0).sum(axis=0)
+    fig.add_trace(
+        go.Bar(
+            x=x_labels,
+            y=below_thresh,
+            name=f"< {int(threshold * 100)}%",
+            marker_color="rgba(180,180,180,0.6)",
+            hovertemplate="Neuron %{x}<br>Below threshold: %{y:.3f}<extra></extra>",
+        )
+    )
+
+    for freq_idx in range(n_freq):
+        row = data[freq_idx]
+        visible = np.where(row >= threshold, row, 0.0)
+        if visible.sum() == 0:
+            continue
+        hue = freq_idx / max(n_freq, 1)
+        r, g, b = colorsys.hls_to_rgb(hue, 0.55, 0.5)
+        color = f"rgba({int(r * 255)},{int(g * 255)},{int(b * 255)},1.0)"
+        fig.add_trace(
+            go.Bar(
+                x=x_labels,
+                y=visible,
+                name=f"Freq {freq_idx + 1}",
+                marker_color=color,
+                hovertemplate=f"Neuron %{{x}}<br>Freq {freq_idx + 1}: %{{y:.3f}}<extra></extra>",
+            )
+        )
+
+    sort_label = {
+        "dominant": "sorted by dominant freq",
+        "entropy": "sorted by concentration",
+        "index": "original order",
+    }.get(sort_by, sort_by)
+
+    fig.update_layout(
+        barmode="stack",
+        title=f"Neuron Frequency Distribution — Epoch {epoch}  ({sort_label})",
+        xaxis=dict(
+            title="Neuron",
+            tickmode="array",
+            tickvals=x_labels[::tick_step],
+            ticktext=x_labels[::tick_step],
+        ),
+        yaxis_title="Frac Explained",
+        template="plotly_white",
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.01,
+            font=dict(size=10),
+        ),
+        height=height,
+        width=width,
+        margin=dict(l=60, r=120, t=50, b=60),
     )
 
     return fig
@@ -436,6 +550,47 @@ def render_specialization_by_frequency(
 
 
 # ---------------------------------------------------------------------------
+# Threshold-parameterized summary computation
+# ---------------------------------------------------------------------------
+
+
+def compute_summary_from_dynamics(
+    cross_epoch: dict[str, np.ndarray],
+    prime: int,
+    threshold: float,
+) -> dict[str, np.ndarray]:
+    """Compute specialization summary from neuron_dynamics at any threshold.
+
+    Produces the same dict shape expected by render_specialization_trajectory
+    and render_specialization_by_frequency, recomputed at the given threshold
+    from raw dominant_freq and max_frac arrays.
+    """
+    epochs = cross_epoch["epochs"]
+    dominant_freq = cross_epoch["dominant_freq"]  # (n_epochs, d_mlp)
+    max_frac = cross_epoch["max_frac"]  # (n_epochs, d_mlp)
+    n_freq = prime // 2
+    n_low = n_freq // 3
+    n_mid = 2 * n_freq // 3
+
+    committed = max_frac >= threshold
+    per_freq = np.stack(
+        [(committed & (dominant_freq == k)).sum(axis=1) for k in range(n_freq)],
+        axis=1,
+    )  # (n_epochs, n_freq)
+
+    return {
+        "epochs": epochs,
+        "specialized_count_total": committed.sum(axis=1).astype(float),
+        "specialized_count_low": (committed & (dominant_freq < n_low)).sum(axis=1).astype(float),
+        "specialized_count_mid": (committed & (dominant_freq >= n_low) & (dominant_freq < n_mid))
+        .sum(axis=1)
+        .astype(float),
+        "specialized_count_high": (committed & (dominant_freq >= n_mid)).sum(axis=1).astype(float),
+        "specialized_count_per_freq": per_freq.astype(float),
+    }
+
+
+# ---------------------------------------------------------------------------
 # REQ_042: Cross-epoch neuron dynamics renderers
 # ---------------------------------------------------------------------------
 
@@ -443,10 +598,11 @@ def render_specialization_by_frequency(
 def _build_freq_colorscale(n_freq: int) -> list[list]:
     """Build muted HSL hue-rotation colorscale for frequency discrimination."""
     colorscale = []
+    denom = max(n_freq - 1, 1)
     for i in range(n_freq):
-        hue = i / n_freq
+        hue = i / max(n_freq, 1)
         r, g, b = colorsys.hls_to_rgb(hue, 0.55, 0.5)
-        colorscale.append([i / (n_freq - 1), f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"])
+        colorscale.append([i / denom, f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"])
     return colorscale
 
 
@@ -454,6 +610,7 @@ def render_neuron_freq_trajectory(
     cross_epoch_data: dict[str, np.ndarray],
     prime: int,
     sorted_by_final: bool = False,
+    threshold: float | None = None,
     title: str | None = None,
     height: int = 600,
     width: int = 1100,
@@ -468,6 +625,8 @@ def render_neuron_freq_trajectory(
             containing 'epochs', 'dominant_freq', 'max_frac', 'threshold'.
         prime: The modulus (for title and threshold fallback).
         sorted_by_final: If True, reorder neurons by final dominant frequency.
+        threshold: Commitment threshold (fraction of Fourier norm). If None,
+            uses the threshold stored in the artifact, falling back to 3/n_freq.
         title: Custom title.
         height: Figure height in pixels.
         width: Figure width in pixels.
@@ -479,12 +638,13 @@ def render_neuron_freq_trajectory(
     dominant_freq = cross_epoch_data["dominant_freq"]  # (n_epochs, d_mlp)
     max_frac = cross_epoch_data["max_frac"]  # (n_epochs, d_mlp)
 
-    # Threshold from precomputed data or derive from prime
-    if "threshold" in cross_epoch_data and cross_epoch_data["threshold"].size > 0:
-        threshold = float(cross_epoch_data["threshold"][0])
-    else:
-        n_freq = prime // 2
-        threshold = 3.0 / n_freq
+    # Threshold: caller override > stored value > derived from prime
+    if threshold is None:
+        if "threshold" in cross_epoch_data and cross_epoch_data["threshold"].size > 0:
+            threshold = float(cross_epoch_data["threshold"][0])
+        else:
+            n_freq = prime // 2
+            threshold = 3.0 / n_freq
 
     n_freq = int(np.nanmax(dominant_freq)) + 1
 
@@ -641,6 +801,100 @@ def render_commitment_timeline(
         height=height,
         width=width,
         margin=dict(l=60, r=20, t=50, b=50),
+    )
+
+    return fig
+
+
+def render_per_band_specialization(
+    cross_epoch_data: dict[str, np.ndarray],
+    prime: int,
+    threshold: float | None = None,
+    title: str | None = None,
+    height: int = 400,
+    width: int = 900,
+) -> go.Figure:
+    """Render per-frequency-band specialized neuron counts over training.
+
+    Shows how many neurons are committed to each frequency at each epoch,
+    at an adjustable threshold. Each active frequency band is a separate line.
+    This reveals which bands emerge first and how the frequency competition
+    resolves — e.g., a band that briefly appears then disappears indicates
+    a frequency that lost the amplitude competition.
+
+    Args:
+        cross_epoch_data: Dict from NeuronDynamicsAnalyzer cross_epoch.npz
+            containing 'epochs', 'dominant_freq', 'max_frac', 'threshold'.
+        prime: The modulus (for title and colorscale construction).
+        threshold: Commitment threshold (fraction of Fourier norm). If None,
+            uses the threshold stored in the artifact, falling back to 3/n_freq.
+        title: Custom title.
+        height: Figure height in pixels.
+        width: Figure width in pixels.
+
+    Returns:
+        Plotly Figure with one line per active frequency band.
+    """
+    epochs = cross_epoch_data["epochs"]
+    dominant_freq = cross_epoch_data["dominant_freq"]  # (n_epochs, d_mlp)
+    max_frac = cross_epoch_data["max_frac"]  # (n_epochs, d_mlp)
+
+    if threshold is None:
+        if "threshold" in cross_epoch_data and cross_epoch_data["threshold"].size > 0:
+            threshold = float(cross_epoch_data["threshold"][0])
+        else:
+            n_freq = prime // 2
+            threshold = 3.0 / n_freq
+
+    n_freq = prime // 2
+    committed = max_frac >= threshold  # (n_epochs, d_mlp)
+
+    # Compute per-band counts: for each frequency k, count neurons with
+    # dominant_freq==k and max_frac>=threshold at each epoch.
+    band_counts = np.zeros((len(epochs), n_freq), dtype=np.int32)
+    for k in range(n_freq):
+        band_counts[:, k] = np.sum(committed & (dominant_freq == k), axis=1)
+
+    # Only show bands that have at least one committed neuron at some epoch.
+    active_bands = [k for k in range(n_freq) if band_counts[:, k].max() > 0]
+
+    fig = go.Figure()
+    for k in active_bands:
+        hue = k / n_freq
+        r, g, b = colorsys.hls_to_rgb(hue, 0.55, 0.5)
+        color = f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"
+        fig.add_trace(
+            go.Scatter(
+                x=epochs,
+                y=band_counts[:, k],
+                mode="lines",
+                name=f"Freq {k + 1}",
+                line=dict(color=color, width=1.5),
+                hovertemplate=f"Freq {k + 1}<br>Epoch %{{x}}<br>Committed: %{{y}}<extra></extra>",
+            )
+        )
+
+    threshold_pct = int(round(threshold * 100))
+    if title is None:
+        title = f"Per-Band Neuron Specialization — p={prime} (threshold={threshold_pct}%)"
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Epoch",
+        yaxis_title="Committed Neuron Count",
+        hovermode="x unified",
+        template="plotly_white",
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.01,
+            font=dict(size=10),
+        ),
+        height=height,
+        width=width,
+        margin=dict(l=60, r=120, t=50, b=50),
     )
 
     return fig

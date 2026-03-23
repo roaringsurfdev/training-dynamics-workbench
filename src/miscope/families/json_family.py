@@ -57,7 +57,6 @@ class JsonModelFamily:
             "architecture",
             "domain_parameters",
             "analyzers",
-            "visualizations",
             "variant_pattern",
         ]
         missing = [f for f in required_fields if f not in self._config]
@@ -106,11 +105,6 @@ class JsonModelFamily:
         return self._config.get("cross_epoch_analyzers", [])
 
     @property
-    def visualizations(self) -> list[str]:
-        """Visualization identifiers valid for this family."""
-        return self._config["visualizations"]
-
-    @property
     def analysis_dataset(self) -> AnalysisDatasetSpec:
         """Specification for the analysis dataset."""
         return self._config.get("analysis_dataset", {})
@@ -119,6 +113,15 @@ class JsonModelFamily:
     def variant_pattern(self) -> str:
         """Pattern for variant directory names."""
         return self._config["variant_pattern"]
+
+    @property
+    def ui_trainable(self) -> bool:
+        """Whether this family can be trained through the generic training UI.
+
+        Families that require programmatic variant construction (e.g., intervention
+        families) should set this to false in their family.json.
+        """
+        return self._config.get("ui_trainable", True)
 
     def get_variant_directory_name(self, params: dict[str, Any]) -> str:
         """Generate variant directory name from parameters.

@@ -4,25 +4,28 @@ from dash import Dash, Input, Output, State, dcc, html
 from dashboard.components.analysis_page import _SITE_OPTIONS, AnalysisPageGraphManager
 
 # Page for showing dimensionality metrics in one place
-views = ["centroid_pca", "centroid_dmd_reconstruction", "centroid_dmd_eigenvalues"]
+views = ["geometry.centroid_pca", "geometry.dmd_reconstruction", "geometry.dmd_eigenvalues"]
 _VIEW_LIST = {
-    "loss-plot": {"view_name": "loss_curve", "view_type": "epoch_selector"},
+    "training-loss-curves": {
+        "view_name": "training.metadata.loss_curves",
+        "view_type": "epoch_selector",
+    },
     "centroid-global-pca": {
-        "view_name": "centroid_global_pca",
+        "view_name": "geometry.global_centroid_pca",
         "view_type": "default_graph",
         "view_filter_set": "site",
     },
     "centroid-dmd-residual": {
-        "view_name": "centroid_dmd_residual",
+        "view_name": "geometry.dmd_residual",
         "view_type": "epoch_selector",
     },
     "centroid-dmd-reconstruction": {
-        "view_name": "centroid_dmd_reconstruction",
+        "view_name": "geometry.dmd_reconstruction",
         "view_type": "default_graph",
         "view_filter_set": "site",
     },
     "centroid-dmd-eigenvalues": {
-        "view_name": "centroid_dmd_eigenvalues",
+        "view_name": "geometry.dmd_eigenvalues",
         "view_type": "default_graph",
         "view_filter_set": "site",
     },
@@ -31,7 +34,7 @@ _VIEW_LIST = {
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "dmd")
 
 
-def create_centroid_dmd_nav() -> html.Div:
+def create_centroid_dmd_nav(app: Dash) -> html.Div:
     return html.Div(
         children=[
             dbc.Label("Activation Site", className="fw-bold"),
@@ -45,15 +48,15 @@ def create_centroid_dmd_nav() -> html.Div:
     )
 
 
-def create_centroid_dmd_layout() -> html.Div:
-    print("create_centroid_dmd_layout")
+def create_centroid_dmd_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_centroid_dmd_layout")
     return html.Div(
         children=[
             html.H4("Centroid DMD", className="mb-3"),
             html.Div(
                 [
                     # --- Loss ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("loss-plot", "350px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("training-loss-curves", "350px"))),
                     # --- Centroid DMD  ---
                     dbc.Row(dbc.Col(_graph_manager.create_graph("centroid-global-pca", "350px"))),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("centroid-dmd-residual", "450px"))),
@@ -71,7 +74,7 @@ def create_centroid_dmd_layout() -> html.Div:
 
 def register_centroid_dmd_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
-    print("register_centroid_dmd_callbacks")
+    app.server.logger.debug("register_centroid_dmd_callbacks")
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -79,7 +82,7 @@ def register_centroid_dmd_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_vz_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_vz_data_change")
+        app.server.logger.debug("on_vz_data_change")
         return _graph_manager.update_graphs(variant_data, None)
 
     @app.callback(
@@ -91,7 +94,7 @@ def register_centroid_dmd_callbacks(app: Dash) -> None:
     def on_dmd_site_value_change(
         _modified_timestamp: str | None, site_value: str | None, variant_data: dict | None
     ):
-        print("on_dmd_site_value_change")
+        app.server.logger.debug("on_dmd_site_value_change")
         view_kwargs = {"site": site_value}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="site", view_kwargs=view_kwargs
@@ -107,7 +110,7 @@ def register_centroid_dmd_callbacks(app: Dash) -> None:
     def on_vz_trajectory_group_change(
         modified_timestamp: str | None, trajectory_group: str, variant_data: dict | None
     ):
-        print("on_vz_trajectory_group_change")
+        app.server.logger.debug("on_vz_trajectory_group_change")
         view_kwargs = {"group_label": trajectory_group, "group": trajectory_group}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="trajectory_group", view_kwargs=view_kwargs

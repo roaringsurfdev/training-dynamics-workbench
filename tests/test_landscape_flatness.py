@@ -239,17 +239,17 @@ class TestRenderFlatnessTrajectory:
     def test_title_reflects_metric(self, summary_data):
         """Title includes the metric display name."""
         fig = render_flatness_trajectory(summary_data, current_epoch=200, metric="p90_delta_loss")
-        assert "P90" in fig.layout.title.text
+        assert "P90" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_has_secondary_axis(self, summary_data):
         """Figure has secondary y-axis for baseline loss."""
         fig = render_flatness_trajectory(summary_data, current_epoch=200)
-        assert fig.layout.yaxis2 is not None
+        assert fig.layout.yaxis2  # type: ignore[attr-defined] is not None
 
     def test_custom_title(self, summary_data):
         """Custom title is applied."""
         fig = render_flatness_trajectory(summary_data, current_epoch=200, title="Custom Title")
-        assert fig.layout.title.text == "Custom Title"
+        assert fig.layout.title.text  # type: ignore[attr-defined] == "Custom Title"
 
     def test_all_metrics_render(self, summary_data):
         """All FLATNESS_METRICS render without error."""
@@ -285,17 +285,17 @@ class TestRenderPerturbationDistribution:
     def test_title_includes_epoch(self, epoch_data):
         """Title includes the epoch number."""
         fig = render_perturbation_distribution(epoch_data, epoch=250)
-        assert "250" in fig.layout.title.text
+        assert "250" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_title_includes_flatness_ratio(self, epoch_data):
         """Title includes flatness ratio."""
         fig = render_perturbation_distribution(epoch_data, epoch=100)
-        assert "Flatness Ratio" in fig.layout.title.text
+        assert "Flatness Ratio" in fig.layout.title.text  # type: ignore[attr-defined]
 
     def test_custom_title(self, epoch_data):
         """Custom title is applied."""
         fig = render_perturbation_distribution(epoch_data, epoch=100, title="Custom")
-        assert fig.layout.title.text == "Custom"
+        assert fig.layout.title.text  # type: ignore[attr-defined] == "Custom"
 
 
 # ── Integration tests ─────────────────────────────────────────────────
@@ -358,7 +358,7 @@ def trained_variant(registry_with_family):
     """Create a trained variant with minimal training."""
     registry, results_dir = registry_with_family
     family = registry.get_family("modulo_addition_1layer")
-    params = {"prime": 17, "seed": 42}
+    params = {"prime": 17, "seed": 42, "data_seed": 598}
     variant = registry.create_variant(family, params)
 
     variant.train(

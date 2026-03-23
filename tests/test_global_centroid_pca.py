@@ -246,4 +246,4 @@ class TestRenderCentroidGlobalPca:
 
     def test_title_contains_global_pca(self, cross_epoch_data):
         fig = render_centroid_global_pca(cross_epoch_data, epoch=0, site="resid_post")
-        assert "Global PCA" in fig.layout.title.text
+        assert "Global PCA" in fig.layout.title.text  # type: ignore[attr-defined]

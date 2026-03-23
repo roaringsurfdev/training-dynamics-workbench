@@ -18,8 +18,10 @@ if TYPE_CHECKING:
     from transformer_lens import ActivationCache, HookedTransformer
 
     from miscope.analysis.artifact_loader import ArtifactLoader
+    from miscope.families.intervention_variant import InterventionVariant
     from miscope.families.protocols import ModelFamily
     from miscope.views.catalog import BoundView, EpochContext
+    from miscope.views.dataview_catalog import BoundDataView
 
 
 @dataclass
@@ -194,6 +196,22 @@ class Variant:
 
         return ArtifactLoader(str(self.artifacts_dir))
 
+    def get_artifact_loader(self) -> ArtifactLoader:
+        """Return an ArtifactLoader for this variant's analysis artifacts.
+
+        Use when you need to interact with the loader as an object — e.g.,
+        to query available epochs for a specific analyzer before loading:
+
+            loader = variant.get_artifact_loader()
+            epochs = loader.get_epochs("neuron_freq_norm")
+
+        Equivalent to ``variant.artifacts`` but named as a verb to signal
+        intent: you're acquiring a reusable loader, not loading data.
+        """
+        from miscope.analysis.artifact_loader import ArtifactLoader
+
+        return ArtifactLoader(str(self.artifacts_dir))
+
     @property
     def metadata(self) -> dict[str, Any]:
         """Training metadata (losses, checkpoint epochs, indices).
@@ -328,7 +346,7 @@ class Variant:
         For cross-epoch and metadata-based views, epoch is None (no cursor).
 
         Args:
-            name: View identifier (e.g., "loss_curve", "dominant_frequencies").
+            name: View identifier (e.g., "training.metadata.loss_curves", "parameters.embeddings.fourier_coefficients").
 
         Returns:
             BoundView ready to call .show(), .figure(), or .export().
@@ -338,36 +356,138 @@ class Variant:
         """
         return self.at(epoch=None).view(name)
 
+    def dataview(self, name: str) -> BoundDataView:
+        """Convenience shortcut for variant.at(epoch=None).dataview(name).
+
+        For per-epoch dataviews, resolves to the first available artifact epoch.
+        For cross-epoch and metadata-based dataviews, epoch is None.
+
+        Args:
+            name: DataView identifier (e.g., "training.metadata.loss_curves").
+
+        Returns:
+            BoundDataView ready to call .data() or inspect .schema.
+
+        Raises:
+            KeyError: If dataview name is not found in the catalog.
+        """
+        return self.at(epoch=None).dataview(name)
+
     # --- End notebook convenience properties ---
+
+    # --- Intervention sub-variants ---
+
+    @property
+    def interventions(self) -> list[InterventionVariant]:
+        """Discover intervention sub-variants nested under this variant.
+
+        Scans ``{variant_dir}/interventions/`` for subdirectories that
+        contain a config.json with an ``intervention`` block.
+
+        Returns:
+            Sorted list of InterventionVariant instances (by directory name).
+        """
+        from miscope.families.intervention_variant import InterventionVariant
+
+        interventions_dir = self.variant_dir / "interventions"
+        if not interventions_dir.exists():
+            return []
+
+        result = []
+        for d in sorted(interventions_dir.iterdir()):
+            if not d.is_dir():
+                continue
+            config_path = d / "config.json"
+            if not config_path.exists():
+                continue
+            with open(config_path) as f:
+                config = json.load(f)
+            intervention_config = config.get("intervention")
+            if intervention_config is None:
+                continue
+            result.append(InterventionVariant(self, intervention_config))
+        return result
+
+    def create_intervention_variant(
+        self,
+        intervention_config: dict[str, Any],
+    ) -> InterventionVariant:
+        """Create an InterventionVariant nested under this variant.
+
+        The directory name is taken from the config's optional ``label``
+        field; if absent, the 8-char config hash is used.  Raises
+        ``ValueError`` if a directory with that name already exists.
+
+        Args:
+            intervention_config: Intervention parameter dict.
+
+        Returns:
+            InterventionVariant ready for training.
+
+        Raises:
+            ValueError: If an intervention with the same name already exists.
+        """
+        from miscope.families.intervention_variant import InterventionVariant
+
+        iv = InterventionVariant(self, intervention_config)
+        target = iv.variant_dir
+        if target.exists():
+            raise ValueError(
+                f"Intervention '{iv.name}' already exists at {target}. "
+                "Use a different label or choose a different config."
+            )
+        return iv
+
+    # --- End intervention sub-variants ---
 
     def ensure_directories(self) -> None:
         """Create variant directories if they don't exist."""
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
 
+    def generate_training_dataset(
+        self,
+        training_fraction: float = 0.3,
+        device: str | torch.device | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        return self._family.generate_training_dataset(
+            self._params,
+            training_fraction=training_fraction,
+            data_seed=self._params["data_seed"],
+            device=device,
+        )
+
     def train(
         self,
         num_epochs: int | None = None,
         checkpoint_epochs: list[int] | None = None,
         training_fraction: float = 0.3,
-        data_seed: int = 598,
         device: str | torch.device | None = None,
         progress_callback: Callable[[float, str], None] | None = None,
+        training_hook: Callable[[int], list[tuple[str, Callable[..., Any]]]] | None = None,
     ) -> TrainingResult:
         """Train this variant's model.
 
         Creates the model via family.create_model(), generates training data,
         runs the training loop, and saves checkpoints and metadata.
 
+        data_seed is sourced from self._params["data_seed"] and must be set
+        when creating the variant via FamilyRegistry.create_variant().
+
         Args:
             num_epochs: Total training epochs (default: from family config)
             checkpoint_epochs: Epochs at which to save checkpoints
                               (default: from family config)
             training_fraction: Fraction of data for training (default: 0.3)
-            data_seed: Random seed for train/test split (default: 598)
             device: Device for training (default: auto-detect CUDA)
             progress_callback: Optional callback for progress updates
                               (fraction: float, description: str)
+            training_hook: Optional hook factory. Called each epoch with the
+                          current epoch number; returns a list of transformer_lens
+                          forward hook tuples (name, fn) to apply via
+                          model.run_with_hooks(). Return [] outside the
+                          intervention window for a no-op epoch. When None,
+                          the standard model(train_data) forward pass is used.
 
         Returns:
             TrainingResult with losses and checkpoint info
@@ -400,7 +520,7 @@ class Variant:
             self._family.generate_training_dataset(
                 self._params,
                 training_fraction=training_fraction,
-                data_seed=data_seed,
+                data_seed=self._params["data_seed"],
                 device=device,
             )
         )
@@ -417,8 +537,12 @@ class Variant:
 
         # Training loop
         for epoch in tqdm.tqdm(range(num_epochs), desc="Training"):
-            # Forward pass
-            train_logits = model(train_data)
+            # Forward pass — apply intervention hooks if provided for this epoch
+            fwd_hooks = training_hook(epoch) if training_hook is not None else []
+            if fwd_hooks:
+                train_logits = model.run_with_hooks(train_data, fwd_hooks=list(fwd_hooks))
+            else:
+                train_logits = model(train_data)
             train_loss = self._loss_function(train_logits, train_labels)
 
             # Backward pass
@@ -453,7 +577,7 @@ class Variant:
             saved_checkpoint_epochs.append(final_epoch)
 
         # Save config
-        self._save_config(model.cfg, data_seed, training_fraction)
+        self._save_config(model.cfg, self._params["data_seed"], training_fraction)
 
         # Save metadata
         self._save_metadata(

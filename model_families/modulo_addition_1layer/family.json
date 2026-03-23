@@ -25,6 +25,11 @@
       "type": "int",
       "description": "Random seed for model initialization",
       "default": 999
+    },
+    "data_seed": {
+      "type": "int",
+      "description": "Random seed for train/test split of the (a, b) input grid",
+      "default": 598
     }
   },
 
@@ -37,11 +42,14 @@
     "parameter_snapshot",
     "effective_dimensionality",
     "landscape_flatness",
-    "repr_geometry"
+    "repr_geometry",
+    "attention_fourier",
+    "fourier_nucleation"
   ],
 
   "secondary_analyzers": [
-    "neuron_fourier"
+    "neuron_fourier",
+    "fourier_frequency_quality"
   ],
 
   "cross_epoch_analyzers": [
@@ -49,26 +57,6 @@
     "neuron_dynamics",
     "global_centroid_pca",
     "centroid_dmd"
-  ],
-
-  "visualizations": [
-    "attention_freq_heatmap",
-    "attention_specialization_trajectory",
-    "attention_heads_grid",
-    "dominant_frequencies_bar",
-    "neuron_activation_heatmap",
-    "neuron_activation_grid",
-    "frequency_clusters_heatmap",
-    "specialization_trajectory",
-    "specialization_by_frequency",
-    "coarseness_trajectory",
-    "coarseness_distribution",
-    "parameter_trajectory",
-    "component_velocity",
-    "dimensionality_trajectory",
-    "singular_value_spectrum",
-    "flatness_trajectory",
-    "perturbation_distribution"
   ],
 
   "analysis_dataset": {
@@ -97,5 +85,5 @@
     }
   },
 
-  "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}"
+  "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}_dseed{data_seed}"
 }

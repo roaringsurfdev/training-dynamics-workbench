@@ -47,8 +47,8 @@ _COLLAPSED_SIDEBAR_STYLE = {
 }
 
 
-def create_sidebar() -> html.Div:
-    print("create_sidebar")
+def create_sidebar(app: Dash) -> html.Div:
+    app.server.logger.debug("create_sidebar")
     """Create the collapsible sidebar with all controls."""
     return html.Div(
         id="sidebar",
@@ -81,8 +81,8 @@ def create_sidebar() -> html.Div:
     )
 
 
-def create_collapsed_sidebar() -> html.Div:
-    print("create_collapsed_sidebar")
+def create_collapsed_sidebar(app: Dash) -> html.Div:
+    app.server.logger.debug("create_collapsed_sidebar")
     """Create the collapsed sidebar status bar."""
     return html.Div(
         id="sidebar-collapsed",
@@ -106,7 +106,7 @@ def create_collapsed_sidebar() -> html.Div:
 
 
 def register_left_nav_callbacks(app: Dash) -> None:
-    print("register_layout_callbacks")
+    app.server.logger.debug("register_layout_callbacks")
     """Register URL routing callback."""
 
     # --- Sidebar toggle ---

@@ -43,7 +43,7 @@ class TestLossCurvesRenderer:
 
         assert isinstance(fig, go.Figure)
         # Check for annotation
-        assert len(fig.layout.annotations) > 0
+        assert len(fig.layout.annotations) > 0  # type: ignore[attr-defined]
 
     def test_log_scale(self):
         """Respects log scale parameter."""
@@ -53,12 +53,12 @@ class TestLossCurvesRenderer:
         fig = render_loss_curves_with_indicator(
             train_losses, test_losses, current_epoch=1, log_scale=True
         )
-        assert fig.layout.yaxis.type == "log"
+        assert fig.layout.yaxis.type == "log"  # type: ignore[attr-defined]
 
         fig = render_loss_curves_with_indicator(
             train_losses, test_losses, current_epoch=1, log_scale=False
         )
-        assert fig.layout.yaxis.type == "linear"
+        assert fig.layout.yaxis.type == "linear"  # type: ignore[attr-defined]
 
 
 class TestParseCheckpointEpochs:

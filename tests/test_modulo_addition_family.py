@@ -45,11 +45,16 @@ def temp_project_dir() -> Path:
             "domain_parameters": {
                 "prime": {"type": "int", "description": "Modulus", "default": 113},
                 "seed": {"type": "int", "description": "Random seed", "default": 999},
+                "data_seed": {
+                    "type": "int",
+                    "description": "Random seed for train/test split",
+                    "default": 598,
+                },
             },
             "analyzers": ["dominant_frequencies", "neuron_activations", "neuron_freq_norm"],
             "visualizations": ["dominant_frequencies_bar"],
             "analysis_dataset": {"type": "modulo_addition_grid"},
-            "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}",
+            "variant_pattern": "modulo_addition_1layer_p{prime}_seed{seed}_dseed{data_seed}",
         }
         with open(family_dir / "family.json", "w") as f:
             json.dump(config, f)
@@ -202,17 +207,21 @@ class TestVariantIntegration:
 
     def test_create_variant(self, registry):
         """Test creating a variant."""
-        variant = registry.create_variant("modulo_addition_1layer", {"prime": 113, "seed": 42})
+        variant = registry.create_variant(
+            "modulo_addition_1layer", {"prime": 113, "seed": 42, "data_seed": 598}
+        )
 
-        assert variant.name == "modulo_addition_1layer_p113_seed42"
+        assert variant.name == "modulo_addition_1layer_p113_seed42_dseed598"
         assert variant.state == VariantState.UNTRAINED
 
     def test_variant_directory_structure(self, registry, temp_project_dir):
         """Test variant directory paths."""
-        variant = registry.create_variant("modulo_addition_1layer", {"prime": 113, "seed": 42})
+        variant = registry.create_variant(
+            "modulo_addition_1layer", {"prime": 113, "seed": 42, "data_seed": 598}
+        )
 
         expected_base = temp_project_dir / "results" / "modulo_addition_1layer"
-        assert variant.variant_dir == expected_base / "modulo_addition_1layer_p113_seed42"
+        assert variant.variant_dir == expected_base / "modulo_addition_1layer_p113_seed42_dseed598"
 
     def test_discover_variants(self, registry, temp_project_dir):
         """Test discovering existing variants."""
@@ -221,7 +230,7 @@ class TestVariantIntegration:
             temp_project_dir
             / "results"
             / "modulo_addition_1layer"
-            / "modulo_addition_1layer_p17_seed123"
+            / "modulo_addition_1layer_p17_seed123_dseed598"
         )
         variant_dir.mkdir(parents=True)
         (variant_dir / "checkpoints").mkdir()
@@ -230,8 +239,8 @@ class TestVariantIntegration:
         variants = registry.get_variants("modulo_addition_1layer")
 
         assert len(variants) == 1
-        assert variants[0].name == "modulo_addition_1layer_p17_seed123"
-        assert variants[0].params == {"prime": 17, "seed": 123}
+        assert variants[0].name == "modulo_addition_1layer_p17_seed123_dseed598"
+        assert variants[0].params == {"prime": 17, "seed": 123, "data_seed": 598}
         assert variants[0].state == VariantState.TRAINED
 
 
@@ -324,9 +333,9 @@ class TestEndToEnd:
         assert isinstance(family, ModuloAddition1LayerFamily)
 
         # 2. Create a variant
-        params = {"prime": 7, "seed": 42}
+        params = {"prime": 7, "seed": 42, "data_seed": 598}
         variant = registry.create_variant(family, params)
-        assert variant.name == "modulo_addition_1layer_p7_seed42"
+        assert variant.name == "modulo_addition_1layer_p7_seed42_dseed598"
 
         # 3. Create model
         model = family.create_model(params)

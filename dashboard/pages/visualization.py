@@ -8,72 +8,112 @@ from miscope.analysis.library.weights import WEIGHT_MATRIX_NAMES
 from miscope.visualization.renderers.landscape_flatness import FLATNESS_METRICS
 
 _VIEW_LIST = {
-    "loss-plot": {"view_name": "loss_curve", "view_type": "epoch_selector"},
-    "freq-plot": {"view_name": "dominant_frequencies", "view_type": "default_graph"},
-    "clusters-plot": {"view_name": "freq_clusters", "view_type": "neuron_selector"},
-    "spec-trajectory-plot": {
-        "view_name": "specialization_trajectory",
+    "training-loss-curves": {
+        "view_name": "training.metadata.loss_curves",
         "view_type": "epoch_selector",
     },
-    "spec-freq-plot": {"view_name": "specialization_by_frequency", "view_type": "epoch_selector"},
+    "freq-plot": {
+        "view_name": "parameters.embeddings.fourier_coefficients",
+        "view_type": "default_graph",
+    },
+    "neuron-frequency-clusters": {
+        "view_name": "activations.mlp.neuron_frequency_clusters",
+        "view_type": "neuron_selector",
+    },
+    "neuron_frequency_range": {
+        "view_name": "activations.mlp.neuron_frequency_range",
+        "view_type": "epoch_selector",
+        "view_filter_set": "specialization_threshold",
+    },
+    "spec-freq-plot": {
+        "view_name": "activations.mlp.neuron_frequency_specialization",
+        "view_type": "epoch_selector",
+        "view_filter_set": "specialization_threshold",
+    },
+    "per-band-specialization": {
+        "view_name": "activations.mlp.per_band_specialization",
+        "view_type": "epoch_selector",
+        "view_filter_set": "specialization_threshold",
+    },
     "activation-plot": {
-        "view_name": "neuron_heatmap",
+        "view_name": "activations.mlp.neuron_heatmap",
         "view_type": "default_graph",
         "view_filter_set": "neuron_id",
     },
     "attention-plot": {
-        "view_name": "attention_heads",
+        "view_name": "activations.attention.head_heatmap",
         "view_type": "default_graph",
         "view_filter_set": "attention_pair",
     },
-    "attn-freq-plot": {"view_name": "attention_freq_heatmap", "view_type": "default_graph"},
+    "attn-freq-plot": {
+        "view_name": "activations.attention.head_frequency_clusters",
+        "view_type": "default_graph",
+    },
     "attn-spec-plot": {
-        "view_name": "attention_specialization_trajectory",
+        "view_name": "activations.attention.frequency_clusters",
         "view_type": "epoch_selector",
     },
-    "trajectory-3d-plot": {
-        "view_name": "trajectory_3d",
+    "attn-qk-fourier-heatmap": {
+        "view_name": "parameters.attention.qk_fourier_heatmap",
+        "view_type": "default_graph",
+    },
+    "attn-v-fourier-heatmap": {
+        "view_name": "parameters.attention.v_fourier_heatmap",
+        "view_type": "default_graph",
+    },
+    "attn-head-alignment-trajectory": {
+        "view_name": "parameters.attention.head_alignment_trajectory",
+        "view_type": "epoch_selector",
+    },
+    "parameters-pca-3d-scatter": {
+        "view_name": "parameters.pca.scatter_3d",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "trajectory-plot": {
-        "view_name": "parameter_trajectory",
+    "parameters-pca-pc1-pc2": {
+        "view_name": "parameters.pca.pc1_pc2",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "trajectory-pc1-pc3-plot": {
-        "view_name": "trajectory_pc1_pc3",
+    "parameters-pca-pc1-pc3": {
+        "view_name": "parameters.pca.pc1_pc3",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "trajectory-pc2-pc3-plot": {
-        "view_name": "trajectory_pc2_pc3",
+    "parameters-pca-pc2-pc3": {
+        "view_name": "parameters.pca.pc2_pc3",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "velocity-plot": {"view_name": "component_velocity", "view_type": "epoch_selector"},
+    "velocity-plot": {
+        "view_name": "parameters.pca.component_velocity",
+        "view_type": "epoch_selector",
+    },
     "dim-trajectory-plot": {
-        "view_name": "dimensionality_trajectory",
+        "view_name": "parameters.effective_dimensionality",
         "view_type": "epoch_selector",
     },
     "sv-spectrum-plot": {
-        "view_name": "singular_value_spectrum",
+        "view_name": "parameters.singular_value_spectrum",
         "view_type": "default_graph",
         "view_filter_set": "matrix_name",
     },
     "flatness-trajectory-plot": {
-        "view_name": "flatness_trajectory",
+        "view_name": "loss_landscape.flatness_trajectory",
         "view_type": "epoch_selector",
         "view_filter_set": "flatness_metric",
     },
-    "perturbation-plot": {"view_name": "perturbation_distribution", "view_type": "default_graph"},
+    "perturbation-plot": {
+        "view_name": "loss_landscape.perturbation_distribution",
+        "view_type": "default_graph",
+    },
 }
 
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "viz")
 
 
-def create_visualization_page_nav() -> html.Div:
-    print("create_visualization_page_nav")
+def create_visualization_page_nav(app: Dash) -> html.Div:
+    app.server.logger.debug("create_visualization_page_nav")
     return html.Div(
         children=[
             # Neuron slider
@@ -90,6 +130,23 @@ def create_visualization_page_nav() -> html.Div:
             html.Div(
                 id="neuron-display",
                 children="Neuron 0",
+                className="text-muted small mb-3",
+            ),
+            html.Hr(),
+            # Specialization threshold slider (REQ_056 / REQ_058)
+            dbc.Label("Specialization Threshold", className="fw-bold"),
+            dcc.Slider(
+                id="specialization-threshold-slider",
+                min=0.0,
+                max=1.0,
+                step=0.05,
+                value=0.9,
+                marks={0: "0%", 0.5: "50%", 0.9: "90%", 1.0: "100%"},
+                tooltip={"placement": "bottom", "always_visible": False},
+            ),
+            html.Div(
+                id="specialization-threshold-display",
+                children="Threshold: 90%",
                 className="text-muted small mb-3",
             ),
             html.Hr(),
@@ -145,54 +202,74 @@ def create_visualization_page_nav() -> html.Div:
     )
 
 
-def create_visualization_page_layout() -> html.Div:
-    print("create_visualization_page_layout")
+def create_visualization_page_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_visualization_page_layout")
     return html.Div(
         children=[
             html.H4("Visualization", className="mb-3"),
             html.Div(
                 [
                     # --- Loss ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("loss-plot", "350px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("training-loss-curves", "350px"))),
                     # --- Frequency Analysis ---
                     dbc.Row(dbc.Col(_graph_manager.create_graph("freq-plot", "400px"))),
                     # --- Neuron Specialization (summary, click-to-navigate) ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("clusters-plot", "450px"))),
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("spec-trajectory-plot", "350px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("neuron-frequency-clusters", "450px"))
+                    ),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("neuron_frequency_range", "350px"))
+                    ),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("spec-freq-plot", "450px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("per-band-specialization", "400px"))
+                    ),
                     # --- Neuron and Attention (per-epoch) ---
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("activation-plot", "300px"), width=3
+                                _graph_manager.create_graph("activation-plot", "300px"), width=6
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("attention-plot", "400px"), width=9
+                                _graph_manager.create_graph("attn-freq-plot", "450px"), width=6
                             ),
                         ]
                     ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("attention-plot", "400px"))),
                     # --- Attention Specialization (summary, click-to-navigate) ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("attn-freq-plot", "450px"))),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("attn-spec-plot", "450px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("attn-qk-fourier-heatmap", "450px"))
+                    ),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("attn-v-fourier-heatmap", "450px"))
+                    ),
+                    dbc.Row(
+                        dbc.Col(
+                            _graph_manager.create_graph("attn-head-alignment-trajectory", "450px")
+                        )
+                    ),
                     # --- Trajectory (cross-epoch) ---
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-3d-plot", "350px"), width=6
+                                _graph_manager.create_graph("parameters-pca-3d-scatter", "350px"),
+                                width=6,
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-plot", "350px"), width=6
+                                _graph_manager.create_graph("parameters-pca-pc1-pc2", "350px"),
+                                width=6,
                             ),
                         ]
                     ),
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-pc1-pc3-plot", "350px"),
+                                _graph_manager.create_graph("parameters-pca-pc1-pc3", "350px"),
                                 width=6,
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-pc2-pc3-plot", "350px"),
+                                _graph_manager.create_graph("parameters-pca-pc2-pc3", "350px"),
                                 width=6,
                             ),
                         ]
@@ -214,7 +291,7 @@ def create_visualization_page_layout() -> html.Div:
 
 def register_visualization_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
-    print("register_visualization_page_callbacks")
+    app.server.logger.debug("register_visualization_page_callbacks")
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -222,7 +299,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_vz_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_vz_data_change")
+        app.server.logger.debug("on_vz_data_change")
         return _graph_manager.update_graphs(variant_data, None)
 
     @app.callback(
@@ -234,7 +311,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_attention_pair_change(
         modified_timestamp: str | None, attention_pair: str, variant_data: dict | None
     ):
-        print("on_vz_attention_pair_change")
+        app.server.logger.debug("on_vz_attention_pair_change")
         attention_pair_value = dict(item.split(":") for item in attention_pair.split(","))
         view_kwargs = {key: int(value) for key, value in attention_pair_value.items()}
         return _graph_manager.update_graphs(
@@ -250,7 +327,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_sv_matrix_change(
         modified_timestamp: str | None, matrix_name: str, variant_data: dict | None
     ):
-        print("on_vz_sv_matrix_change")
+        app.server.logger.debug("on_vz_sv_matrix_change")
         view_kwargs = {"matrix_name": matrix_name}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="matrix_name", view_kwargs=view_kwargs
@@ -265,7 +342,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_trajectory_group_change(
         modified_timestamp: str | None, trajectory_group: str, variant_data: dict | None
     ):
-        print("on_vz_trajectory_group_change")
+        app.server.logger.debug("on_vz_trajectory_group_change")
         view_kwargs = {"group_label": trajectory_group, "group": trajectory_group}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="trajectory_group", view_kwargs=view_kwargs
@@ -280,10 +357,37 @@ def register_visualization_page_callbacks(app: Dash) -> None:
     def on_vz_flatness_metric_change(
         modified_timestamp: str | None, metric_name: str, variant_data: dict | None
     ):
-        print("on_vz_flatness_metric_change")
+        app.server.logger.debug("on_vz_flatness_metric_change")
         view_kwargs = {"metric": metric_name}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="flatness_metric", view_kwargs=view_kwargs
+        )
+
+    @app.callback(
+        Output("specialization-threshold-display", "children"),
+        Input("specialization-threshold-slider", "value"),
+    )
+    def on_threshold_display_update(threshold: float) -> str:
+        return f"Threshold: {int(threshold * 100)}%"
+
+    @app.callback(
+        [
+            Output(pid, "figure")
+            for pid in _graph_manager.get_graph_output_list("specialization_threshold")
+        ],
+        Input("variant-selector-store", "modified_timestamp"),
+        Input("specialization-threshold-slider", "value"),
+        State("variant-selector-store", "data"),
+    )
+    def on_vz_threshold_change(
+        modified_timestamp: str | None, threshold: float, variant_data: dict | None
+    ):
+        app.server.logger.debug("on_vz_threshold_change")
+        view_kwargs = {"threshold": threshold}
+        return _graph_manager.update_graphs(
+            variant_data=variant_data,
+            view_filter_set="specialization_threshold",
+            view_kwargs=view_kwargs,
         )
 
     @app.callback(
@@ -299,7 +403,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
         click_data: list[dict | None],
         variant_data: dict | None,
     ):
-        print("on_vz_neuron_slider_change")
+        app.server.logger.debug("on_vz_neuron_slider_change")
 
         if ctx.triggered_id != "neuron-slider":
             click_data_component_id = ctx.triggered_id
@@ -308,7 +412,7 @@ def register_visualization_page_callbacks(app: Dash) -> None:
                     if click_data_item:
                         clicked_x = click_data_item["points"][0].get("x")
                         if clicked_x:
-                            print(f"handling click event: {click_data}")
+                            app.server.logger.debug(f"handling click event: {click_data}")
                             neuron_id = int(clicked_x)
                             # Reset clickData so that there's only one entry in click_data at a time
                             if click_data_component_id:

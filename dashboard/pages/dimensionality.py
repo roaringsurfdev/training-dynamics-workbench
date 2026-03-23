@@ -8,51 +8,68 @@ from miscope.analysis.library.weights import WEIGHT_MATRIX_NAMES
 
 # Page for showing dimensionality metrics in one place
 _VIEW_LIST = {
-    "loss-plot": {"view_name": "loss_curve", "view_type": "epoch_selector"},
-    "spec-trajectory-plot": {
-        "view_name": "specialization_trajectory",
-        "view_type": "epoch_selector",
-    },
-    "spec-freq-plot": {"view_name": "specialization_by_frequency", "view_type": "epoch_selector"},
-    "attn-spec-plot": {
-        "view_name": "attention_specialization_trajectory",
+    "training-loss-curves": {
+        "view_name": "training.metadata.loss_curves",
         "view_type": "epoch_selector",
     },
     "parameter-pca-summary-plot": {
-        "view_name": "trajectory_pca_variance",
+        "view_name": "parameters.pca.variance_explained",
+        "view_type": "epoch_selector",
+    },
+    "gradient_site_convergence": {
+        "view_name": "analysis.gradient.site_convergence",
+        "view_type": "epoch_selector",
+    },
+    "gradient_site_heatmap": {
+        "view_name": "analysis.gradient.site_heatmap",
         "view_type": "epoch_selector",
     },
     "centroid-class-pca-summary-plot": {
-        "view_name": "centroid_pca_variance",
+        "view_name": "geometry.centroid_pca_variance",
         "view_type": "epoch_selector",
     },
-    "trajectory-3d-plot": {
-        "view_name": "trajectory_3d",
+    "parameters-pca-3d-scatter": {
+        "view_name": "parameters.pca.scatter_3d",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "trajectory-plot": {
-        "view_name": "parameter_trajectory",
+    "parameters-pca-pc1-pc2": {
+        "view_name": "parameters.pca.pc1_pc2",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "trajectory-pc1-pc3-plot": {
-        "view_name": "trajectory_pc1_pc3",
+    "parameters-pca-pc1-pc3": {
+        "view_name": "parameters.pca.pc1_pc3",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "trajectory-pc2-pc3-plot": {
-        "view_name": "trajectory_pc2_pc3",
+    "parameters-pca-pc2-pc3": {
+        "view_name": "parameters.pca.pc2_pc3",
         "view_type": "default_graph",
         "view_filter_set": "trajectory_group",
     },
-    "velocity-plot": {"view_name": "component_velocity", "view_type": "epoch_selector"},
+    "parameters-pca-group-overlay-pc1-pc2": {
+        "view_name": "parameters.pca.group_overlay",
+        "view_type": "default_graph",
+    },
+    "parameters-pca-group-overlay-pc2-pc3": {
+        "view_name": "parameters.pca.group_overlay_pc2_pc3",
+        "view_type": "default_graph",
+    },
+    "parameters-pca-group-overlay-proximity": {
+        "view_name": "parameters.pca.proximity",
+        "view_type": "epoch_selector",
+    },
+    "velocity-plot": {
+        "view_name": "parameters.pca.component_velocity",
+        "view_type": "epoch_selector",
+    },
     "dim-trajectory-plot": {
-        "view_name": "dimensionality_trajectory",
+        "view_name": "parameters.effective_dimensionality",
         "view_type": "epoch_selector",
     },
     "sv-spectrum-plot": {
-        "view_name": "singular_value_spectrum",
+        "view_name": "parameters.singular_value_spectrum",
         "view_type": "default_graph",
         "view_filter_set": "matrix_name",
     },
@@ -61,8 +78,8 @@ _VIEW_LIST = {
 _graph_manager = AnalysisPageGraphManager(_VIEW_LIST, "dim")
 
 
-def create_dimensionality_page_nav() -> html.Div:
-    print("create_dimensionality_page_nav")
+def create_dimensionality_page_nav(app: Dash) -> html.Div:
+    app.server.logger.debug("create_dimensionality_page_nav")
     return html.Div(
         children=[
             # Neuron slider
@@ -94,26 +111,24 @@ def create_dimensionality_page_nav() -> html.Div:
     )
 
 
-def create_dimensionality_page_layout() -> html.Div:
-    print("create_dimensionality_page_layout")
+def create_dimensionality_page_layout(app: Dash) -> html.Div:
+    app.server.logger.debug("create_dimensionality_page_layout")
     return html.Div(
         children=[
             html.H4("Dimensionality", className="mb-3"),
             html.Div(
                 [
                     # --- Loss ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("loss-plot", "350px"))),
-                    # --- Neuron Specialization  ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("spec-trajectory-plot", "350px"))),
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("spec-freq-plot", "450px"))),
-                    # --- Attention Specialization (summary, click-to-navigate) ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("attn-spec-plot", "450px"))),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("training-loss-curves", "350px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("gradient_site_convergence", "600px"))
+                    ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("gradient_site_heatmap", "600px"))),
                     dbc.Row(
                         children=[
-                            dbc.Col("Parameter Space PCA", style={"align": "center"}),
-                            dbc.Col("Centroid Class PCA", style={"align": "center"}),
-                        ],
-                        style={"height": "50px"},
+                            dbc.Col(children=["Parameter Space"]),
+                            dbc.Col(children=["Activation Space"]),
+                        ]
                     ),
                     dbc.Row(
                         children=[
@@ -133,24 +148,47 @@ def create_dimensionality_page_layout() -> html.Div:
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-3d-plot", "350px"), width=6
+                                _graph_manager.create_graph("parameters-pca-3d-scatter", "350px"),
+                                width=6,
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-plot", "350px"), width=6
+                                _graph_manager.create_graph("parameters-pca-pc1-pc2", "350px"),
+                                width=6,
                             ),
                         ]
                     ),
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-pc1-pc3-plot", "350px"),
+                                _graph_manager.create_graph("parameters-pca-pc1-pc3", "350px"),
                                 width=6,
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("trajectory-pc2-pc3-plot", "350px"),
+                                _graph_manager.create_graph("parameters-pca-pc2-pc3", "350px"),
                                 width=6,
                             ),
                         ]
+                    ),
+                    dbc.Row(
+                        dbc.Col(
+                            _graph_manager.create_graph(
+                                "parameters-pca-group-overlay-proximity", "400px"
+                            )
+                        )
+                    ),
+                    dbc.Row(
+                        dbc.Col(
+                            _graph_manager.create_graph(
+                                "parameters-pca-group-overlay-pc1-pc2", "400px"
+                            )
+                        )
+                    ),
+                    dbc.Row(
+                        dbc.Col(
+                            _graph_manager.create_graph(
+                                "parameters-pca-group-overlay-pc2-pc3", "400px"
+                            )
+                        )
                     ),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("velocity-plot", "400px"))),
                     # --- Dimensionality (summary + per-epoch) ---
@@ -164,7 +202,7 @@ def create_dimensionality_page_layout() -> html.Div:
 
 def register_dimensionality_page_callbacks(app: Dash) -> None:
     """Register all callbacks for the Neuron Dynamics page."""
-    print("register_dimensionality_page_callbacks")
+    app.server.logger.debug("register_dimensionality_page_callbacks")
 
     @app.callback(
         [Output(pid, "figure") for pid in _graph_manager.get_graph_output_list()],
@@ -172,7 +210,7 @@ def register_dimensionality_page_callbacks(app: Dash) -> None:
         State("variant-selector-store", "data"),
     )
     def on_vz_data_change(modified_timestamp: str | None, variant_data: dict | None):
-        print("on_vz_data_change")
+        app.server.logger.debug("on_vz_data_change")
         return _graph_manager.update_graphs(variant_data, None)
 
     @app.callback(
@@ -184,7 +222,7 @@ def register_dimensionality_page_callbacks(app: Dash) -> None:
     def on_vz_sv_matrix_change(
         modified_timestamp: str | None, matrix_name: str, variant_data: dict | None
     ):
-        print("on_vz_sv_matrix_change")
+        app.server.logger.debug("on_vz_sv_matrix_change")
         view_kwargs = {"matrix_name": matrix_name}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="matrix_name", view_kwargs=view_kwargs
@@ -199,7 +237,7 @@ def register_dimensionality_page_callbacks(app: Dash) -> None:
     def on_vz_trajectory_group_change(
         modified_timestamp: str | None, trajectory_group: str, variant_data: dict | None
     ):
-        print("on_vz_trajectory_group_change")
+        app.server.logger.debug("on_vz_trajectory_group_change")
         view_kwargs = {"group_label": trajectory_group, "group": trajectory_group}
         return _graph_manager.update_graphs(
             variant_data=variant_data, view_filter_set="trajectory_group", view_kwargs=view_kwargs

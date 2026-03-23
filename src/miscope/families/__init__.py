@@ -37,6 +37,7 @@ Example usage:
 
 # Import implementations to trigger registration
 from miscope.families.implementations import ModuloAddition1LayerFamily  # noqa: F401
+from miscope.families.intervention_variant import InterventionVariant
 from miscope.families.json_family import JsonModelFamily
 from miscope.families.protocols import ModelFamily
 from miscope.families.registry import FamilyRegistry
@@ -53,6 +54,7 @@ __all__ = [
     "ModelFamily",
     # Classes
     "FamilyRegistry",
+    "InterventionVariant",
     "JsonModelFamily",
     "ModuloAddition1LayerFamily",
     "TrainingResult",
