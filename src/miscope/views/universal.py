@@ -796,9 +796,7 @@ def _register_all() -> None:
     def _load_gradient_site(variant: Variant, epoch: int | None) -> dict:
         return variant.artifacts.load_cross_epoch("gradient_site")
 
-    def _render_site_gradient_convergence(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
+    def _render_site_gradient_convergence(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         return viz.render_site_gradient_convergence(data, epoch, **kwargs)
 
     def _render_site_gradient_heatmap(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:

@@ -154,9 +154,7 @@ class GradientSiteAnalyzer:
             "params": variant.params,
         }
         available_epochs = variant.get_available_checkpoints()
-        result = self.analyze_across_epochs(
-            str(variant.artifacts_dir), available_epochs, context
-        )
+        result = self.analyze_across_epochs(str(variant.artifacts_dir), available_epochs, context)
 
         cross_epoch_path.parent.mkdir(parents=True, exist_ok=True)
         temp_base = str(cross_epoch_path.parent / ".cross_epoch_tmp")

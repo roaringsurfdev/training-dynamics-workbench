@@ -79,7 +79,7 @@ def _divergence_from_anchor(
         ref_norm += np.linalg.norm(anchor_w[k].reshape(n, -1), axis=1) ** 2
     agg = np.sqrt(agg)
     normalized = (agg / (np.sqrt(ref_norm) + 1e-12) * 100).tolist()
-    return {"aggregate": agg.tolist(), "normalized": normalized, "per_matrix": per_matrix} # type: ignore
+    return {"aggregate": agg.tolist(), "normalized": normalized, "per_matrix": per_matrix}  # type: ignore
 
 
 def _compute_peer_divergences(

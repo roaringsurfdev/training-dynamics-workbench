@@ -90,11 +90,17 @@ def create_neuron_dynamics_page_layout(app: Dash) -> html.Div:
             html.Div(
                 [
                     # Trajectory heatmap (full width)
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron_freq_trajectory", "600px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("neuron_freq_trajectory", "600px"))
+                    ),
                     # Frequency Distribution
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron_freq_distribution", "600px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("neuron_freq_distribution", "600px"))
+                    ),
                     # --- Neuron Specialization (summary, click-to-navigate) ---
-                    dbc.Row(dbc.Col(_graph_manager.create_graph("neuron-frequency-clusters", "600px"))),
+                    dbc.Row(
+                        dbc.Col(_graph_manager.create_graph("neuron-frequency-clusters", "600px"))
+                    ),
                     dbc.Row(dbc.Col(_graph_manager.create_graph("spec-freq-plot", "350px"))),
                     # Switch distribution | Commitment timeline
                     dbc.Row(

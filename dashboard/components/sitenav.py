@@ -16,7 +16,9 @@ def create_sitenav() -> dbc.NavbarSimple:
             dbc.NavItem(dbc.NavLink("Home", href="/", active="exact")),
             dbc.DropdownMenu(
                 [
-                    dbc.DropdownMenuItem("Frequency Specialization", href="/frequency-specialization"),
+                    dbc.DropdownMenuItem(
+                        "Frequency Specialization", href="/frequency-specialization"
+                    ),
                     dbc.DropdownMenuItem("Geometry", href="/geometry"),
                     dbc.DropdownMenuItem("Neuron Competition", href="/neuron-competition"),
                     dbc.DropdownMenuItem("PCA", href="/pca"),
@@ -117,7 +119,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
         if pathname == "/visualization":
             return [create_visualization_page_nav(app), create_visualization_page_layout(app)]
         if pathname == "/activations":
-            return [create_activation_heatmap_page_nav(app), create_activation_heatmap_page_layout(app)]
+            return [
+                create_activation_heatmap_page_nav(app),
+                create_activation_heatmap_page_layout(app),
+            ]
         if pathname == "/frequency-specialization":
             return [create_multistream_page_nav(app), create_multistream_page_layout(app)]
         if pathname == "/loss-landscape":

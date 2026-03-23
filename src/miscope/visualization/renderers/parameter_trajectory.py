@@ -755,8 +755,8 @@ def render_trajectory_proximity(
 
     pairs = [
         ("emb_attn", "embedding", "attention", "royalblue", "Embedding \u2194 Attention"),
-        ("emb_mlp",  "embedding", "mlp",       "darkorange", "Embedding \u2194 MLP"),
-        ("attn_mlp", "attention", "mlp",       "seagreen",   "Attention \u2194 MLP"),
+        ("emb_mlp", "embedding", "mlp", "darkorange", "Embedding \u2194 MLP"),
+        ("attn_mlp", "attention", "mlp", "seagreen", "Attention \u2194 MLP"),
     ]
 
     fig = go.Figure()
