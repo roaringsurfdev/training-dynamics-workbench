@@ -73,6 +73,11 @@ from miscope.visualization.renderers.gradient_site import (
     render_site_gradient_convergence,
     render_site_gradient_heatmap,
 )
+from miscope.visualization.renderers.input_trace import (
+    render_accuracy_grid,
+    render_pair_graduation_heatmap,
+    render_residue_class_accuracy_timeline,
+)
 from miscope.visualization.renderers.landscape_flatness import (
     FLATNESS_METRICS,
     render_flatness_trajectory,
@@ -209,4 +214,8 @@ __all__ = [
     # REQ_077: Site gradient convergence
     "render_site_gradient_convergence",
     "render_site_gradient_heatmap",
+    # REQ_075: Per-input prediction trace
+    "render_accuracy_grid",
+    "render_residue_class_accuracy_timeline",
+    "render_pair_graduation_heatmap",
 ]
