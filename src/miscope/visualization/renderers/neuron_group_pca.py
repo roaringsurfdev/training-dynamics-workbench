@@ -13,6 +13,7 @@ import colorsys
 
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 def _freq_color(freq_idx: int, n_freq: int) -> str:
@@ -108,6 +109,75 @@ def render_neuron_group_pca_cohesion(
     return fig
 
 
+def render_neuron_group_scatter(
+    data: dict,
+    epoch: int | None = None,
+    **kwargs,
+) -> go.Figure:
+    """Scatter plot of neuron positions in group PCA space (PC1 vs PC2).
+
+    Each neuron is projected onto the final-epoch PCA basis of its frequency
+    group. Group membership is re-derived from the current epoch's norm_matrix
+    so the scatter reflects the current state of neuron specialization.
+
+    Args:
+        data: dict with keys group_bases, group_freqs, W_in, norm_matrix
+        epoch: optional epoch label for the title
+    """
+    group_bases = data["group_bases"]  # (n_groups, 3, d_model)
+    group_freqs = data["group_freqs"]
+    norm_matrix = data["norm_matrix"]  # (n_freq, d_mlp)
+    W_in = data["W_in"]  # (d_model, d_mlp)
+
+    n_groups = len(group_freqs)
+    n_freq = int(group_freqs.max()) + 1 if n_groups > 0 else 1
+    dominant_freq = np.argmax(norm_matrix, axis=0)  # (d_mlp,)
+
+    fig = go.Figure()
+
+    for g_idx, freq in enumerate(group_freqs):
+        members = np.where(dominant_freq == int(freq))[0]
+        if len(members) == 0:
+            continue
+
+        basis = group_bases[g_idx]  # (3, d_model)
+        coords = basis @ W_in[:, members]  # (3, n_members)
+        color = _freq_color(int(freq), n_freq)
+
+        fig.add_trace(
+            go.Scatter(
+                x=coords[0].tolist(),
+                y=coords[1].tolist(),
+                mode="markers",
+                name=f"freq {freq} (n={len(members)})",
+                marker=dict(color=color, size=5, opacity=0.7),
+                hovertemplate=(
+                    f"freq={freq}<br>"
+                    "PC1=%{x:.3f}<br>"
+                    "PC2=%{y:.3f}<extra></extra>"
+                ),
+            )
+        )
+
+    epoch_label = f" — epoch {epoch}" if epoch is not None else ""
+    fig.update_layout(
+        title=f"Neuron group W_in scatter (PC1 × PC2){epoch_label}",
+        xaxis_title="PC1",
+        yaxis_title="PC2",
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        template="plotly_white",
+        height=520,
+        margin=dict(l=60, r=20, t=60, b=60),
+        legend=dict(
+            orientation="v",
+            x=1.01,
+            y=1,
+            font=dict(size=10),
+        ),
+    )
+    return fig
+
+
 def render_neuron_group_spread(
     data: dict,
     epoch: int | None = None,
@@ -161,5 +231,375 @@ def render_neuron_group_spread(
             y=1,
             font=dict(size=10),
         ),
+    )
+    return fig
+
+
+# ---------------------------------------------------------------------------
+# Projection-based renderers (require 'projections' field in artifact)
+# ---------------------------------------------------------------------------
+
+
+def _needs_rerun_figure(msg: str = "Rerun neuron_group_pca analyzer to populate projections") -> go.Figure:
+    fig = go.Figure()
+    fig.add_annotation(
+        text=msg,
+        xref="paper", yref="paper",
+        x=0.5, y=0.5, showarrow=False,
+        font=dict(size=14, color="gray"),
+    )
+    fig.update_layout(template="plotly_white", height=400,
+                      xaxis=dict(visible=False), yaxis=dict(visible=False))
+    return fig
+
+
+def _epoch_idx(epochs: np.ndarray, epoch: int | None) -> int:
+    """Return index of the nearest epoch in the epochs array."""
+    if epoch is None:
+        return len(epochs) - 1
+    return int(np.argmin(np.abs(epochs.astype(int) - int(epoch))))
+
+
+def render_neuron_group_scatter_3d(
+    data: dict,
+    epoch: int | None = None,
+    **kwargs,
+) -> go.Figure:
+    """3D scatter of neuron positions in group PCA space (PC1 × PC2 × PC3).
+
+    Neurons are colored by frequency group. Points are pre-computed projections
+    centered by the final-epoch group centroid.
+
+    Args:
+        data: cross_epoch artifact from neuron_group_pca (requires 'projections')
+        epoch: training epoch to visualize (nearest available)
+    """
+    if "projections" not in data:
+        return _needs_rerun_figure()
+
+    epochs = data["epochs"]
+    group_freqs = data["group_freqs"]
+    projections = data["projections"]  # (n_epochs, d_mlp, 3)
+    neuron_group_idx = data["neuron_group_idx"]  # (d_mlp,)
+
+    ep_idx = _epoch_idx(epochs, epoch)
+    pts = projections[ep_idx]  # (d_mlp, 3)
+    actual_epoch = int(epochs[ep_idx])
+    n_freq = int(group_freqs.max()) + 1 if len(group_freqs) > 0 else 1
+
+    fig = go.Figure()
+    for g_idx, freq in enumerate(group_freqs):
+        members = np.where(neuron_group_idx == g_idx)[0]
+        if len(members) == 0:
+            continue
+        g_pts = pts[members]
+        color = _freq_color(int(freq), n_freq)
+        fig.add_trace(go.Scatter3d(
+            x=g_pts[:, 0].tolist(), y=g_pts[:, 1].tolist(), z=g_pts[:, 2].tolist(),
+            mode="markers",
+            name=f"freq {freq} (n={len(members)})",
+            marker=dict(color=color, size=4, opacity=0.85),
+            hovertemplate=f"freq={freq}<br>PC1=%{{x:.3f}}<br>PC2=%{{y:.3f}}<br>PC3=%{{z:.3f}}<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title=f"Neuron group 3D scatter (PC1×PC2×PC3) — epoch {actual_epoch}",
+        scene=dict(xaxis_title="PC1", yaxis_title="PC2", zaxis_title="PC3"),
+        template="plotly_white",
+        height=560,
+        margin=dict(l=0, r=0, t=50, b=0),
+        legend=dict(orientation="v", x=1.01, y=1, font=dict(size=10)),
+    )
+    return fig
+
+
+def render_neuron_group_scatter_purity(
+    data: dict,
+    epoch: int | None = None,
+    **kwargs,
+) -> go.Figure:
+    """PC1 vs PC2 scatter colored by dominant-frequency purity.
+
+    Purity = max(norm_matrix) over all frequencies for each neuron.
+    High purity → neuron strongly prefers one frequency.
+
+    Args:
+        data: dict with cross_epoch artifact fields + 'norm_matrix' from neuron_freq_norm
+        epoch: training epoch (used for title; norm_matrix must already match)
+    """
+    if "projections" not in data:
+        return _needs_rerun_figure()
+
+    epochs = data["epochs"]
+    group_freqs = data["group_freqs"]
+    projections = data["projections"]
+    neuron_group_idx = data["neuron_group_idx"]
+    norm_matrix = data["norm_matrix"]  # (n_freq, d_mlp)
+
+    ep_idx = _epoch_idx(epochs, epoch)
+    pts = projections[ep_idx]  # (d_mlp, 3)
+    actual_epoch = int(epochs[ep_idx])
+
+    purity = norm_matrix.max(axis=0)  # (d_mlp,)
+    grouped = np.where(neuron_group_idx >= 0)[0]
+
+    group_labels = [
+        f"neuron {i}<br>freq {group_freqs[neuron_group_idx[i]]}<br>purity {purity[i]:.2f}"
+        for i in grouped
+    ]
+
+    fig = go.Figure(go.Scatter(
+        x=pts[grouped, 0].tolist(), y=pts[grouped, 1].tolist(),
+        mode="markers",
+        text=group_labels,
+        hovertemplate="%{text}<extra></extra>",
+        marker=dict(
+            color=purity[grouped].tolist(),
+            colorscale="RdYlGn",
+            cmin=0, cmax=1,
+            size=7, opacity=0.85,
+            colorbar=dict(title="Purity", thickness=14),
+        ),
+    ))
+
+    fig.update_layout(
+        title=f"Neuron group scatter — purity (epoch {actual_epoch})",
+        xaxis_title="PC1",
+        yaxis_title="PC2",
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        template="plotly_white",
+        height=520,
+        margin=dict(l=60, r=80, t=60, b=60),
+    )
+    return fig
+
+
+def render_neuron_group_all_panels(
+    data: dict,
+    epoch: int | None = None,
+    **kwargs,
+) -> go.Figure:
+    """Multi-panel PC1 vs PC2 scatter — one subplot per frequency group.
+
+    Each panel shows the neurons in that group colored by purity.
+
+    Args:
+        data: dict with cross_epoch artifact fields + 'norm_matrix' from neuron_freq_norm
+        epoch: training epoch to visualize
+    """
+    if "projections" not in data:
+        return _needs_rerun_figure()
+
+    epochs = data["epochs"]
+    group_freqs = data["group_freqs"]
+    group_sizes = data["group_sizes"]
+    projections = data["projections"]
+    neuron_group_idx = data["neuron_group_idx"]
+    norm_matrix = data["norm_matrix"]
+
+    n_groups = len(group_freqs)
+    if n_groups == 0:
+        return go.Figure()
+
+    ep_idx = _epoch_idx(epochs, epoch)
+    pts = projections[ep_idx]  # (d_mlp, 3)
+    actual_epoch = int(epochs[ep_idx])
+    purity = norm_matrix.max(axis=0)  # (d_mlp,)
+
+    n_cols = min(4, n_groups)
+    n_rows = (n_groups + n_cols - 1) // n_cols
+
+    fig = make_subplots(
+        rows=n_rows, cols=n_cols,
+        subplot_titles=[f"freq {f} (n={s})" for f, s in zip(group_freqs, group_sizes)],
+        horizontal_spacing=0.06, vertical_spacing=0.12,
+    )
+
+    for g_idx, freq in enumerate(group_freqs):
+        row = g_idx // n_cols + 1
+        col = g_idx % n_cols + 1
+        members = np.where(neuron_group_idx == g_idx)[0]
+        g_pts = pts[members]
+        g_purity = purity[members]
+
+        fig.add_trace(go.Scatter(
+            x=g_pts[:, 0].tolist(), y=g_pts[:, 1].tolist(),
+            mode="markers",
+            showlegend=False,
+            hovertemplate=f"freq={freq}<br>PC1=%{{x:.3f}}<br>PC2=%{{y:.3f}}<extra></extra>",
+            marker=dict(
+                color=g_purity.tolist(), colorscale="RdYlGn",
+                cmin=0, cmax=1, size=9, opacity=0.85,
+            ),
+        ), row=row, col=col)
+
+    fig.update_layout(
+        title=f"All frequency groups — PC1×PC2 (epoch {actual_epoch})",
+        template="plotly_white",
+        height=260 * n_rows + 80,
+        margin=dict(l=40, r=40, t=60, b=40),
+    )
+    return fig
+
+
+def render_neuron_group_trajectory(
+    data: dict,
+    epoch: int | None = None,
+    **kwargs,
+) -> go.Figure:
+    """Neuron paths through PC1 × PC2 space across all training epochs.
+
+    Lines show each neuron's trajectory. Blue circles mark epoch 0;
+    red diamonds mark the final epoch. Groups are distinguished by color.
+
+    Args:
+        data: cross_epoch artifact from neuron_group_pca (requires 'projections')
+        epoch: unused (all epochs shown); kept for API consistency
+    """
+    if "projections" not in data:
+        return _needs_rerun_figure()
+
+    epochs = data["epochs"]
+    group_freqs = data["group_freqs"]
+    group_sizes = data["group_sizes"]
+    projections = data["projections"]  # (n_epochs, d_mlp, 3)
+    neuron_group_idx = data["neuron_group_idx"]
+    n_freq = int(group_freqs.max()) + 1 if len(group_freqs) > 0 else 1
+
+    fig = go.Figure()
+
+    for g_idx, (freq, size) in enumerate(zip(group_freqs, group_sizes)):
+        members = np.where(neuron_group_idx == g_idx)[0]
+        if len(members) == 0:
+            continue
+        color = _freq_color(int(freq), n_freq)
+
+        # Concatenate paths with None separators — one trace per group
+        x_lines, y_lines = [], []
+        for neuron_idx in members:
+            path = projections[:, neuron_idx, :]  # (n_epochs, 3)
+            x_lines.extend(path[:, 0].tolist())
+            x_lines.append(None)
+            y_lines.extend(path[:, 1].tolist())
+            y_lines.append(None)
+
+        fig.add_trace(go.Scatter(
+            x=x_lines, y=y_lines,
+            mode="lines",
+            name=f"freq {freq} (n={size})",
+            line=dict(color=color, width=1),
+            opacity=0.45,
+            legendgroup=str(freq),
+        ))
+
+        # Start markers (epoch 0)
+        fig.add_trace(go.Scatter(
+            x=[projections[0, i, 0] for i in members],
+            y=[projections[0, i, 1] for i in members],
+            mode="markers",
+            marker=dict(color="steelblue", symbol="circle", size=6, opacity=0.7),
+            showlegend=False, legendgroup=str(freq),
+            hovertemplate=f"freq={freq}<br>epoch 0<extra></extra>",
+        ))
+
+        # End markers (final epoch)
+        fig.add_trace(go.Scatter(
+            x=[projections[-1, i, 0] for i in members],
+            y=[projections[-1, i, 1] for i in members],
+            mode="markers",
+            marker=dict(color="crimson", symbol="diamond", size=7, opacity=0.9),
+            showlegend=False, legendgroup=str(freq),
+            hovertemplate=f"freq={freq}<br>epoch {int(epochs[-1])}<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title="Neuron group trajectories in PCA space (PC1 × PC2)<br>"
+              "<sup>Blue circles = epoch 0 &nbsp;|&nbsp; Red diamonds = final epoch</sup>",
+        xaxis_title="PC1",
+        yaxis_title="PC2",
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        template="plotly_white",
+        height=580,
+        margin=dict(l=60, r=20, t=70, b=60),
+        legend=dict(orientation="v", x=1.01, y=1, font=dict(size=10)),
+    )
+    return fig
+
+
+def render_neuron_group_polar_histogram(
+    data: dict,
+    epoch: int | None = None,
+    **kwargs,
+) -> go.Figure:
+    """Polar histogram of PCA angles per frequency group.
+
+    PCA angle = atan2(PC2, PC1) for each neuron's projection at the
+    selected epoch. Uniform distribution supports the phase-tiling
+    hypothesis; clustering indicates discrete preferred phases.
+
+    Args:
+        data: cross_epoch artifact from neuron_group_pca (requires 'projections')
+        epoch: training epoch to visualize
+    """
+    if "projections" not in data:
+        return _needs_rerun_figure()
+
+    epochs = data["epochs"]
+    group_freqs = data["group_freqs"]
+    group_sizes = data["group_sizes"]
+    projections = data["projections"]
+    neuron_group_idx = data["neuron_group_idx"]
+
+    n_groups = len(group_freqs)
+    if n_groups == 0:
+        return go.Figure()
+
+    ep_idx = _epoch_idx(epochs, epoch)
+    pts = projections[ep_idx]  # (d_mlp, 3)
+    actual_epoch = int(epochs[ep_idx])
+    n_freq = int(group_freqs.max()) + 1 if n_groups > 0 else 1
+
+    n_cols = min(4, n_groups)
+    n_rows = (n_groups + n_cols - 1) // n_cols
+    specs = [[{"type": "polar"}] * n_cols for _ in range(n_rows)]
+
+    fig = make_subplots(
+        rows=n_rows, cols=n_cols,
+        specs=specs,
+        subplot_titles=[f"freq {f} (n={s})" for f, s in zip(group_freqs, group_sizes)],
+    )
+
+    n_bins = 16
+    bin_edges = np.linspace(-np.pi, np.pi, n_bins + 1)
+    bin_centers_deg = np.degrees((bin_edges[:-1] + bin_edges[1:]) / 2)
+    bin_width_deg = 360.0 / n_bins
+
+    for g_idx, freq in enumerate(group_freqs):
+        row = g_idx // n_cols + 1
+        col = g_idx % n_cols + 1
+        members = np.where(neuron_group_idx == g_idx)[0]
+        if len(members) == 0:
+            continue
+
+        g_pts = pts[members]
+        valid = ~np.isnan(g_pts[:, 0])
+        angles = np.arctan2(g_pts[valid, 1], g_pts[valid, 0])
+        counts, _ = np.histogram(angles, bins=bin_edges)
+        color = _freq_color(int(freq), n_freq)
+
+        fig.add_trace(go.Barpolar(
+            r=counts.tolist(),
+            theta=bin_centers_deg.tolist(),
+            width=[bin_width_deg] * n_bins,
+            marker_color=color,
+            opacity=0.8,
+            showlegend=False,
+        ), row=row, col=col)
+
+    fig.update_layout(
+        title=f"Neuron group PCA angle distribution — epoch {actual_epoch}",
+        template="plotly_white",
+        height=260 * n_rows + 80,
+        margin=dict(l=20, r=20, t=60, b=20),
     )
     return fig
