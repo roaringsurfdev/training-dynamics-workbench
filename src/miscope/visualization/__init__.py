@@ -78,6 +78,10 @@ from miscope.visualization.renderers.input_trace import (
     render_pair_graduation_heatmap,
     render_residue_class_accuracy_timeline,
 )
+from miscope.visualization.renderers.neuron_group_pca import (
+    render_neuron_group_pca_cohesion,
+    render_neuron_group_spread,
+)
 from miscope.visualization.renderers.landscape_flatness import (
     FLATNESS_METRICS,
     render_flatness_trajectory,
@@ -218,4 +222,7 @@ __all__ = [
     "render_accuracy_grid",
     "render_residue_class_accuracy_timeline",
     "render_pair_graduation_heatmap",
+    # Neuron group PCA coordination
+    "render_neuron_group_pca_cohesion",
+    "render_neuron_group_spread",
 ]

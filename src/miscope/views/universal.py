@@ -890,6 +890,43 @@ def _register_all() -> None:
         )
     )
 
+    # --- Neuron group PCA coordination views ---
+
+    def _load_neuron_group_pca(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_cross_epoch("neuron_group_pca")
+
+    def _render_group_pca_cohesion(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.neuron_group_pca import render_neuron_group_pca_cohesion
+
+        return render_neuron_group_pca_cohesion(data, epoch, **kwargs)
+
+    def _render_group_spread(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.neuron_group_pca import render_neuron_group_spread
+
+        return render_neuron_group_spread(data, epoch, **kwargs)
+
+    _ngpca_req = [AnalyzerRequirement("neuron_group_pca", ArtifactKind.CROSS_EPOCH)]
+
+    _catalog.register(
+        ViewDefinition(
+            name="neuron_group.pca_cohesion",
+            load_data=_load_neuron_group_pca,
+            renderer=_render_group_pca_cohesion,
+            epoch_source_analyzer=None,
+            required_analyzers=_ngpca_req,
+        )
+    )
+
+    _catalog.register(
+        ViewDefinition(
+            name="neuron_group.spread",
+            load_data=_load_neuron_group_pca,
+            renderer=_render_group_spread,
+            epoch_source_analyzer=None,
+            required_analyzers=_ngpca_req,
+        )
+    )
+
     # --- Loss curve (metadata-based, no artifact loader involved) ---
     # This is the canonical example of a non-artifact view source.
 

@@ -193,6 +193,7 @@ def register_default_analyzers() -> None:
     from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
     from miscope.analysis.analyzers.input_trace import InputTraceAnalyzer
     from miscope.analysis.analyzers.input_trace_graduation import InputTraceGraduationAnalyzer
+    from miscope.analysis.analyzers.neuron_group_pca import NeuronGroupPCAAnalyzer
     from miscope.analysis.analyzers.repr_geometry import RepresentationalGeometryAnalyzer
 
     AnalyzerRegistry.register(AttentionFourierAnalyzer)
@@ -218,6 +219,7 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register_cross_epoch(CentroidDMD)
     AnalyzerRegistry.register_cross_epoch(GradientSiteAnalyzer)
     AnalyzerRegistry.register_cross_epoch(InputTraceGraduationAnalyzer)
+    AnalyzerRegistry.register_cross_epoch(NeuronGroupPCAAnalyzer)
 
 
 # Auto-register default analyzers on import
