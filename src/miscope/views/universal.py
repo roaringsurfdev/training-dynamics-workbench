@@ -818,6 +818,78 @@ def _register_all() -> None:
             )
         )
 
+    # --- Input trace views (REQ_075) ---
+    # accuracy_grid: per-epoch, needs prime from model_config
+    # residue_class_timeline: summary, needs prime from model_config
+    # graduation_heatmap: cross-epoch, needs prime from model_config
+
+    def _load_input_trace_epoch(variant: Variant, epoch: int | None) -> dict:
+        return {
+            "epoch_data": variant.artifacts.load_epoch("input_trace", epoch),  # type: ignore[arg-type]
+            "prime": int(variant.model_config["prime"]),
+        }
+
+    def _render_accuracy_grid(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.input_trace import render_accuracy_grid
+
+        return render_accuracy_grid(data, epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="input_trace.accuracy_grid",
+            load_data=_load_input_trace_epoch,
+            renderer=_render_accuracy_grid,
+            epoch_source_analyzer="input_trace",
+            required_analyzers=[AnalyzerRequirement("input_trace", ArtifactKind.EPOCH)],
+        )
+    )
+
+    def _load_input_trace_summary(variant: Variant, epoch: int | None) -> dict:
+        return {
+            "summary": variant.artifacts.load_summary("input_trace"),
+            "prime": int(variant.model_config["prime"]),
+        }
+
+    def _render_residue_class_timeline(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.input_trace import (
+            render_residue_class_accuracy_timeline,
+        )
+
+        return render_residue_class_accuracy_timeline(data, epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="input_trace.residue_class_timeline",
+            load_data=_load_input_trace_summary,
+            renderer=_render_residue_class_timeline,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("input_trace", ArtifactKind.SUMMARY)],
+        )
+    )
+
+    def _load_input_trace_graduation(variant: Variant, epoch: int | None) -> dict:
+        return {
+            "graduation": variant.artifacts.load_cross_epoch("input_trace_graduation"),
+            "prime": int(variant.model_config["prime"]),
+        }
+
+    def _render_graduation_heatmap(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.input_trace import render_pair_graduation_heatmap
+
+        return render_pair_graduation_heatmap(data, epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="input_trace.graduation_heatmap",
+            load_data=_load_input_trace_graduation,
+            renderer=_render_graduation_heatmap,
+            epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("input_trace_graduation", ArtifactKind.CROSS_EPOCH)
+            ],
+        )
+    )
+
     # --- Loss curve (metadata-based, no artifact loader involved) ---
     # This is the canonical example of a non-artifact view source.
 
