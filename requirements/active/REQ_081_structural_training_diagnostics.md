@@ -150,9 +150,28 @@ correctly extended).
 | Degenerate + no recovery | stop | large bounce, geometry frozen, degenerate groups |
 | Fully crystallized | done | all rings closed, stable spokes, no rebound |
 
-**On early prediction (future direction):** The geometry at the eff_dim crossover epoch
-may already contain signals about whether clean organization is likely. At that epoch,
-if spoke formation is beginning in the polar histograms, the model is on track for clean
-crystallization. If the phase distribution is still uniform, the model may be heading
-for slow/contested organization. This hypothesis is untested but well-motivated by the
-two-step model (compression precedes crystallization). See `notes/findings_ring_geometry.md`.
+**On early prediction — VALIDATED (2026-03-24):** The hypothesis that crossover epoch
+geometry predicts outcomes was tested against 6 reference models and confirmed. Per-group
+signals at the eff_dim crossover epoch cleanly distinguish future outcomes before second
+descent completes. Four signal categories observed:
+
+| signal | PC geometry | R | interpretation |
+|---|---|---|---|
+| `ring_closing` | PC3 < 10%, PC1 ≈ PC2 | low | Ring already closing — group will crystallize |
+| `healthy_in_progress` | PC3 10–20%, PC1 ≈ PC2 | low (< 0.15) | Normal state — compression done, crystallization pending |
+| `degenerate_1d` | PC1 > 60% | moderate | 1D collapse underway — group will not form a ring |
+| `contested_chaotic` | PC3 > 20% | high (> 0.30) | Angularly concentrated but not settling — contested |
+
+**Key findings from 6 reference models:**
+- p109 (clean healthy): all groups `healthy_in_progress` at crossover — uniform, spoke formation not yet started
+- p101/485/999 (bouncer): freq 28 already `degenerate_1d` at crossover (PC1=74.3%) — fate sealed before grokking
+- p113/485/999 (partial crystallization): freq 36 already `ring_closing` at crossover (PC3=5.2%) — visually isolated from the other three groups which are all `healthy_in_progress`; the group that succeeds is identifiable at crossover
+- p113/999/999 (degenerate+bounce): freq 3 `degenerate_1d` (PC1=59.8%), freq 33 `contested_chaotic` (R=0.358, PC3=30.7%)
+- p101/485/42 (slow clean): groups 12 and 18 already `ring_closing` at crossover — exactly the two groups that fully crystallize by final epoch
+- p59 (supercritical): both groups `healthy_in_progress` — consistent with eventual grokking via slow continuous path
+
+**Implication for CoS scope:** Early prediction should be elevated from "out of scope /
+future direction" to a CoS item in the next iteration of this requirement. The per-group
+crossover geometry diagnostic is implementable now from existing artifacts and provides
+actionable predictions before second descent completes. See `notebooks/phase_diagram.ipynb`
+cell `8q27mtniq3t` for working implementation.
