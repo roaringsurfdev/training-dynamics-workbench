@@ -426,7 +426,7 @@ def test_render_scatter_with_epoch():
     data = _make_scatter_data()
     fig = render_neuron_group_scatter(data, epoch=5000)
     assert isinstance(fig, go.Figure)
-    #assert "5000" in fig.layout.title.text
+    # assert "5000" in fig.layout.title.text
 
 
 def test_render_scatter_empty_groups():
