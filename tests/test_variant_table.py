@@ -13,17 +13,22 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+_REGISTRY_PATH = Path("results/modulo_addition_1layer/variant_registry.json")
 
-def _registry_path() -> Path:
-    return Path("results/modulo_addition_1layer/variant_registry.json")
+_requires_data = pytest.mark.skipif(
+    not _REGISTRY_PATH.exists(),
+    reason="requires local results data (not available in CI)",
+)
 
 
 def _load_registry() -> list[dict]:
-    with open(_registry_path()) as f:
+    with open(_REGISTRY_PATH) as f:
         return json.load(f)
 
 
@@ -32,6 +37,7 @@ def _load_registry() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
+@_requires_data
 def test_load_table_rows_count():
     """Number of rows matches number of entries in variant_registry.json."""
     from dashboard.pages.variant_table import _load_table_rows
@@ -61,6 +67,7 @@ def test_load_table_rows_required_columns():
         assert required <= set(row.keys()), f"Row missing columns: {required - set(row.keys())}"
 
 
+@_requires_data
 def test_load_table_rows_known_variant():
     """A known variant appears with expected field values."""
     from dashboard.pages.variant_table import _load_table_rows
