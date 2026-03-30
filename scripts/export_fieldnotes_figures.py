@@ -71,10 +71,14 @@ def export_loss_curve(variant: Variant, label: str) -> None:
 
 def export_multi_stream(variant: Variant, label: str) -> None:
     p = variant.params
-    fig = variant.at(None).view("multi_stream_specialization").figure(
-        title=f"Multi-Stream Specialization — p={p['prime']}, seed={p['seed']}, data_seed={p['data_seed']}",
-        width=900,
-        height=1350,
+    fig = (
+        variant.at(None)
+        .view("multi_stream_specialization")
+        .figure(
+            title=f"Multi-Stream Specialization — p={p['prime']}, seed={p['seed']}, data_seed={p['data_seed']}",
+            width=900,
+            height=1350,
+        )
     )
     export_html(fig, f"multistream_{label}")
 
