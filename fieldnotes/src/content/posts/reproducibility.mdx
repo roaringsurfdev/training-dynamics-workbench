@@ -7,6 +7,18 @@ tags: ["infrastructure", "methodology", "research goals"]
 
 import VariantViewer from '../../components/VariantViewer.astro';
 
+As a software engineer, I have spent my career thinking about the design of stable systems, and one of the most fundamental features of a stable system is reproducibility across environments. Reproducibility is also a core value of experimental research. Reproducibility creates trust. Trust in a product or platform. Trust in experimental results.
+
+While Jupyter Notebooks are incredibly powerful for exploratory analysis or ad hoc research, I find the use of them for deeper research to be a bit nerve-racking. Often, model analysis code is scattered and tangled throughout a notebook. A model is defined and trained across a few cells. Computations are run against training data in other cells. Visualizations are crafted across others. Any change I make risks breaking every cell in the notebook, or worse - it could lead to inaccurate interpretations or conclusions.
+
+In my research, I want to be able to study models as they evolve over training, not their final output. In practice, this means that I need to be able to analyze variations of a single model architecture across multiple checkpoints captured during training. For the Modulo Addition model, I'm generally analyzing between 94 to 150 checkpoints. In order to compare analysis across checkpoints and across variations, I would need my data and visualizations to be as consistent as possible, which is simply unmanageable in a notebook.
+
+To solve this problem, I needed to be able to lock down three things: training, analysis, and visualization. My approach for supporting re-use in training and analysis was to generate static outputs on disk wherever possible in a run-once, re-use repeatably paradigm. During training, checkpoints and training metadata are stored in safetensor files and json files respectively. During analysis, tensors, arrays, and summary data are exported to npz files and json files. From a reproducibility standpoint, this separation allows me to add new analysis functions that are guaranteed to run against the same underlying checkpoint data. I can also create or tweak visualizations without worrying about consistency in the underlying analysis data.
+
+For visualizations, I've adopted Plotly for the core visualization library so that all visualizations are consistent in look, feel, and interactivity. By leveraging Plotly's standard figure objects, I am able to re-use the same views in notebooks, in web front-ends, or exported to disk. Changes made to individual visualizations have no impact on the underlying data.
+
+The following 4 panel visualization was created using this platform. In the top 3 panels, the appropriate frequency basis for each prime is projected onto MLP, Attention, and Embedding weight matrices to compute the frequency fraction explained for each. This combined view was inspired by patterns I was seeing across multiple models in frequency specialization leading into second descent. The effective dimensionality view at the bottom was added so that I could line up events in frequency specialization with changes in dimensionality.
+
 <VariantViewer
   variants={[
     {
@@ -25,17 +37,7 @@ import VariantViewer from '../../components/VariantViewer.astro';
   caption="Multi-stream frequency specialization across training. Each panel tracks a different weight stream — MLP neurons, attention heads, embedding dimensions, and effective dimensionality. Select a variant above to compare."
 />
 
-As a software engineer, I have spent my career thinking about the design of stable systems, and one of the most fundamental features of a stable system is reproducibility across environments. Reproducibility is also a core value of experimental research. Reproducibility creates trust. Trust in a product or platform. Trust in experimental results.
-
-While Jupyter Notebooks are incredibly powerful for exploratory analysis or ad hoc research, I find the use of them for deeper research to be a bit nerve-racking. Often, model analysis code is scattered and tangled throughout a notebook. A model is defined and trained across a few cells. Computations are run against training data in other cells. Visualizations are crafted across others. Any change I make risks breaking every cell in the notebook, or worse - it could lead to inaccurate interpretations or conclusions.
-
-In my research, I want to be able to study models as they evolve over training, not their final output. In practice, this means that I need to be able to analyze variations of a single model architecture across multiple checkpoints captured during training. For the Modulo Addition model, I'm generally analyzing between 94 to 150 checkpoints. In order to compare analysis across checkpoints and across variations, I would need my data and visualizations to be as consistent as possible, which is simply unmanageable in a notebook.
-
-To solve this problem, I needed to be able to lock down three things: training, analysis, and visualization. My approach for supporting re-use in training and analysis was to generate static outputs on disk wherever possible in a run-once, re-use repeatably paradigm. During training, checkpoints and training metadata are stored in safetensor files and json files respectively. During analysis, tensors, arrays, and summary data are exported to npz files and json files. From a reproducibility standpoint, this separation allows me to add new analysis functions that are guaranteed to run against the same underlying checkpoint data. I can also create or tweak visualizations without worrying about consistency in the underlying analysis data.
-
-For visualizations, I've adopted Plotly for the core visualization library so that all visualizations are consistent in look, feel, and interactivity. By leveraging Plotly's standard figure objects, I am able to re-use the same views in notebooks, in web front-ends, or exported to disk. Changes made to individual visualizations have no impact on the underlying data.
-
-One major unintended benefit to this approach is that I don't have to be stingy with analysis - at least not with small toy models. Analysis functions that might take a long time to compute, such as PCA analysis across all checkpoints and weight matrices, runs once. All subsequent loads of that PCA data are instant.
+One major unintended benefit to this approach is that I don't have to be stingy with analysis - at least not with small toy models. Analysis functions that might take a long time to compute, such as PCA analysis across all checkpoints and weight matrices, runs once. All subsequent loads of that PCA data are instant. As I build up a collection of visualizations that seem most impactful, I can exercise more discrimination on larger models in the future.
 
 <VariantViewer
   variants={[
