@@ -53,7 +53,8 @@ def _build_loss_figure(
     new_epochs: list[int] | None = None,
 ) -> go.Figure:
     epochs = list(range(len(train_losses)))
-    rug_y = min(min(train_losses), min(test_losses)) * 0.5
+    min_loss = min(min(train_losses), min(test_losses))
+    rug_y = min_loss * 0.3  # log scale: place rug well below the curves
 
     fig = go.Figure()
     fig.add_trace(
@@ -93,7 +94,7 @@ def _build_loss_figure(
         fig.add_trace(
             go.Scatter(
                 x=new_epochs,
-                y=[rug_y * 0.6] * len(new_epochs),
+                y=[min_loss * 0.1] * len(new_epochs),
                 mode="markers",
                 name=f"New ({len(new_epochs)})",
                 marker=dict(
@@ -111,7 +112,7 @@ def _build_loss_figure(
         plot_bgcolor="white",
         paper_bgcolor="white",
         xaxis=dict(gridcolor="#eee"),
-        yaxis=dict(gridcolor="#eee"),
+        yaxis=dict(gridcolor="#eee", type="log"),
     )
     return fig
 
