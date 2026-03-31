@@ -76,6 +76,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
         create_centroid_dmd_layout,
         create_centroid_dmd_nav,
     )
+    from dashboard.pages.checkpoint_schedule import (
+        create_checkpoint_schedule_page_layout,
+        create_checkpoint_schedule_page_nav,
+    )
     from dashboard.pages.dimensionality import (
         create_dimensionality_page_layout,
         create_dimensionality_page_nav,
@@ -113,10 +117,6 @@ def register_sitenav_callbacks(app: Dash) -> None:
         create_repr_geometry_page_nav,
     )
     from dashboard.pages.summary import create_summary_page_layout, create_summary_page_nav
-    from dashboard.pages.checkpoint_schedule import (
-        create_checkpoint_schedule_page_layout,
-        create_checkpoint_schedule_page_nav,
-    )
     from dashboard.pages.training import (
         create_training_page_layout,
         create_training_page_nav,

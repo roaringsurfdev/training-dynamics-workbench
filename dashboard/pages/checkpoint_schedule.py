@@ -17,7 +17,6 @@ from dash.exceptions import PreventUpdate
 
 from dashboard.state import get_registry, refresh_registry, training_progress
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -124,10 +123,10 @@ def _generate_range_epochs(row: dict) -> set[int]:
     step = row.get("step")
     if any(v is None or v == "" for v in [start, end, step]):
         return set()
-    step = int(step)
+    step = int(step) # pyright: ignore[reportArgumentType]
     if step <= 0:
         return set()
-    return set(range(int(start), int(end) + 1, step))
+    return set(range(int(start), int(end) + 1, step)) # type: ignore
 
 
 def _generate_merged_epochs(
@@ -274,7 +273,7 @@ def create_checkpoint_schedule_page_layout(app: Dash) -> html.Div:
                                         "backgroundColor": "#e8f4fd",
                                         "border": "1px solid #90c0e8",
                                     }
-                                ],
+                                ], # type: ignore
                             ),
                             dbc.Button(
                                 "+ Add Range",
@@ -348,7 +347,6 @@ def create_checkpoint_schedule_page_layout(app: Dash) -> html.Div:
 
 
 def register_checkpoint_schedule_page_callbacks(app: Dash) -> None:
-
     @app.callback(
         Output("ckpt-variant-info", "children"),
         Output("ckpt-total-epochs-input", "value"),
@@ -433,7 +431,9 @@ def register_checkpoint_schedule_page_callbacks(app: Dash) -> None:
             epochs_limit = int(total_epochs) if total_epochs else len(train_losses)
             warning = _range_warning(table_data, epochs_limit)
             _, new_only = _generate_merged_epochs(table_data, existing, epochs_limit)
-            count_msg = f"{len(new_only)} new checkpoint epoch(s) will be added." if new_only else ""
+            count_msg = (
+                f"{len(new_only)} new checkpoint epoch(s) will be added." if new_only else ""
+            )
             fig = _build_loss_figure(train_losses, test_losses, existing, new_only or None)
             return fig, count_msg, warning
         except Exception as e:
@@ -468,10 +468,17 @@ def register_checkpoint_schedule_page_callbacks(app: Dash) -> None:
             if variant is None:
                 return no_update, no_update, f"Variant not found: {variant_name}", no_update
             existing = variant.get_available_checkpoints()
-            epochs_limit = int(total_epochs) if total_epochs else variant.metadata.get("num_epochs", 25000)
+            epochs_limit = (
+                int(total_epochs) if total_epochs else variant.metadata.get("num_epochs", 25000)
+            )
             merged, new_only = _generate_merged_epochs(table_data, existing, epochs_limit)
             if not new_only:
-                return no_update, no_update, "No new checkpoint epochs defined. Add at least one range.", no_update
+                return (
+                    no_update,
+                    no_update,
+                    "No new checkpoint epochs defined. Add at least one range.",
+                    no_update,
+                )
         except Exception as e:
             return no_update, no_update, f"Error: {e}", no_update
 
