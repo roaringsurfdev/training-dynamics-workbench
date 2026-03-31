@@ -116,14 +116,15 @@ class VariantAnalysisSummary:
         return nearest_checkpoint_epoch
 
     def _get_nearest_checkpoint_epoch_index(self, epoch: int) -> int:
-        nearest_checkpoint_epoch_index = 0
-
-        available_checkpoints = self.variant.get_available_checkpoints()
-        if available_checkpoints:
-            distances = [abs(e - epoch) for e in available_checkpoints]
-            nearest_checkpoint_epoch_index = distances.index(min(distances))
-
-        return nearest_checkpoint_epoch_index
+        # Use the artifact epoch list, not the full checkpoint list.
+        # After a retrain that adds checkpoints, get_available_checkpoints() grows
+        # but artifact summaries only cover analyzed epochs — using the checkpoint
+        # list produces an out-of-range index for any artifact array.
+        artifact_epochs = self.analysis_data.effective_dimensionality_pr_epochs
+        if not artifact_epochs:
+            return 0
+        distances = [abs(e - epoch) for e in artifact_epochs]
+        return distances.index(min(distances))
 
     def _get_frequency_bands(self, frequencies: list[int], prime: int) -> list[str]:
         """Classify a frequency into low / mid / high band relative to prime."""
