@@ -49,6 +49,12 @@ def create_analysis_run_page_layout(app: Dash) -> html.Div:
                                 placeholder="Select variant...",
                             ),
                             html.Br(),
+                            dcc.Checklist(
+                                id="analysis-run-force-refresh-checkbox",
+                                options=[{'label': 'Force Refresh', 'value': 'yes'}],
+                                value=[]
+                            ),
+                            html.Br(),
                             dbc.Button(
                                 "Refresh Variants",
                                 id="analysis-run-refresh-btn",
@@ -111,7 +117,7 @@ def create_analysis_run_page_layout(app: Dash) -> html.Div:
     )
 
 
-def _run_analysis_thread(family_name: str, variant_name: str) -> None:
+def _run_analysis_thread(family_name: str, variant_name: str, force_refresh: bool = False) -> None:
     """Execute analysis pipeline in a background thread."""
     from miscope.analysis import AnalysisPipeline
     from miscope.analysis.analyzers import (
@@ -135,6 +141,7 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         ParameterSnapshotAnalyzer,
         ParameterTrajectoryPCA,
         RepresentationalGeometryAnalyzer,
+        TransientFrequencyAnalyzer,
     )
 
     try:
@@ -175,7 +182,8 @@ def _run_analysis_thread(family_name: str, variant_name: str) -> None:
         pipeline.register_cross_epoch(ParameterTrajectoryPCA())
         pipeline.register_cross_epoch(GlobalCentroidPCA())
         pipeline.register_cross_epoch(CentroidDMD())
-        pipeline.run(progress_callback=progress_callback)
+        pipeline.register_cross_epoch(TransientFrequencyAnalyzer())
+        pipeline.run(progress_callback=progress_callback, force=force_refresh)
 
         # Regenerate variant_summary.json and variant_registry.json
         analysis_progress.update(0.97, "Regenerating variant summary...")
@@ -231,10 +239,11 @@ def register_analysis_run_page_callbacks(app: Dash) -> None:
         Input("analysis-run-start-btn", "n_clicks"),
         State("analysis-run-family-dropdown", "value"),
         State("analysis-run-variant-dropdown", "value"),
+        State("analysis-run-force-refresh-checkbox", "value"),
         prevent_initial_call=True,
     )
     def on_start_analysis(
-        n_clicks: int | None, family_name: str | None, variant_name: str | None
+        n_clicks: int | None, family_name: str | None, variant_name: str | None, force_refresh: str | None
     ) -> tuple:
         if not n_clicks:
             return no_update, no_update, no_update, no_update
@@ -242,10 +251,13 @@ def register_analysis_run_page_callbacks(app: Dash) -> None:
             return no_update, no_update, "Please select a family and variant", no_update
         if analysis_progress.get_state()["running"]:
             return no_update, no_update, "Analysis already in progress...", no_update
+        force = force_refresh and 'yes' in force_refresh
+        if force:
+            app.server.logger.warning("Running Analysis with Force Refresh")
         analysis_progress.start()
         thread = threading.Thread(
             target=_run_analysis_thread,
-            args=(family_name, variant_name),
+            args=(family_name, variant_name, force),
             daemon=True,
         )
         thread.start()
