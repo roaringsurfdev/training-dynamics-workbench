@@ -18,7 +18,7 @@ def _read_variant_summary() -> dict | None:
     ctx = variant_server_state.context
     if ctx is None:
         return None
-    summary_path = ctx.variant.variant_dir / "variant_summary.json"
+    summary_path = variant_server_state.variant.variant_dir / "variant_summary.json"
     if not summary_path.exists():
         return None
     return json.loads(summary_path.read_text())
