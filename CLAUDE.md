@@ -115,7 +115,7 @@ A logical unit is a meaningful chunk of work that can be described as a complete
 - "Added database configuration"
 - "Created authentication middleware"
 
-*Note: This workflow is designed to evolve. As patterns emerge, responsibilities may shift (e.g., Claude taking on pushing to remote) and branch strategy may adapt (e.g., tying branches to issues).*
+*Note: This workflow is designed to evolve. As patterns emerge, responsibilities may shift (e.g., Claude taking on pushing to remote).*
 
 **Continuous Integration:**
 - PRs to `develop` and `main` trigger CI workflow

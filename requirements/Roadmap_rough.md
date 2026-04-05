@@ -9,10 +9,28 @@ Once this capability is created for Analysis, it would be ideal to add Asynchron
 *Note: This behavior, along with general job management support will likely be built in a separate front-end from the analysis. The Dash framework may be ideal for rendering visualizations, but it might not be the right fit for job management. For ease of use, it may be that links are provided between front-ends.*
 
 ### Support for Choosing Subset for Analysis Runs
-The Representational Geometry Analyzer is incredibly powerful and useful. However, it is a long-running Analyzer compared to the others. We may have other Analyzers that are similarly long-running. This might create friction for creating and exploring new Variants, since all Analyzers must run in order to Analyze a Variant. It would be nice to be able to choose which Analyzers to run.
+The current Analysis Run page on the dashboard runs *all* Analyzers on the selected Variant. I would like the option to run a subset of Analyzers on the selected Variant. This is useful in cases where we are adding a new Analyzer to the pipeline.
 
-### Add support for Loading and Editing Variant Checkpoint Data
-The current Training interface assumes I'm only creating new variants. I would like to be able edit an existing variant's checkpoints - for example, adding checkpoint for models whose grokking window falls outside the default grokking window. It would also be nice to be able to delete unecessary checkpoints and their artifacts through a single interface to make sure everything remains in sync. This requirement is coming from a need to rerun 107/485 with additional checkpoints. There were mistakes made on my end, and there's no way to gracefully recover without deleting and retraining/reanalyzing the entire model.
+### Batch Analyzer to replace run_analysis.py notebook
+Currently, the only way to run analysis across all Variants - or a subset of them - is to execute analysis from the run_analysis.py notebook. In an effort to clean up the codebase and reduce code surface area, I would like to replace the notebook with a page for running Analyzers in Batch. This page should allow the user to run a selection (or all) of the Analyzers against a selection (or all) of the Variants. Adding an option to configure a wait cycle between Analyzing each Variant is also desired to help prevent overheating when running on a single machine (current use case).
 
-### Adding checkpoints should not need to retrain the whole model
-If checkpoints are added to a model, the platform should be able to pick up with the last checkpoint before the newly added ones. If inserting checkpoints (adding density), it should only be necessary to train the model between known good checkpoints.
+
+### Make the fieldnotes plots more readable for models and researchers
+For plots on fieldnotes, pre-populate the export button with proper file naming to include information about the variant and the view. Consider a hidden image area that will be legible by models since Plotly visualizations are not.
+
+ 
+## Fold `create_animation.py` logic into pipeline
+The pipeline currently support exports of visualizations. The logic to export animations should be there, too. This would allow me to get rid of the create_animation.py notebook.
+
+## Fold Initalization Analysis notebooks into the pipeline
+Create a new Initialization Analysis page under Cross-Variant Analysis that surfaces the visualizations from the following notebooks.
+
+- mseed_gradient_comparison.py
+- early_gradient_analysis.py
+
+
+## Fold Mean IPR Analysis into the pipeline
+Add Mean IPR Analysis from notbooks/neuron_fourier_poc.py to analysis pipeline and renders.
+
+## Add Prev/Next buttons to Neuron slider
+Duplicate the prev/next buttons currently used on the Epoch slide for the Neuron ID.

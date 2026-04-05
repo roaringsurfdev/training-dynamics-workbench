@@ -22,15 +22,6 @@ At a high level, many of my requests are coming from the motivation to build ani
 **Dominant Frequencies - All Weights**
 We currently have an Analyzer called "Dominant Frequencies" that provides analysis on embedding frequencies. I would like to create a new analyzer that provides data on all weight spaces. At the very least, this should be expanded to include Output weights. We can leave the existing Analyzer as-is for now and create a new one if that's best. *Note: This is currently in progress*
 
-**Parameter Space PCA per epoch**
-We currently show Parameter Space PCA for the entire training run. I'm wondering if it would make sense to create visualizations per epoch for side-by-side comparison with the Representation Space Centroid PCA diagrams. This would allow us to see whether there are dramatic moments during grokking, and whether the Parameter Space PCA undergoes a similar moment of using a 20/20/20 split between the first 3 PCs.
-
-**Centroid Class PCA Distribution Dynamics**
-The PCA redistributes across PC 1-3 over training. It would be nice to see this in a histogram or summary chart that shows the % of explanation of the top 3 PCs over training. This might be a useful indicator of a model undergoing reconstruction.
-
-**Visibility into Neurons that Thrash**
-It would be great to have a list of neurons that hop frequency specialization along with their respective concentrations of specialization. This would allow targeted analysis of specific neurons, especially in the context of lottery ticket analysis.
-
 **Cross-Variant Analysis**
 Going to start needing some cross-variant comparison. This seems like it might be easiest for time/epoch series visualizations.
 
@@ -52,3 +43,17 @@ I would like to be able to start evaluating probes through the network based on 
 
 **Error predictions based on learned frequencies**
 It would be great to be able to compare model accuracy within equivalence classes within the context of information about the quality of frequencies selected by the model and errors in output. This could likely be compared with the Fisher min.
+
+**Per-frequency gradient energy per-checkpoint**
+To be able to watch the accumulation trajectory from epoch 0 to cascade and see whether the winning frequencies had higher gradient energy from the start or whether they diverged later.
+
+**Experiments for testing periodicity as natural partitioning mechanism for neural networks**
+p109/s485/ds598 shows geometric structure as early as epoch 500, which is during first descent and while test loss is still climbing. This really pushes against the theory that geometric formation is what the model is learning during generalization.
+p101/s999/ds598 shows poor organization *and* poor MLP/Resid_Post Fourier Alignment throughout training.
+Many models show early MLP/Resid_Post Fourier Alignment - as early as first descent.
+*If* the models are naturally partitioning the neurons using frequency alignment (and generalization is about coordination between neural populations), we might expect p101 models to perform better by changing the width of the 1-Layer to a size more friendly to carving up neural populations to represent 100 classes.
+
+We might create a new model family that adds M as one of the domain parameters. Early signal that a model width trains well for the given prime would be early Fourier MLP alignment, although p101/s485/ds42 and p101/s999/ds999 challenge this thinking.
+
+Another question might be: how early do neurons show periodicity within their activations?
+Another question might be: does Fourier Alignment above threshold predict first mover emergence?

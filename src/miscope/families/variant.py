@@ -89,6 +89,11 @@ class Variant:
         return self._results_dir / self._family.name / self.name
 
     @property
+    def dir(self) -> Path:
+        """Alias for variant_dir. Path to this variant's working directory."""
+        return self.variant_dir
+
+    @property
     def checkpoints_dir(self) -> Path:
         """Path to checkpoints subdirectory."""
         return self.variant_dir / "checkpoints"
@@ -339,14 +344,18 @@ class Variant:
 
         return EpochContext(variant=self, epoch=epoch)
 
-    def view(self, name: str) -> BoundView:
+    def view(self, name: str, **kwargs: Any) -> BoundView:
         """Convenience shortcut for variant.at(epoch=None).view(name).
 
         For per-epoch views, resolves to the first available artifact epoch.
         For cross-epoch and metadata-based views, epoch is None (no cursor).
 
+        kwargs are forwarded to the renderer and merged with any kwargs passed
+        to .figure(), .show(), or .export() (call-site kwargs take precedence).
+
         Args:
             name: View identifier (e.g., "training.metadata.loss_curves", "parameters.embeddings.fourier_coefficients").
+            **kwargs: Renderer keyword arguments (e.g., site="attn_out", prime=7).
 
         Returns:
             BoundView ready to call .show(), .figure(), or .export().
@@ -354,7 +363,7 @@ class Variant:
         Raises:
             KeyError: If view name is not found in the catalog.
         """
-        return self.at(epoch=None).view(name)
+        return self.at(epoch=None).view(name, **kwargs)
 
     def dataview(self, name: str) -> BoundDataView:
         """Convenience shortcut for variant.at(epoch=None).dataview(name).
