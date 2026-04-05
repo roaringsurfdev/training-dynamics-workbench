@@ -15,16 +15,40 @@ Calibrated thresholds (from notebooks/viability_certificate_calibration.py):
 
 from __future__ import annotations
 
+import json as _json
 from itertools import combinations
+from pathlib import Path as _Path
 from typing import Any
 
 import numpy as np
 
 # ---------------------------------------------------------------------------
 # Module-level ideal-set cache (per prime × size)
+# Populated at import time from pre-computed JSON; falls back to exhaustive
+# search for any (prime, size) pair not in the file.
 # ---------------------------------------------------------------------------
 
+_IDEAL_SETS_PATH = _Path(__file__).parent.parent.parent.parent / (
+    "model_families/modulo_addition_1layer/ideal_frequency_sets.json"
+)
+
 _ideal_cache: dict[tuple[int, int], tuple[list[int], float]] = {}
+
+
+def _load_ideal_sets_from_disk() -> None:
+    if not _IDEAL_SETS_PATH.exists():
+        return
+    try:
+        with open(_IDEAL_SETS_PATH) as f:
+            data = _json.load(f)
+        for key_str, entry in data.items():
+            prime, size = (int(x) for x in key_str.split(":"))
+            _ideal_cache[(prime, size)] = (entry["ideal_set"], entry["ideal_dist"])
+    except Exception:
+        pass
+
+
+_load_ideal_sets_from_disk()
 
 # ---------------------------------------------------------------------------
 # Thresholds derived from calibration notebook
