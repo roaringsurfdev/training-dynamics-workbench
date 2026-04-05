@@ -134,6 +134,10 @@ class BoundView:
 
     Returned by EpochContext.view(). Callers do not pass epoch — it was
     fixed at EpochContext creation time.
+
+    kwargs may be supplied at construction time (via variant.view("name", **kwargs)
+    or EpochContext.view("name", **kwargs)) and are merged with any kwargs passed
+    to .figure()/.show()/.export(). Call-site kwargs take precedence.
     """
 
     def __init__(
@@ -141,15 +145,17 @@ class BoundView:
         view_def: ViewDefinition,
         variant: Variant,
         epoch: int | None,
+        kwargs: dict[str, Any] | None = None,
     ) -> None:
         self._view_def = view_def
         self._variant = variant
         self._epoch = epoch
+        self._kwargs: dict[str, Any] = kwargs or {}
 
     def figure(self, **kwargs: Any) -> go.Figure:
         """Render and return the Plotly Figure."""
         data = self._view_def.load_data(self._variant, self._epoch)
-        return self._view_def.renderer(data, self._epoch, **kwargs)
+        return self._view_def.renderer(data, self._epoch, **{**self._kwargs, **kwargs})
 
     def show(self, **kwargs: Any) -> None:
         """Render the figure inline in a Jupyter notebook."""
@@ -226,15 +232,19 @@ class EpochContext:
         )
         return catalog.available_names_for(self._variant)
 
-    def view(self, name: str) -> BoundView:
+    def view(self, name: str, **kwargs: Any) -> BoundView:
         """Look up a view and bind it to this epoch.
 
         For per-epoch views (epoch_source_analyzer is set), resolves a None
         epoch to the first available artifact epoch. Cross-epoch and
         metadata-based views receive None as-is.
 
+        kwargs are forwarded to the renderer and merged with any kwargs passed
+        to .figure(), .show(), or .export() (call-site kwargs take precedence).
+
         Args:
             name: View identifier (e.g., "parameters.embeddings.fourier_coefficients").
+            **kwargs: Renderer keyword arguments (e.g., site="attn_out", prime=7).
 
         Returns:
             BoundView with epoch fixed.
@@ -244,7 +254,7 @@ class EpochContext:
         """
         view_def = self._catalog.get(name)
         epoch = _resolve_epoch(self._epoch, view_def, self._variant)
-        return BoundView(view_def=view_def, variant=self._variant, epoch=epoch)
+        return BoundView(view_def=view_def, variant=self._variant, epoch=epoch, kwargs=kwargs or None)
 
     def dataview(self, name: str) -> BoundDataView:
         """Look up a dataview and bind it to this epoch.

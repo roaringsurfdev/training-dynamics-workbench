@@ -1,6 +1,6 @@
-# Training Dynamics Workbench
+# MIScope
 
-A mechanistic interpretability research tool for studying how neural networks learn during training. The workbench systematizes training, analysis, and visualization so that researchers can focus on exploring emergent behaviors rather than managing infrastructure.
+A mechanistic interpretability research tool for studying how neural networks learn during training. The workbench standardizes training, analysis, and visualization so that researchers can focus on exploring emergent behaviors rather than managing infrastructure or tracking notebook cell execution.
 
 ## Purpose
 
@@ -10,11 +10,11 @@ Train small Transformer models, capture checkpoints at key moments, and analyze 
 
 ## Current Status
 
-**v0.2.0 — First Foundational Release**
+**v0.8.x — Analysis and Visualization Platform**
 
-The MVP (v0.1.x) proved viability as a prototype. This release establishes the architecture for sustained research: Model Families, Variants, per-epoch artifact storage, and a family-aware dashboard.
+Thirty Modulo Addition variants across different primes, seeds, and data seeds are actively used for research. The platform includes a full analysis pipeline, an interactive Dash dashboard, and a view catalog API for notebook-based exploration.
 
-Five trained Modulo Addition variants across different primes are actively being used for research.
+See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ## Workflow
 
@@ -25,132 +25,142 @@ Define Family → Train Variants → Analyze Checkpoints → Explore Visualizati
 1. **Define** a Model Family with architecture, analyzers, and probes (`model_families/`)
 2. **Train** Variants with different domain parameters (e.g., different primes or seeds)
 3. **Analyze** each variant's checkpoints to generate per-epoch analysis artifacts
-4. **Explore** training dynamics through synchronized interactive visualizations
+4. **Explore** training dynamics through the dashboard or the notebook API
 
 ## Key Features
 
 ### Model Families and Variants
-- Model Family protocol for grouping structurally similar models
-- Variants differ only in domain parameters (e.g., modulus, seed)
-- Family defines architecture, analyzers, probes, and visualizations
-- FamilyRegistry discovers and manages families from `model_families/`
+- JSON-driven family definitions in `model_families/` — architecture, analyzers, and parameter schemas
+- Variants differ only in domain parameters (modulus, model seed, data seed)
+- Supports per-variant intervention sub-variants for targeted experiments
 
 ### Analysis Engine
-- Per-epoch artifact storage: one file per (analyzer, epoch) for constant memory usage
+- Per-epoch artifact storage: one `.npz` file per (analyzer, epoch) for constant memory usage
 - Resumable analysis: skips already-computed epochs automatically
-- Three built-in analyzers: Dominant Frequencies, Neuron Activations, Frequency Clusters
-- Extensible Analyzer protocol for adding new analysis functions
+- Three tiers: **per-epoch analyzers**, **cross-epoch analyzers** (trajectory), **secondary analyzers** (derived metrics)
+- Extensible `Analyzer` protocol for adding new analysis functions
 
-### Workbench Dashboard
-- Family and variant selection with state-aware UI
-- Training and analysis from the dashboard
-- **Synchronized checkpoint slider** across all visualizations
-- On-demand per-epoch loading (no full dataset in memory)
-- Interactive Plotly visualizations with hover details
+### View Catalog API
+- Named views for all visualizations (`variant.at(epoch).view("view_name")`)
+- Views are universal instruments — they apply to any transformer, not tied to a family
+- Supports notebook-inline display (`.show()`), figure access (`.figure()`), and file export (`.export()`)
+
+### Interactive Dashboard
+- Dash-based UI with live training and analysis job management
+- Synchronized epoch slider across all visualizations
+- On-demand per-epoch loading — no full dataset in memory
+- Pages: Variant Analysis, Cross-Variant Comparison, Multi-Stream Specialization, Transient Frequencies, Intervention Check, and more
+
+### Research Notebook
+- [fieldnotes/](fieldnotes/) — an Astro-based research journal, published to GitHub Pages
+- Figures exported from the analysis pipeline embed directly in posts
 
 ## Technology Stack
 
-- **Python 3.11+** - Supports 3.11, 3.12, and 3.13
-- **PyTorch + CUDA** - Training and model execution
-- **TransformerLens** - Model architecture (HookedTransformer)
-- **Safetensors** - Checkpoint persistence
-- **Plotly** - Interactive visualizations
-- **Gradio** - Dashboard UI
-- **NumPy** - Analysis artifact storage (per-epoch `.npz` files)
-- **pytest** - Testing framework
+- **Python 3.11+** — supports 3.11, 3.12, and 3.13
+- **PyTorch** — training and model execution
+- **TransformerLens** — model architecture (`HookedTransformer`)
+- **Safetensors** — checkpoint persistence
+- **Plotly** — interactive visualizations
+- **Dash** — dashboard UI
+- **NumPy** — analysis artifact storage (per-epoch `.npz` files)
+- **uv** — package management
+- **pytest** — testing framework
 
 ## Project Structure
 
 ```
 /
-├── analysis/                     # Analysis engine
-│   ├── analyzers/               # Analyzer implementations
-│   ├── library/                 # Shared analysis utilities (Fourier basis, etc.)
-│   ├── pipeline.py              # AnalysisPipeline orchestration
-│   └── artifact_loader.py       # Per-epoch artifact loading
-├── dashboard/                    # Gradio web dashboard
-│   ├── components/              # UI components (family selector, loss curves)
-│   ├── app.py                   # Main application
-│   └── state.py                 # Dashboard state management
-├── families/                     # Model Family framework
-│   ├── implementations/         # Concrete family implementations
-│   └── protocols.py             # ModelFamily protocol, Variant, FamilyRegistry
+├── src/miscope/                  # Installable analysis package (import miscope.*)
+│   ├── analysis/                 # Pipeline, analyzers, artifacts, protocols
+│   ├── families/                 # Family registry, Variant, implementations
+│   ├── views/                    # View catalog API (EpochContext, BoundView)
+│   └── visualization/            # Renderers and export
+├── dashboard/                    # Dash web dashboard
+│   ├── pages/                    # Per-page layout and callbacks
+│   ├── app.py                    # Application entry point
+│   └── state.py                  # Dashboard state management
+├── fieldnotes/                   # Research notebook (Astro, published to GitHub Pages)
 ├── model_families/               # Family definitions (family.json files)
-│   └── modulo_addition_1layer/  # Modulo Addition 1-Layer family
-├── visualization/                # Visualization renderers
-│   └── renderers/               # Per-epoch and cross-epoch renderers
-├── requirements/                 # Structured requirements
+│   └── modulo_addition_1layer/
+├── results/                      # Training outputs (not in repo)
+│   └── {family}/
+│       └── {variant}/
+│           ├── checkpoints/      # Model checkpoints (.safetensors)
+│           ├── artifacts/        # Per-epoch analysis artifacts
+│           │   └── {analyzer}/   # epoch_00000.npz, epoch_00100.npz, ...
+│           ├── metadata.json     # Training metrics
+│           └── config.json       # Variant configuration
 ├── tests/                        # Test suite
-└── results/                      # Training outputs (not in repo)
-    └── {family}/
-        └── {variant}/
-            ├── checkpoints/     # Model checkpoints (.safetensors)
-            ├── artifacts/       # Per-epoch analysis artifacts
-            │   └── {analyzer}/  # epoch_00000.npz, epoch_00100.npz, ...
-            ├── metadata.json    # Training metrics
-            └── config.json      # Variant configuration
+├── notebooks/                    # Research and demo notebooks
+└── requirements/                 # Structured requirements
 ```
 
 ## Getting Started
 
 ### Prerequisites
 ```bash
-python --version  # Python 3.13
-nvidia-smi        # CUDA support (optional but recommended)
+python --version  # Python 3.11+
+uv --version      # Package manager (https://docs.astral.sh/uv/)
 ```
 
 ### Installation
 ```bash
 git clone <repository-url>
 cd training-dynamics-workbench
-
-python -m venv .venv
-source .venv/bin/activate
-
-pip install -r requirements.txt
+uv sync
 ```
 
 ### Running the Dashboard
 ```bash
-python main.py
+uv run python dashboard/app.py
 ```
 
 ### Running Tests
 ```bash
-pytest
+uv run pytest
+```
+
+### Notebook API
+
+```python
+from miscope import load_family
+
+family = load_family("modulo_addition_1layer")
+variant = family.get_variant(prime=113, seed=999, data_seed=598)
+
+# Pin an epoch and access any view
+ctx = variant.at(epoch=5000)
+ctx.view("training.metadata.loss_curves").show()
+ctx.view("parameters.pca.trajectory").show()
+
+# Or pass kwargs directly to the view
+variant.view("neuron.freq.distribution", site="mlp_post").show()
 ```
 
 ## Architecture
 
-### Three-Layer Design
+### Separation of Concerns
 
-1. **Model Families** — Define model architecture, training data, probes, and analyzers
-2. **Analysis Engine** — Load checkpoints, run forward passes, generate per-epoch artifacts
-3. **Workbench Dashboard** — Family-aware UI for training, analysis, and visualization
+Two constraints hold across all features:
+
+1. **Views are universal instruments.** Analytical lenses (PCA, Fourier, neuron activations, attention patterns) apply to any transformer. They do not belong to a model family.
+2. **Families are context providers, not view owners.** A family contributes probe construction, interpretive context, and task-specific metrics. It does not register or own analytical views.
 
 ### Per-Epoch Artifact Storage
 
 ```
-Training → Checkpoints (safetensors) → Analysis (per-epoch) → Artifacts (disk) → Visualizations (on-demand)
+Training → Checkpoints (.safetensors) → Analysis → Artifacts (.npz) → Views (on-demand)
 ```
 
-Analysis artifacts are stored one file per (analyzer, epoch), eliminating memory exhaustion during analysis and enabling the dashboard to load only the data it needs for the current view.
+Analysis artifacts are stored one file per (analyzer, epoch). The dashboard loads only what the current view needs.
 
 ## Documentation
 
-- [**PROJECT.md**](PROJECT.md) - Project scope, architecture, and current status
-- [**DOMAIN_MODEL.md**](DOMAIN_MODEL.md) - Core domain objects and relationships
-- [**requirements/**](requirements/) - Structured requirements
-
-## Future Directions
-
-- Notebook-based exploratory visualization design
-- Analysis Reports (web-based visualization components per family)
-- Gap-filling pattern for incremental analysis
-- Additional model families beyond Modulo Addition
-- Automatic grokking phase detection
-- Side-by-side variant comparison
-- AWS deployment for larger models
+- [**PROJECT.md**](PROJECT.md) — Project scope, mission, and architectural principles
+- [**DOMAIN_MODEL.md**](DOMAIN_MODEL.md) — Core domain objects and relationships
+- [**CHANGELOG.md**](CHANGELOG.md) — Release history
+- [**requirements/**](requirements/) — Structured requirements
 
 ## Acknowledgments
 
@@ -159,4 +169,4 @@ Based on research from:
 - TransformerLens library for interpretability research
 
 ---
-**Last Updated:** 2026-02-06
+**Last Updated:** 2026-04-04
