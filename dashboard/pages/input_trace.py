@@ -1,7 +1,8 @@
-"""Input Trace page — REQ_075.
+"""Input Trace page — REQ_075 / REQ_053.
 
-Three views for per-input prediction trace analysis:
+Four views for per-input prediction trace analysis:
 - Residue class accuracy timeline (cross-epoch summary)
+- Frequency quality vs test accuracy overlay (cross-epoch summary)
 - Training pair accuracy grid (per-epoch snapshot)
 - Pair graduation heatmap (cross-epoch graduation summary)
 """
@@ -24,6 +25,10 @@ _VIEW_LIST = {
         "view_name": "input_trace.accuracy_grid",
         "view_type": "epoch_selector",
     },
+    "freq-quality-vs-accuracy": {
+        "view_name": "input_trace.frequency_quality_vs_accuracy",
+        "view_type": "epoch_selector",
+    },
     "graduation-heatmap": {
         "view_name": "input_trace.graduation_heatmap",
         "view_type": "default_graph",
@@ -44,7 +49,16 @@ def create_input_trace_page_layout(app: Dash) -> html.Div:
         children=[
             html.H4("Per-Input Prediction Trace", className="mb-3"),
             dbc.Row(dbc.Col(_graph_manager.create_graph("training-loss-curves", "350px"))),
-            dbc.Row(dbc.Col(_graph_manager.create_graph("residue-class-timeline", "500px"))),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        _graph_manager.create_graph("residue-class-timeline", "450px"), width=6
+                    ),
+                    dbc.Col(
+                        _graph_manager.create_graph("freq-quality-vs-accuracy", "450px"), width=6
+                    ),
+                ]
+            ),
             dbc.Row(
                 [
                     dbc.Col(_graph_manager.create_graph("accuracy-grid", "600px"), width=6),
