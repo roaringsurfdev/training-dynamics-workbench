@@ -123,11 +123,11 @@ def _build_context_children(variant) -> list:
         )
         children.append(html.Span("|", style=_DIVIDER_STYLE))
 
-    # --- Committed frequencies (1-indexed for display) ---
+    # --- Committed frequencies ---
     final_window = summary.get("final_window", {})
     committed_raw = final_window.get("committed_frequencies_end") or []
     if committed_raw:
-        freq_str = ", ".join(str(f + 1) for f in sorted(committed_raw))
+        freq_str = ", ".join(str(f) for f in sorted(committed_raw))
         children.append(
             html.Span(
                 [html.Span("Freqs: ", className="text-muted"), freq_str],
