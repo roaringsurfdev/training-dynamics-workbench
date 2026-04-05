@@ -722,7 +722,9 @@ class VariantAnalysisSummary:
         except FileNotFoundError:
             self.summary_data["learned_frequencies"] = None
             self.summary_data["learned_frequency_count"] = None
-            self.summary_data["canonical_specialization_threshold"] = _CANONICAL_SPECIALIZATION_THRESHOLD
+            self.summary_data["canonical_specialization_threshold"] = (
+                _CANONICAL_SPECIALIZATION_THRESHOLD
+            )
             return
 
         dominant_freq = nd["dominant_freq"]
@@ -740,7 +742,9 @@ class VariantAnalysisSummary:
         learned = sorted(f for f, cnt in freq_counts.items() if cnt >= threshold_count)
         self.summary_data["learned_frequencies"] = learned
         self.summary_data["learned_frequency_count"] = len(learned)
-        self.summary_data["canonical_specialization_threshold"] = _CANONICAL_SPECIALIZATION_THRESHOLD
+        self.summary_data["canonical_specialization_threshold"] = (
+            _CANONICAL_SPECIALIZATION_THRESHOLD
+        )
 
     def _load_handshake_metrics(self) -> None:
         """Populate committed_frequencies_at_onset and handshake failure fields."""
@@ -847,7 +851,9 @@ class VariantAnalysisSummary:
         self.summary_data["transient_frequency_count"] = len(transient_freqs)
         self.summary_data["homeless_neuron_count"] = total_homeless
         self.summary_data["homeless_neuron_fraction"] = homeless_fraction
-        self.summary_data["transient_detection_threshold"] = float(tf["_transient_canonical_threshold"])
+        self.summary_data["transient_detection_threshold"] = float(
+            tf["_transient_canonical_threshold"]
+        )
 
     def _load_failure_mode(self) -> None:
         """Populate failure_mode and failure_mode_reasons using cross_variant classifier."""

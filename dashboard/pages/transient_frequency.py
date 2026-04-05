@@ -28,8 +28,10 @@ def _empty_figure(message: str = "Select a variant") -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
         text=message,
-        x=0.5, y=0.5,
-        xref="paper", yref="paper",
+        x=0.5,
+        y=0.5,
+        xref="paper",
+        yref="paper",
         showarrow=False,
         font=dict(size=14, color="gray"),
     )
@@ -52,40 +54,46 @@ def _make_graph(graph_id: str, height: str) -> dcc.Graph:
 
 def create_transient_page_nav(app: Dash) -> html.Div:
     app.server.logger.debug("create_transient_page_nav")
-    return html.Div([
-        html.Div(id=f"{_PAGE_PREFIX}-summary", className="mb-3"),
-        html.Hr(),
-        dbc.Label("Frequency Group", className="fw-bold"),
-        dcc.Dropdown(
-            id=f"{_PAGE_PREFIX}-freq-dropdown",
-            options=[],
-            value=None,
-            clearable=True,
-            placeholder="Default (largest group)",
-            className="mb-3",
-        ),
-        dbc.Checklist(
-            id=f"{_PAGE_PREFIX}-show-persistent",
-            options=[{"label": "Show persistent frequencies", "value": "show"}],
-            value=["show"],
-            switch=True,
-            className="mb-2",
-        ),
-        html.Hr(),
-    ])
+    return html.Div(
+        [
+            html.Div(id=f"{_PAGE_PREFIX}-summary", className="mb-3"),
+            html.Hr(),
+            dbc.Label("Frequency Group", className="fw-bold"),
+            dcc.Dropdown(
+                id=f"{_PAGE_PREFIX}-freq-dropdown",
+                options=[],
+                value=None,
+                clearable=True,
+                placeholder="Default (largest group)",
+                className="mb-3",
+            ),
+            dbc.Checklist(
+                id=f"{_PAGE_PREFIX}-show-persistent",
+                options=[{"label": "Show persistent frequencies", "value": "show"}],
+                value=["show"],
+                switch=True,
+                className="mb-2",
+            ),
+            html.Hr(),
+        ]
+    )
 
 
 def create_transient_page_layout(app: Dash) -> html.Div:
     app.server.logger.debug("create_transient_page_layout")
-    return html.Div([
-        html.H4("Transient Frequency Analysis", className="mb-3"),
-        dbc.Row(dbc.Col(_make_graph("committed-counts", "450px"), className="mb-3")),
-        html.Hr(),
-        dbc.Row([
-            dbc.Col(_make_graph("peak-scatter", "520px"), md=6),
-            dbc.Col(_make_graph("pc1-cohesion", "520px"), md=6),
-        ]),
-    ])
+    return html.Div(
+        [
+            html.H4("Transient Frequency Analysis", className="mb-3"),
+            dbc.Row(dbc.Col(_make_graph("committed-counts", "450px"), className="mb-3")),
+            html.Hr(),
+            dbc.Row(
+                [
+                    dbc.Col(_make_graph("peak-scatter", "520px"), md=6),
+                    dbc.Col(_make_graph("pc1-cohesion", "520px"), md=6),
+                ]
+            ),
+        ]
+    )
 
 
 def register_transient_page_callbacks(app: Dash) -> None:
@@ -117,17 +125,20 @@ def register_transient_page_callbacks(app: Dash) -> None:
         transient_color = "danger" if transient_count > 0 else "secondary"
         homeless_color = "warning" if (homeless_frac or 0) > 0.05 else "secondary"
 
-        summary_div = html.Div([
-            dbc.Badge(f"{transient_count} transient group{'s' if transient_count != 1 else ''}",
-                      color=transient_color, className="me-1 mb-1"),
-            dbc.Badge(f"{homeless_str} homeless neurons",
-                      color=homeless_color, className="mb-1"),
-        ])
+        summary_div = html.Div(
+            [
+                dbc.Badge(
+                    f"{transient_count} transient group{'s' if transient_count != 1 else ''}",
+                    color=transient_color,
+                    className="me-1 mb-1",
+                ),
+                dbc.Badge(
+                    f"{homeless_str} homeless neurons", color=homeless_color, className="mb-1"
+                ),
+            ]
+        )
 
-        options = [
-            {"label": f"Freq {f}", "value": f - 1}
-            for f in transient_freqs
-        ]
+        options = [{"label": f"Freq {f}", "value": f - 1} for f in transient_freqs]
         return summary_div, options, None
 
     @app.callback(

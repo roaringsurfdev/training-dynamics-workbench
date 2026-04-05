@@ -60,13 +60,15 @@ def render_transient_committed_counts(
             line = dict(dash="dash", color=_TRANSIENT_COLOR, width=2)
             name = f"freq {freq_label}  ← transient"
 
-        fig.add_trace(go.Scatter(
-            x=epochs.tolist(),
-            y=committed_counts[:, i].tolist(),
-            mode="lines",
-            name=name,
-            line=line,
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=epochs.tolist(),
+                y=committed_counts[:, i].tolist(),
+                mode="lines",
+                name=name,
+                line=line,
+            )
+        )
 
     threshold_pct = int(round(float(data["_transient_canonical_threshold"]) * 100))
     fig.update_layout(
@@ -74,7 +76,7 @@ def render_transient_committed_counts(
             "Committed neuron count per ever-qualified frequency<br>"
             f"<sup>Dashed red = transient (absent from final set) | "
             f"threshold = {threshold_pct}% of d_mlp | "
-            f"neuron gate = {int(round(float(data['_neuron_threshold'])*100))}% frac_explained</sup>"
+            f"neuron gate = {int(round(float(data['_neuron_threshold']) * 100))}% frac_explained</sup>"
         ),
         xaxis_title="Epoch",
         yaxis_title="Committed neuron count",
@@ -132,8 +134,8 @@ def render_transient_peak_scatter(
     W_in = w_in_by_epoch[peak_ep]
     basis, s, coords = _compute_basis(W_in[:, members])
     total_var = float((s**2).sum())
-    pc1_frac = float(s[0]**2 / total_var)
-    pc2_frac = float(s[1]**2 / total_var)
+    pc1_frac = float(s[0] ** 2 / total_var)
+    pc2_frac = float(s[1] ** 2 / total_var)
 
     # Final dominant freq for coloring (from neuron_dynamics, stored in tf via homeless logic)
     # We don't have final_dominant directly; derive from peak membership context.
@@ -144,20 +146,22 @@ def render_transient_peak_scatter(
 
     angles = np.arctan2(coords[:, 1], coords[:, 0])
     fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=coords[:, 0].tolist(),
-        y=coords[:, 1].tolist(),
-        mode="markers",
-        marker=dict(
-            color=angles.tolist(),
-            colorscale="HSV",
-            size=7,
-            showscale=True,
-            colorbar=dict(title="PC angle", thickness=12),
-        ),
-        hovertemplate="PC1=%{x:.3f}<br>PC2=%{y:.3f}<extra></extra>",
-        showlegend=False,
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=coords[:, 0].tolist(),
+            y=coords[:, 1].tolist(),
+            mode="markers",
+            marker=dict(
+                color=angles.tolist(),
+                colorscale="HSV",
+                size=7,
+                showscale=True,
+                colorbar=dict(title="PC angle", thickness=12),
+            ),
+            hovertemplate="PC1=%{x:.3f}<br>PC2=%{y:.3f}<extra></extra>",
+            showlegend=False,
+        )
+    )
 
     fig.update_layout(
         title=(
@@ -231,16 +235,18 @@ def render_transient_pc1_cohesion(
         coords = _project_onto(W_in[:, members], ref_basis)
         _, s_proj, _ = np.linalg.svd(coords, full_matrices=False)
         total = float((s_proj**2).sum())
-        pc1_seq.append(float(s_proj[0]**2 / total) if total > 1e-10 else float("nan"))
+        pc1_seq.append(float(s_proj[0] ** 2 / total) if total > 1e-10 else float("nan"))
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=epochs.tolist(),
-        y=pc1_seq,
-        mode="lines",
-        name=f"freq {freq_val + 1} cohort",
-        line=dict(color=_TRANSIENT_COLOR, width=2),
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=epochs.tolist(),
+            y=pc1_seq,
+            mode="lines",
+            name=f"freq {freq_val + 1} cohort",
+            line=dict(color=_TRANSIENT_COLOR, width=2),
+        )
+    )
     fig.add_vline(
         x=peak_ep,
         line_dash="dash",
@@ -267,6 +273,7 @@ def render_transient_pc1_cohesion(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _compute_basis(
     group_W: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -283,8 +290,8 @@ def _compute_basis(
     centroid = group_W.mean(axis=1, keepdims=True)
     centered = group_W - centroid
     U, s, _ = np.linalg.svd(centered, full_matrices=False)
-    basis = U[:, :n_components].T       # (n_components, d_model)
-    coords = (basis @ centered).T       # (n_group, n_components)
+    basis = U[:, :n_components].T  # (n_components, d_model)
+    coords = (basis @ centered).T  # (n_group, n_components)
     return basis, s[:n_components], coords
 
 
@@ -307,8 +314,10 @@ def _empty_figure(message: str) -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
         text=message,
-        x=0.5, y=0.5,
-        xref="paper", yref="paper",
+        x=0.5,
+        y=0.5,
+        xref="paper",
+        yref="paper",
         showarrow=False,
         font=dict(size=14, color="gray"),
     )

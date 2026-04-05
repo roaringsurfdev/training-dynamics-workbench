@@ -354,6 +354,7 @@ def test_build_variant_registry_one_entry_per_variant(tmp_path):
 # VariantAnalysisSummary: new migrated fields
 # ---------------------------------------------------------------------------
 
+
 def _make_vas_variant(
     nd_data: dict | None = None,
     tf_data: dict | None = None,
@@ -396,7 +397,9 @@ def test_vas_learned_frequencies_populated():
     vas = _make_vas(variant)
     vas._load_learned_frequencies()
     assert vas.summary_data["learned_frequencies"] is not None
-    assert vas.summary_data["learned_frequency_count"] == len(vas.summary_data["learned_frequencies"])
+    assert vas.summary_data["learned_frequency_count"] == len(
+        vas.summary_data["learned_frequencies"]
+    )
     assert vas.summary_data["canonical_specialization_threshold"] == 0.10
 
 

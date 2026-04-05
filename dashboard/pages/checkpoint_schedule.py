@@ -123,10 +123,10 @@ def _generate_range_epochs(row: dict) -> set[int]:
     step = row.get("step")
     if any(v is None or v == "" for v in [start, end, step]):
         return set()
-    step = int(step) # pyright: ignore[reportArgumentType]
+    step = int(step)  # pyright: ignore[reportArgumentType]
     if step <= 0:
         return set()
-    return set(range(int(start), int(end) + 1, step)) # type: ignore
+    return set(range(int(start), int(end) + 1, step))  # type: ignore
 
 
 def _generate_merged_epochs(
@@ -273,7 +273,7 @@ def create_checkpoint_schedule_page_layout(app: Dash) -> html.Div:
                                         "backgroundColor": "#e8f4fd",
                                         "border": "1px solid #90c0e8",
                                     }
-                                ], # type: ignore
+                                ],  # type: ignore
                             ),
                             dbc.Button(
                                 "+ Add Range",

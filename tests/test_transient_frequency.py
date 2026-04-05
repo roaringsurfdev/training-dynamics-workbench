@@ -74,8 +74,8 @@ def artifacts_with_transient():
     dominant_freq[1] = dominant_freq[0].copy()
 
     # Epoch 2: freq 0 neurons start moving to freq 1 and 4
-    dominant_freq[2, :3] = 1    # 3 of the freq-0 neurons move to freq 1
-    dominant_freq[2, 3:6] = 4   # 3 move to freq 4
+    dominant_freq[2, :3] = 1  # 3 of the freq-0 neurons move to freq 1
+    dominant_freq[2, 3:6] = 4  # 3 move to freq 4
     dominant_freq[2, 6:16] = 1
     dominant_freq[2, 16:] = 3
 
@@ -92,12 +92,14 @@ def artifacts_with_transient():
         nd_dir = os.path.join(tmpdir, "neuron_dynamics")
         os.makedirs(nd_dir)
         nd_data = _make_neuron_dynamics(
-            n_epochs, n_freq, d_mlp,
+            n_epochs,
+            n_freq,
+            d_mlp,
             dominant_freq=dominant_freq,
             max_frac=max_frac,
             epochs=epochs,
         )
-        np.savez_compressed(os.path.join(nd_dir, "cross_epoch.npz"), **nd_data) # type: ignore
+        np.savez_compressed(os.path.join(nd_dir, "cross_epoch.npz"), **nd_data)  # type: ignore
         yield tmpdir, n_epochs, n_freq, d_mlp, epochs, dominant_freq, max_frac
 
 
@@ -144,7 +146,7 @@ class TestPackRagged:
         assert len(flat) == 6
         assert len(offsets) == 4
         for i, arr in enumerate(arrays):
-            recovered = flat[offsets[i]:offsets[i + 1]]
+            recovered = flat[offsets[i] : offsets[i + 1]]
             np.testing.assert_array_equal(recovered, arr)
 
 
@@ -170,10 +172,17 @@ class TestTransientFrequencyAnalyzer:
         result = analyzer.analyze_across_epochs(tmpdir, epochs.tolist(), context={})
 
         required_keys = [
-            "ever_qualified_freqs", "is_final", "peak_epoch", "peak_count",
-            "homeless_count", "committed_counts", "peak_members_flat",
-            "peak_members_offsets", "epochs",
-            "_neuron_threshold", "_transient_canonical_threshold",
+            "ever_qualified_freqs",
+            "is_final",
+            "peak_epoch",
+            "peak_count",
+            "homeless_count",
+            "committed_counts",
+            "peak_members_flat",
+            "peak_members_offsets",
+            "epochs",
+            "_neuron_threshold",
+            "_transient_canonical_threshold",
             "_final_canonical_threshold",
         ]
         for key in required_keys:
@@ -278,8 +287,12 @@ class TestTransientFrequencyAnalyzer:
             nd_dir = os.path.join(tmpdir, "neuron_dynamics")
             os.makedirs(nd_dir)
             nd_data = _make_neuron_dynamics(
-                n_epochs, n_freq, d_mlp,
-                dominant_freq=dom, max_frac=frac, epochs=epochs,
+                n_epochs,
+                n_freq,
+                d_mlp,
+                dominant_freq=dom,
+                max_frac=frac,
+                epochs=epochs,
             )
             np.savez_compressed(os.path.join(nd_dir, "cross_epoch.npz"), **nd_data)
 
@@ -363,9 +376,7 @@ class TestRenderTransientCommittedCounts:
 class TestRenderTransientPeakScatter:
     def test_returns_figure(self, sample_transient_artifact, sample_w_in_by_epoch):
         data = {"transient": sample_transient_artifact, "w_in_by_epoch": sample_w_in_by_epoch}
-        fig = render_transient_peak_scatter(
-            data["transient"], data["w_in_by_epoch"], epoch=None
-        )
+        fig = render_transient_peak_scatter(data["transient"], data["w_in_by_epoch"], epoch=None)
         assert isinstance(fig, go.Figure)
 
     def test_explicit_freq(self, sample_transient_artifact, sample_w_in_by_epoch):
@@ -399,9 +410,7 @@ class TestRenderTransientPc1Cohesion:
         )
         assert isinstance(fig, go.Figure)
         # Peak epoch vline present as shape
-        assert len(fig.layout.shapes) > 0 or any(
-            hasattr(trace, "x0") for trace in fig.data
-        )
+        assert len(fig.layout.shapes) > 0 or any(hasattr(trace, "x0") for trace in fig.data)
 
     def test_explicit_freq(self, sample_transient_artifact, sample_w_in_by_epoch):
         fig = render_transient_pc1_cohesion(

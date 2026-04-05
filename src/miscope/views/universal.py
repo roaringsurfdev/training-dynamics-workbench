@@ -1095,23 +1095,23 @@ def _register_all() -> None:
 
         return render_transient_committed_counts(data, epoch, **kwargs)
 
-    def _render_transient_peak_scatter(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
+    def _render_transient_peak_scatter(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         from miscope.visualization.renderers.transient_frequency import (
             render_transient_peak_scatter,
         )
 
-        return render_transient_peak_scatter(data["transient"], data["w_in_by_epoch"], epoch, **kwargs)
+        return render_transient_peak_scatter(
+            data["transient"], data["w_in_by_epoch"], epoch, **kwargs
+        )
 
-    def _render_transient_pc1_cohesion(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
+    def _render_transient_pc1_cohesion(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         from miscope.visualization.renderers.transient_frequency import (
             render_transient_pc1_cohesion,
         )
 
-        return render_transient_pc1_cohesion(data["transient"], data["w_in_by_epoch"], epoch, **kwargs)
+        return render_transient_pc1_cohesion(
+            data["transient"], data["w_in_by_epoch"], epoch, **kwargs
+        )
 
     _transient_req = [AnalyzerRequirement("transient_frequency", ArtifactKind.CROSS_EPOCH)]
     _transient_win_req = [

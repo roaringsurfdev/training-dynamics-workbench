@@ -254,7 +254,9 @@ class EpochContext:
         """
         view_def = self._catalog.get(name)
         epoch = _resolve_epoch(self._epoch, view_def, self._variant)
-        return BoundView(view_def=view_def, variant=self._variant, epoch=epoch, kwargs=kwargs or None)
+        return BoundView(
+            view_def=view_def, variant=self._variant, epoch=epoch, kwargs=kwargs or None
+        )
 
     def dataview(self, name: str) -> BoundDataView:
         """Look up a dataview and bind it to this epoch.

@@ -51,8 +51,8 @@ def create_analysis_run_page_layout(app: Dash) -> html.Div:
                             html.Br(),
                             dcc.Checklist(
                                 id="analysis-run-force-refresh-checkbox",
-                                options=[{'label': 'Force Refresh', 'value': 'yes'}],
-                                value=[]
+                                options=[{"label": "Force Refresh", "value": "yes"}],
+                                value=[],
                             ),
                             html.Br(),
                             dbc.Button(
@@ -243,7 +243,10 @@ def register_analysis_run_page_callbacks(app: Dash) -> None:
         prevent_initial_call=True,
     )
     def on_start_analysis(
-        n_clicks: int | None, family_name: str | None, variant_name: str | None, force_refresh: str | None
+        n_clicks: int | None,
+        family_name: str | None,
+        variant_name: str | None,
+        force_refresh: str | None,
     ) -> tuple:
         if not n_clicks:
             return no_update, no_update, no_update, no_update
@@ -251,7 +254,7 @@ def register_analysis_run_page_callbacks(app: Dash) -> None:
             return no_update, no_update, "Please select a family and variant", no_update
         if analysis_progress.get_state()["running"]:
             return no_update, no_update, "Analysis already in progress...", no_update
-        force = force_refresh and 'yes' in force_refresh
+        force = force_refresh and "yes" in force_refresh
         if force:
             app.server.logger.warning("Running Analysis with Force Refresh")
         analysis_progress.start()

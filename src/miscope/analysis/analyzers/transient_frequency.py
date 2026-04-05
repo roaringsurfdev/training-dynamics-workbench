@@ -60,9 +60,9 @@ class TransientFrequencyAnalyzer:
         loader = ArtifactLoader(artifacts_dir)
         nd = loader.load_cross_epoch("neuron_dynamics")
 
-        dominant_freq = nd["dominant_freq"]   # (n_epochs, d_mlp)
-        max_frac = nd["max_frac"]             # (n_epochs, d_mlp)
-        nd_epochs = nd["epochs"]              # (n_epochs,)
+        dominant_freq = nd["dominant_freq"]  # (n_epochs, d_mlp)
+        max_frac = nd["max_frac"]  # (n_epochs, d_mlp)
+        nd_epochs = nd["epochs"]  # (n_epochs,)
 
         n_epochs, d_mlp = dominant_freq.shape
         n_freq = int(dominant_freq.max()) + 1
@@ -93,8 +93,12 @@ class TransientFrequencyAnalyzer:
         final_max_frac = max_frac[-1]  # (d_mlp,)
 
         members_list, homeless_counts = _build_peak_members(
-            ever_qualified, peak_epoch_indices, dominant_freq, max_frac,
-            final_max_frac, NEURON_THRESHOLD
+            ever_qualified,
+            peak_epoch_indices,
+            dominant_freq,
+            max_frac,
+            final_max_frac,
+            NEURON_THRESHOLD,
         )
 
         flat, offsets = _pack_ragged(members_list)
@@ -120,6 +124,7 @@ class TransientFrequencyAnalyzer:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _compute_committed_counts(
     dominant_freq: np.ndarray,
     max_frac: np.ndarray,
@@ -144,9 +149,7 @@ def _compute_committed_counts(
     for ep_idx in range(n_epochs):
         spec_neurons = np.where(specialized[ep_idx])[0]
         if len(spec_neurons) > 0:
-            counts[ep_idx] = np.bincount(
-                dominant_freq[ep_idx, spec_neurons], minlength=n_freq
-            )
+            counts[ep_idx] = np.bincount(dominant_freq[ep_idx, spec_neurons], minlength=n_freq)
 
     return counts
 

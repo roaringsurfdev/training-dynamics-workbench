@@ -96,8 +96,8 @@ def _extract_transient_fields(variant: Variant) -> dict[str, Any]:
         return result
 
     ever_qualified = tf["ever_qualified_freqs"]  # (n_transient,) 0-indexed
-    is_final = tf["is_final"]                    # (n_transient,) bool
-    homeless_count = tf["homeless_count"]         # (n_transient,) int32
+    is_final = tf["is_final"]  # (n_transient,) bool
+    homeless_count = tf["homeless_count"]  # (n_transient,) int32
 
     transient_mask = ~is_final
     transient_freqs = sorted(int(f) + 1 for f in ever_qualified[transient_mask])
