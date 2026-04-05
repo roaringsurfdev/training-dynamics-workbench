@@ -1,6 +1,6 @@
 # REQ_086: Viability Certificate
 
-**Status:** Active
+**Status:** Complete
 **Priority:** High
 **Branch:** feature/req-086-viability-certificate
 **Menu:** Pre-Training Analysis (existing menu item, new tab)
@@ -24,28 +24,28 @@ Research Claude developed the conceptual framework and identified failure modes 
 
 ### Phase 1: Calibration Notebook
 
-- [ ] A notebook at `notebooks/viability_certificate_calibration.py` implements the core geometric computation and runs it on three known cases:
+- [x] A notebook at `notebooks/viability_certificate_calibration.py` implements the core geometric computation and runs it on three known cases:
   - `p59/s999/d598`: healthy generalizer, frequencies {5, 15, 21}
   - `p59/s485/d598`: late grokker, frequencies {5, 21}
   - `p101/s999/d598`: late grokker / aliasing failure, frequencies {35, 41, 43, 44}
-- [ ] For each case the notebook computes and displays:
+- [x] For each case the notebook computes and displays:
   - **Separation under compression**: minimum pairwise centroid distance as a function of effective dimensionality, from d_model (128) down to 1, with the observed crossover PR marked
   - **Aliasing risk**: per frequency, k / ((p−1)/2); displayed as a bar chart
   - **Predicted hard pairs**: for each frequency k, residue class pairs separated by p/k steps — the pairs the geometry predicts will be hardest to separate
   - **Ideal frequency set**: minimum-cardinality subset of {1, …, (p−1)/2} that maximizes minimum pairwise centroid distance; computed by exhaustive search (tractable for p ≤ 127)
   - **Distance from ideal**: which frequencies in the actual set are not ideal, and which ideal frequencies are missing
-- [ ] The three cases produce clearly distinguishable metric profiles — if they don't, the metric definitions need revision before Phase 2
-- [ ] The notebook documents calibrated threshold recommendations for regime classification (compact torus / high-dim separation / aliasing failure) derived from the case data
-- [ ] The crossover PR values are loaded from actual variant artifacts — not approximated or hardcoded
+- [x] The three cases produce clearly distinguishable metric profiles — if they don't, the metric definitions need revision before Phase 2
+- [x] The notebook documents calibrated threshold recommendations for regime classification (compact torus / high-dim separation / aliasing failure) derived from the case data
+- [x] The crossover PR values are loaded from actual variant artifacts — not approximated or hardcoded
 
 ### Phase 2: Dashboard Page
 
-- [ ] A new tab or section on the Pre-Training Analysis page provides the Viability Certificate tool
-- [ ] User can specify: prime, frequency set (comma-separated), d_model (defaults to 128), crossover PR (entered manually or loaded from a trained variant)
-- [ ] All five metrics from Phase 1 are displayed
-- [ ] Regime classification is shown with the calibrated thresholds from Phase 1
-- [ ] **Separation under compression** plot is the primary visualization: curve of min pairwise distance vs effective dimensionality, crossover PR marked, threshold band indicated
-- [ ] Key frequencies from the canonical set (if any trained variant exists for the prime) are available as a reference in the frequency input
+- [x] A new tab or section on the Pre-Training Analysis page provides the Viability Certificate tool
+- [x] User can specify: prime, frequency set (comma-separated), d_model (defaults to 128), crossover PR (entered manually or loaded from a trained variant)
+- [x] All five metrics from Phase 1 are displayed
+- [x] Regime classification is shown with the calibrated thresholds from Phase 1
+- [x] **Separation under compression** plot is the primary visualization: curve of min pairwise distance vs effective dimensionality, crossover PR marked, threshold band indicated
+- [x] Key frequencies from the canonical set (if any trained variant exists for the prime) are available as a reference in the frequency input
 
 ---
 
