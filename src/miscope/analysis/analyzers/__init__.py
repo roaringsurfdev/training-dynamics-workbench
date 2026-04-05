@@ -34,6 +34,7 @@ from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnaly
 from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
 from miscope.analysis.analyzers.registry import AnalyzerRegistry
 from miscope.analysis.analyzers.repr_geometry import RepresentationalGeometryAnalyzer
+from miscope.analysis.analyzers.transient_frequency import TransientFrequencyAnalyzer
 
 __all__ = [
     "AnalyzerRegistry",
@@ -59,4 +60,5 @@ __all__ = [
     "InputTraceAnalyzer",
     "InputTraceGraduationAnalyzer",
     "NeuronGroupPCAAnalyzer",
+    "TransientFrequencyAnalyzer",
 ]

@@ -27,6 +27,7 @@ def create_sitenav() -> dbc.NavbarSimple:
                     dbc.DropdownMenuItem("Loss Landscape", href="/loss-landscape"),
                     dbc.DropdownMenuItem("Input Trace", href="/input-trace"),
                     dbc.DropdownMenuItem("Neuron Groups", href="/neuron-group"),
+                    dbc.DropdownMenuItem("Transient Frequencies", href="/transient-frequencies"),
                 ],
                 nav=True,
                 in_navbar=True,
@@ -44,6 +45,7 @@ def create_sitenav() -> dbc.NavbarSimple:
             dbc.DropdownMenu(
                 [
                     dbc.DropdownMenuItem("Training", href="/training"),
+                    dbc.DropdownMenuItem("Checkpoint Schedule", href="/checkpoint-schedule"),
                     dbc.DropdownMenuItem("Analysis Run", href="/analysis-run"),
                     dbc.DropdownMenuItem("Intervention Check", href="/intervention-check"),
                 ],
@@ -74,6 +76,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
     from dashboard.pages.centroid_dmd import (
         create_centroid_dmd_layout,
         create_centroid_dmd_nav,
+    )
+    from dashboard.pages.checkpoint_schedule import (
+        create_checkpoint_schedule_page_layout,
+        create_checkpoint_schedule_page_nav,
     )
     from dashboard.pages.dimensionality import (
         create_dimensionality_page_layout,
@@ -116,6 +122,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
         create_training_page_layout,
         create_training_page_nav,
     )
+    from dashboard.pages.transient_frequency import (
+        create_transient_page_layout,
+        create_transient_page_nav,
+    )
     from dashboard.pages.variant_table import (
         create_variant_table_page_layout,
         create_variant_table_page_nav,
@@ -156,6 +166,11 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_centroid_dmd_nav(app), create_centroid_dmd_layout(app)]
         elif pathname == "/training":
             return [create_training_page_nav(app), create_training_page_layout(app)]
+        elif pathname == "/checkpoint-schedule":
+            return [
+                create_checkpoint_schedule_page_nav(app),
+                create_checkpoint_schedule_page_layout(app),
+            ]
         elif pathname == "/analysis-run":
             return [create_analysis_run_page_nav(app), create_analysis_run_page_layout(app)]
         elif pathname == "/intervention-check":
@@ -169,6 +184,8 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_neuron_group_page_nav(app), create_neuron_group_page_layout(app)]
         elif pathname == "/variant-table":
             return [create_variant_table_page_nav(app), create_variant_table_page_layout(app)]
+        elif pathname == "/transient-frequencies":
+            return [create_transient_page_nav(app), create_transient_page_layout(app)]
         else:
             # Multistream is now the default page.
             return [create_multistream_page_nav(app), create_multistream_page_layout(app)]

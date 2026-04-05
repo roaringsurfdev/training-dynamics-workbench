@@ -1,27 +1,15 @@
-"""REQ_074: Variant Outcome Registry.
+"""DEPRECATED: Variant Outcome Registry (REQ_074).
 
-Computes a per-variant summary JSON and aggregates them into a family-level
-variant_registry.json.  All heavy lifting (second descent detection, failure
-mode classification) delegates to cross_variant.compute_variant_metrics so
-logic stays in one place.
+This module is superseded by VariantAnalysisSummary in variant_analysis_summary.py.
+Do not add new logic here.  build_variant_registry is re-exported from the new
+module for backward compatibility.  The write functions below will be removed once
+all callers are updated.
 
-Public API:
-    CANONICAL_SPECIALIZATION_THRESHOLD: float  -- fraction of d_mlp neurons per frequency
-    NEURON_SPECIALIZATION_THRESHOLD: float     -- per-neuron max_frac to be "specialized"
-    extract_learned_frequencies(variant, canonical_threshold) -> (list[int], float) | (None, None)
-    compute_variant_summary(variant, canonical_threshold, rules) -> dict
-    write_variant_summary(variant, canonical_threshold, rules) -> Path
-    build_variant_registry(results_dir, family_name) -> Path
-
-Two distinct thresholds:
-- NEURON_SPECIALIZATION_THRESHOLD (0.75): per-neuron quality gate — max_frac must exceed
-  this for a neuron to count as "genuinely specialized" to its dominant frequency.
-  Matches the threshold used by cross_variant._compute_first_mover_metrics.
-- CANONICAL_SPECIALIZATION_THRESHOLD (0.10): frequency-level gate — what fraction of
-  d_mlp neurons must be specialized to that frequency for it to be "learned".
-
-dominant_freq stores np.argmax results (0-indexed).  All public frequency values are
-converted to 1-indexed by adding 1 before reporting.
+Previously public API (use variant_analysis_summary.py instead):
+    build_variant_registry(results_dir, family_name) -> Path  [re-exported]
+    write_variant_summary   -- DEPRECATED, use VariantAnalysisSummary.analyze()
+    compute_variant_summary -- DEPRECATED
+    extract_learned_frequencies -- DEPRECATED
 """
 
 from __future__ import annotations
@@ -88,6 +76,47 @@ def extract_learned_frequencies(
 
     learned = sorted(f for f, cnt in freq_counts.items() if cnt >= threshold_count)
     return learned, canonical_threshold
+
+
+def _extract_transient_fields(variant: Variant) -> dict[str, Any]:
+    """Return transient frequency summary fields from the transient_frequency artifact.
+
+    All fields are None when the artifact is absent.
+    """
+    result: dict[str, Any] = {
+        "transient_frequencies": None,
+        "transient_frequency_count": None,
+        "homeless_neuron_count": None,
+        "homeless_neuron_fraction": None,
+        "transient_detection_threshold": None,
+    }
+    try:
+        tf = variant.artifacts.load_cross_epoch("transient_frequency")
+    except FileNotFoundError:
+        return result
+
+    ever_qualified = tf["ever_qualified_freqs"]  # (n_transient,) 0-indexed
+    is_final = tf["is_final"]  # (n_transient,) bool
+    homeless_count = tf["homeless_count"]  # (n_transient,) int32
+
+    transient_mask = ~is_final
+    transient_freqs = sorted(int(f) + 1 for f in ever_qualified[transient_mask])
+    total_homeless = int(homeless_count[transient_mask].sum())
+
+    # d_mlp from peak_members shape; fall back to None if unavailable
+    try:
+        nd = variant.artifacts.load_cross_epoch("neuron_dynamics")
+        d_mlp = nd["dominant_freq"].shape[1]
+        homeless_fraction = total_homeless / d_mlp if d_mlp > 0 else None
+    except FileNotFoundError:
+        homeless_fraction = None
+
+    result["transient_frequencies"] = transient_freqs
+    result["transient_frequency_count"] = len(transient_freqs)
+    result["homeless_neuron_count"] = total_homeless
+    result["homeless_neuron_fraction"] = homeless_fraction
+    result["transient_detection_threshold"] = float(tf["_transient_canonical_threshold"])
+    return result
 
 
 def _extract_max_resid_post_circularity(variant: Variant) -> float | None:
@@ -205,6 +234,7 @@ def compute_variant_summary(
     )
 
     max_circularity = _extract_max_resid_post_circularity(variant)
+    transient = _extract_transient_fields(variant)
 
     prime = int(variant.model_config.get("prime", 0))
     model_seed = variant.model_config.get("seed")
@@ -233,6 +263,12 @@ def compute_variant_summary(
         "committed_frequencies_at_onset": handshake["committed_frequencies_at_onset"],
         "handshake_failures": handshake["handshake_failures"],
         "handshake_succeeded": handshake["handshake_succeeded"],
+        # Transient frequency analysis
+        "transient_frequencies": transient["transient_frequencies"],
+        "transient_frequency_count": transient["transient_frequency_count"],
+        "homeless_neuron_count": transient["homeless_neuron_count"],
+        "homeless_neuron_fraction": transient["homeless_neuron_fraction"],
+        "transient_detection_threshold": transient["transient_detection_threshold"],
         # Outcome metrics
         "failure_mode": base.get("failure_mode"),
         "max_resid_post_circularity": max_circularity,
@@ -268,35 +304,6 @@ def write_variant_summary(
     return output_path
 
 
-def build_variant_registry(results_dir: Path | str, family_name: str) -> Path:
-    """Aggregate all existing variant_summary.json files into variant_registry.json.
-
-    Scans all subdirectories of results_dir/family_name for variant_summary.json
-    files and assembles them into a single registry array, adding a variant_id
-    field ("{prime}_{model_seed}_{data_seed}") to each entry.
-
-    Reads from already-written summaries only — does not re-run any artifact
-    analysis.  If a variant's summary is updated, re-running this call refreshes
-    its entry while leaving other entries unchanged.
-
-    Args:
-        results_dir: Root results directory.
-        family_name: Name of the model family subdirectory.
-
-    Returns:
-        Path to the written variant_registry.json file.
-    """
-    family_dir = Path(results_dir) / family_name
-    registry: list[dict[str, Any]] = []
-
-    for summary_path in sorted(family_dir.glob("*/variant_summary.json")):
-        entry = json.loads(summary_path.read_text())
-        prime = entry.get("prime", "?")
-        model_seed = entry.get("model_seed", "?")
-        data_seed = entry.get("data_seed", "?")
-        entry["variant_id"] = f"{prime}_{model_seed}_{data_seed}"
-        registry.append(entry)
-
-    output_path = family_dir / "variant_registry.json"
-    output_path.write_text(json.dumps(registry, indent=2))
-    return output_path
+from miscope.analysis.variant_analysis_summary import (  # noqa: E402
+    build_variant_registry as build_variant_registry,
+)

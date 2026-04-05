@@ -40,11 +40,22 @@ classDiagram
         +name: str
         +state: VariantState
         +variant_dir: Path
+        +dir: Path
         +checkpoints_dir: Path
         +artifacts_dir: Path
         +get_available_checkpoints() list[int]
         +load_checkpoint(epoch) state_dict
         +load_model_at_checkpoint(epoch) HookedTransformer
+        +at(epoch) EpochContext
+        +view(name, **kwargs) BoundView
+        +train(...) TrainingResult
+    }
+
+    class InterventionVariant {
+        -parent: Variant
+        -intervention_config: dict
+        +name: str
+        +variant_dir: Path
         +train(...) TrainingResult
     }
 
@@ -55,11 +66,44 @@ classDiagram
         ANALYZED
     }
 
+    class EpochContext {
+        -variant: Variant
+        -epoch: int | None
+        +view(name, **kwargs) BoundView
+        +available_views() list[str]
+    }
+
+    class BoundView {
+        -view_def: ViewDefinition
+        -variant: Variant
+        -epoch: int | None
+        -kwargs: dict
+        +figure(**kwargs) Figure
+        +show(**kwargs)
+        +export(format, path, **kwargs) Path
+    }
+
+    class ViewDefinition {
+        +name: str
+        +load_data: Callable
+        +renderer: Callable
+        +epoch_source_analyzer: str | None
+        +required_analyzers: list[AnalyzerRequirement]
+        +is_available_for(variant) bool
+    }
+
+    class ViewCatalog {
+        -views: dict[str, ViewDefinition]
+        +register(view_def)
+        +get(name) ViewDefinition
+        +names() list[str]
+        +available_names_for(variant) list[str]
+    }
+
     class AnalysisPipeline {
         -variant: Variant
         -config: AnalysisRunConfig
         -analyzers: list[Analyzer]
-        -manifest: dict
         +artifacts_dir: str
         +register(analyzer) AnalysisPipeline
         +run(force, progress_callback)
@@ -78,21 +122,16 @@ classDiagram
         +analyze(model, probe, cache, context) dict[str, ndarray]
     }
 
-    class AnalyzerRegistry {
-        -analyzers: dict[str, Analyzer]
-        +register(analyzer)
-        +get(name) Analyzer
-        +get_for_family(family) list[Analyzer]
-    }
-
     class ArtifactLoader {
         +artifacts_dir: str
         +load_epoch(analyzer_name, epoch) dict
-        +load_epochs(analyzer_name, epochs) dict
+        +load_epochs(analyzer_name, epochs, fields) dict
         +load(analyzer_name) dict
         +get_available_analyzers() list[str]
         +get_epochs(analyzer_name) list[int]
-        +get_metadata(analyzer_name) dict
+        +has_summary(analyzer_name) bool
+        +has_cross_epoch(analyzer_name) bool
+        +load_variant_artifact(name) dict
     }
 
     class TrainingResult {
@@ -111,12 +150,16 @@ classDiagram
     Variant "*" --> "1" ModelFamily : belongs to
     Variant "1" --> "1" VariantState : has state
     Variant "1" ..> "1" TrainingResult : produces
+    Variant "1" --> "*" InterventionVariant : owns
+
+    Variant ..> EpochContext : creates via at()
+    EpochContext ..> BoundView : creates via view()
+    BoundView --> ViewDefinition : uses
+    ViewCatalog "1" --> "*" ViewDefinition : manages
 
     AnalysisPipeline "1" --> "1" Variant : analyzes
     AnalysisPipeline "1" --> "0..1" AnalysisRunConfig : configured by
     AnalysisPipeline "1" --> "*" Analyzer : uses
-
-    AnalyzerRegistry "1" --> "*" Analyzer : manages
 
     ArtifactLoader "1" --> "1" Variant : loads from
 
@@ -125,30 +168,69 @@ classDiagram
 
 ## Core Concepts
 
-### ModelRegistry
-Class for creating new and loading existing ModelFamily instances.
+### FamilyRegistry
+Discovers and manages `ModelFamily` instances from the `model_families/` directory. Each subdirectory containing a `family.json` is registered as a family. The registry also creates `Variant` objects by combining a family with specific domain parameter values.
 
 ### ModelFamily
-A **ModelFamily** is a declared grouping of models that share architecture, valid analyzers, and visualizations. Examples: "Modulo Addition 1-Layer", "Indirect Object Identification". Families are defined by `family.json` files in `model_families/`. The family is responsible for creating models and definining analysis and visualization sets that are useful across variants. Families are explicitly registered because what constitutes "structurally similar" is learned over time by the researcher.
+A **ModelFamily** is a declared grouping of models that share architecture, valid analyzers, and domain context. Examples: "Modulo Addition 1-Layer". Families are defined by `family.json` files in `model_families/`. The family is responsible for creating models, constructing analysis probes, and providing interpretive context (e.g., a Fourier basis for modular arithmetic). Families are explicitly registered because what constitutes "structurally similar" is a research judgment, not an automatic inference.
 
-### Model Variant
-A **Model Variant** is a specific trained model within a family. Variants share architecture and analysis logic but differ in domain parameters. In the "Modulo Addition 1-Layer" example, a Model Variant would be a model trainined on a different Modulus or Seed value without changing any of the model architecture. Model Variants are meant to allow researchers to explore how small changes to task definitions and seed values affect training dynamics. Each variant manages its own checkpoints and analysis artifacts directories. Each variant maintains its own list of Probe datasets.
+**Architectural invariant:** Families are context providers, not view owners. Analytical views are universal instruments that apply to any transformer — they are not registered or owned by a family.
 
-Variant training results metadata is stored in `results/{model name}/{variant name}/metadata.json`. Variant checkpoints are stored under `results/{model name}/{variant name}/checkpoints/` as `safetensor` files with the name `checkpoint_epoch_{epoch number}.safetensors`. Checkpoint files are saved at each configured checkpoint instead of storing in memory.
+### Variant
+A **Variant** is a specific trained model within a family. Variants share architecture and analysis logic but differ in domain parameters (e.g., modulus, model seed, data seed). Each variant manages its own checkpoints and analysis artifacts directories.
+
+Key access patterns:
+- `variant.dir` — path to the variant's working directory
+- `variant.at(epoch)` — returns an `EpochContext` for view access
+- `variant.view("view_name", **kwargs)` — shortcut for `variant.at(None).view(name, **kwargs)`
+- `variant.artifacts` — returns an `ArtifactLoader` for direct artifact access
+
+Variant training metadata is stored at `results/{family}/{variant}/metadata.json`. Checkpoints are stored under `results/{family}/{variant}/checkpoints/` as `.safetensors` files.
+
+### InterventionVariant
+A **sub-variant** nested under a parent `Variant`. Represents a targeted experiment — training the same architecture with a forward hook active during a specified epoch window. Stored under `results/{family}/{parent_variant}/interventions/{label}/`. Discovered via `variant.interventions`.
 
 ### Probe
-The input data used by a Model Family during analysis forward passes. For small toy models, this might be one canonical dataset (e.g., full (a, b) grid for Modulo Addition). For larger models, a Model Family may contain many smaller probes that exercise behaviors of interest. Probe design is part of the research for larger models.
-
-### AnalyzerRegistry
-Class for creating new and loading existing Analyzer instances.
+The input data used during analysis forward passes. For the Modulo Addition family, this is the full (a, b) input grid. Probe design is a research concern for larger models where exhaustive input grids are infeasible.
 
 ### Analyzer
-A module responsible for generating analysis data given a Model Variant Checkpoint and its activation cache. Computes a single analysis function and returns numpy arrays as analysis artifacts.
+A module responsible for generating analysis data from a model checkpoint and its activation cache. Computes a single analysis function and returns NumPy arrays as artifacts.
 
-Analyzers are defined by 'analyzer.json' in `analyzers/`.
+Three tiers:
+- **Per-epoch analyzers** — run independently against each checkpoint (e.g., `neuron_freq_norm`, `parameter_snapshot`)
+- **Cross-epoch analyzers** — run once across the full checkpoint sequence to compute trajectories (e.g., `parameter_trajectory`, `neuron_dynamics`)
+- **Secondary analyzers** — derived from existing artifacts without loading model weights (e.g., `neuron_fourier`)
 
 ### AnalysisPipeline
-Orchestrates analysis across a model variant's checkpoints given a list of analysis functions. Manages artifact persistence and resumability.
-The workbench focuses on analysis runs instead of training runs. The goal is to optimize the ability to analyze models across training checkpoints instead of optimizing models themselves. Analysis Runs orchestrate the creation of analysis dataset artifacts. The Analysis Run is reponsible for loading checkpoints of a Model Variant, executing forward passes through each checkpoint, passing the output of the forward pass and activation cache to each Analyzer defined in the run.
+Orchestrates analysis across a variant's checkpoints. Loads checkpoints, runs forward passes, and dispatches to each registered analyzer. Artifact persistence and resumability are built in — already-computed epochs are skipped automatically.
 
-Analyzer results are stored as per-epoch files under `results/{family name}/{variant name}/artifacts/{analyzer name}/epoch_{NNNNN}.npz`. Each file contains a single epoch's analysis output. This per-epoch storage (REQ_021f) eliminates memory exhaustion during analysis and enables on-demand loading. Completed analyses are tracked in `manifest.json` under `results/{family name}/{variant name}/artifacts/`.
+Artifacts are stored per-epoch at: `results/{family}/{variant}/artifacts/{analyzer}/epoch_{NNNNN}.npz`
+
+Non-epoch-keyed artifacts (e.g., cross-epoch) are stored at: `results/{family}/{variant}/artifacts/{analyzer}/{analyzer}.npz`
+
+### ArtifactLoader
+Handles all artifact I/O for a specific variant. Supports single-epoch loading (`load_epoch`), stacked multi-epoch loading (`load_epochs`, `load`), and non-epoch-keyed artifacts (`load_variant_artifact`). The `fields=` parameter on `load_epochs` enables selective field loading to avoid loading large artifacts unnecessarily.
+
+### View Catalog
+The research interface for visualizations. Three layers:
+
+- **`ViewDefinition`** — pairs a `load_data` function with a `renderer` function for a named view
+- **`ViewCatalog`** — global registry of all named views (populated on import of `miscope.views.universal`)
+- **`EpochContext`** — pins a variant + epoch, returned by `variant.at(epoch)`
+- **`BoundView`** — a view with variant and epoch already bound; exposes `.show()`, `.figure()`, `.export()`
+
+Usage:
+```python
+# Full form
+ctx = variant.at(epoch=5000)
+ctx.view("parameters.pca.trajectory").show()
+
+# With view-level kwargs
+variant.view("neuron.freq.distribution", site="mlp_post").show()
+
+# kwargs merge: view-level kwargs are base, call-site kwargs take precedence
+bound = variant.view("repr.geometry.centroid_pca", site="attn_out")
+fig = bound.figure(prime=7)  # site from view(), prime from figure()
+```
+
+All views are universal — they apply to any transformer variant regardless of family.

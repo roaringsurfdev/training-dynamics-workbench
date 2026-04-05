@@ -1,6 +1,6 @@
 # REQ_043: Fourier Profile Expansion — Multi-Matrix Frequency Analysis
 
-**Status:** Draft
+**Status:** Draft — Overlap with Multi-Stream View (see notes)
 **Priority:** Medium (enables embedding/unembedding trajectory analysis)
 **Dependencies:** Existing `dominant_frequencies` analyzer, Fourier library functions
 **Last Updated:** 2026-02-15
@@ -63,6 +63,8 @@ Path C is the most aligned with existing patterns (`parameter_snapshot` already 
 - **Claude decides:** Implementation details within chosen path
 
 ## Notes
+
+- **2026-04-04:** The Multi-Stream Specialization view (REQ_066) covers dominant frequency trajectory across MLP neurons, attention, and embedding. Before implementing REQ_043, evaluate whether multi-stream artifacts provide sufficient per-matrix frequency data for the intended analyses. If multi-stream covers the need, REQ_043's residual value is the unembedding (`W_U`) trajectory specifically, which multi-stream does not include. Do not implement REQ_043 without first auditing that gap.
 
 - The existing `dominant_frequencies` coefficients shape is `(n_fourier_components,)` which is `(p,)` for the full basis (constant + sin/cos pairs). The neuron freq norm uses `(p//2,)` (frequencies only, no constant, sin/cos combined into single norm). The new analyzer should decide which convention to follow — the per-frequency combined norm is more useful for trajectory analysis.
 - This naturally feeds into a future "Embedding Dynamics" page that would sit alongside REQ_042's Neuron Dynamics page.

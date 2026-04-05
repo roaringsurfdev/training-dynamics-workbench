@@ -195,6 +195,7 @@ def register_default_analyzers() -> None:
     from miscope.analysis.analyzers.parameter_snapshot import ParameterSnapshotAnalyzer
     from miscope.analysis.analyzers.parameter_trajectory_pca import ParameterTrajectoryPCA
     from miscope.analysis.analyzers.repr_geometry import RepresentationalGeometryAnalyzer
+    from miscope.analysis.analyzers.transient_frequency import TransientFrequencyAnalyzer
 
     AnalyzerRegistry.register(AttentionFourierAnalyzer)
     AnalyzerRegistry.register(AttentionFreqAnalyzer)
@@ -220,6 +221,7 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register_cross_epoch(GradientSiteAnalyzer)
     AnalyzerRegistry.register_cross_epoch(InputTraceGraduationAnalyzer)
     AnalyzerRegistry.register_cross_epoch(NeuronGroupPCAAnalyzer)
+    AnalyzerRegistry.register_cross_epoch(TransientFrequencyAnalyzer)
 
 
 # Auto-register default analyzers on import
