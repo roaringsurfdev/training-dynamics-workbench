@@ -410,7 +410,8 @@ class TestRenderTransientPc1Cohesion:
         )
         assert isinstance(fig, go.Figure)
         # Peak epoch vline present as shape
-        assert len(fig.layout.shapes) > 0 or any(hasattr(trace, "x0") for trace in fig.data)
+        shapes = fig.layout["shapes"] or []
+        assert len(shapes) > 0 or any(hasattr(trace, "x0") for trace in fig.data)
 
     def test_explicit_freq(self, sample_transient_artifact, sample_w_in_by_epoch):
         fig = render_transient_pc1_cohesion(
