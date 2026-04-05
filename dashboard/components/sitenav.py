@@ -53,6 +53,15 @@ def create_sitenav() -> dbc.NavbarSimple:
                 in_navbar=True,
                 label="Training",
             ),
+            dbc.DropdownMenu(
+                [
+                    dbc.DropdownMenuItem("Initialization Sweep", href="/initialization-sweep"),
+                    dbc.DropdownMenuItem("Viability Certificate", href="/viability-certificate"),
+                ],
+                nav=True,
+                in_navbar=True,
+                label="Pre-Training Analysis",
+            ),
         ],
         brand=f"MechInterp Scope v{__version__}",
         brand_href="/",
@@ -84,6 +93,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
     from dashboard.pages.dimensionality import (
         create_dimensionality_page_layout,
         create_dimensionality_page_nav,
+    )
+    from dashboard.pages.initialization_sweep import (
+        create_initialization_sweep_page_layout,
+        create_initialization_sweep_page_nav,
     )
     from dashboard.pages.input_trace import (
         create_input_trace_page_layout,
@@ -129,6 +142,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
     from dashboard.pages.variant_table import (
         create_variant_table_page_layout,
         create_variant_table_page_nav,
+    )
+    from dashboard.pages.viability_certificate import (
+        create_viability_certificate_page_layout,
+        create_viability_certificate_page_nav,
     )
     from dashboard.pages.visualization import (
         create_visualization_page_layout,
@@ -186,6 +203,16 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_variant_table_page_nav(app), create_variant_table_page_layout(app)]
         elif pathname == "/transient-frequencies":
             return [create_transient_page_nav(app), create_transient_page_layout(app)]
+        elif pathname == "/initialization-sweep":
+            return [
+                create_initialization_sweep_page_nav(app),
+                create_initialization_sweep_page_layout(app),
+            ]
+        elif pathname == "/viability-certificate":
+            return [
+                create_viability_certificate_page_nav(app),
+                create_viability_certificate_page_layout(app),
+            ]
         else:
             # Multistream is now the default page.
             return [create_multistream_page_nav(app), create_multistream_page_layout(app)]

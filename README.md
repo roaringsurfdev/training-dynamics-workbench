@@ -106,8 +106,8 @@ uv --version      # Package manager (https://docs.astral.sh/uv/)
 
 ### Installation
 ```bash
-git clone <repository-url>
-cd training-dynamics-workbench
+git clone https://github.com/roaringsurfdev/miscope.git
+cd miscope
 uv sync
 ```
 

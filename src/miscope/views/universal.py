@@ -890,6 +890,35 @@ def _register_all() -> None:
         )
     )
 
+    # --- Frequency quality vs accuracy (REQ_053) ---
+
+    def _load_freq_quality_vs_accuracy(variant: Variant, epoch: int | None) -> dict:
+        input_summary = variant.artifacts.load_summary("input_trace")
+        quality = variant.artifacts.load_epochs(
+            "fourier_frequency_quality", fields=["quality_score"]
+        )
+        return {"input_summary": input_summary, "quality": quality}
+
+    def _render_freq_quality_vs_accuracy(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.input_trace import (
+            render_frequency_quality_vs_accuracy,
+        )
+
+        return render_frequency_quality_vs_accuracy(data, epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="input_trace.frequency_quality_vs_accuracy",
+            load_data=_load_freq_quality_vs_accuracy,
+            renderer=_render_freq_quality_vs_accuracy,
+            epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("input_trace", ArtifactKind.SUMMARY),
+                AnalyzerRequirement("fourier_frequency_quality", ArtifactKind.EPOCH),
+            ],
+        )
+    )
+
     # --- Neuron group PCA coordination views ---
 
     def _load_neuron_group_pca(variant: Variant, epoch: int | None) -> dict:

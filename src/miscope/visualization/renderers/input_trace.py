@@ -260,3 +260,66 @@ def render_pair_graduation_heatmap(
         template="plotly_white",
     )
     return fig
+
+
+def render_frequency_quality_vs_accuracy(
+    data: dict[str, Any],
+    epoch: int | None,
+    **kwargs: Any,
+) -> go.Figure:
+    """Overlay of Fourier frequency quality score vs test accuracy across training.
+
+    Both traces share a y-axis in [0, 1].  The gap between them (quality rising
+    before accuracy) corresponds to the memorisation-to-generalisation transition.
+
+    Args:
+        data: Dict with 'input_summary' (input_trace summary.npz) and
+              'quality' (stacked fourier_frequency_quality epochs)
+        epoch: Cursor epoch (shown as vertical dashed line, if provided)
+    """
+    summary = data["input_summary"]
+    quality = data["quality"]
+
+    acc_epochs = summary["epochs"].tolist()
+    test_accuracy = summary["test_overall_accuracy"].tolist()
+
+    qual_epochs = quality["epochs"].tolist()
+    quality_score = quality["quality_score"].tolist()
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=acc_epochs,
+            y=test_accuracy,
+            name="Test accuracy",
+            line={"color": "steelblue", "width": 2},
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=qual_epochs,
+            y=quality_score,
+            name="Frequency quality",
+            line={"color": "darkorange", "width": 2, "dash": "dash"},
+        )
+    )
+
+    if epoch is not None:
+        fig.add_vline(
+            x=epoch,
+            line_dash="dot",
+            line_color="gray",
+            line_width=1,
+            annotation_text=f"ep {epoch}",
+            annotation_position="top right",
+        )
+
+    fig.update_layout(
+        title="Frequency Quality vs Test Accuracy",
+        xaxis_title="Epoch",
+        yaxis_title="Score",
+        yaxis={"range": [0, 1.05]},
+        legend={"orientation": "h", "y": -0.15},
+        template="plotly_white",
+    )
+    return fig
