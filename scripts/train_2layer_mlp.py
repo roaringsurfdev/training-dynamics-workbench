@@ -152,7 +152,7 @@ def train(
 
     final_train = train_losses[-1]
     final_test = test_losses[-1]
-    print(f"\nDone. Final train loss: {final_train:.4f}, final test loss: {final_test:.4f}")
+    print(f"\nDone. Final train loss: {final_train:.6f}, final test loss: {final_test:.6f}")
     print(f"Checkpoints saved: {len(saved_epochs)}")
 
 
