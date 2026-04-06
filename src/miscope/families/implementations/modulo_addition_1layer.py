@@ -223,11 +223,63 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
             loss = -log_probs.gather(1, labels.unsqueeze(1)).squeeze(1).mean()
             return loss.item()
 
+        a_vals = torch.arange(p).repeat_interleave(p)
+        b_vals = torch.arange(p).repeat(p)
+        labels = ((a_vals + b_vals) % p).numpy()
+
         return {
             "params": params,
             "fourier_basis": fourier_basis,
             "loss_fn": loss_fn,
+            "labels": labels,
         }
+
+    def build_config_dict(
+        self,
+        model: Any,
+        params: dict[str, Any],
+        data_seed: int,
+        training_fraction: float,
+    ) -> dict[str, Any]:
+        """Build config.json dict from HookedTransformerConfig."""
+        cfg = model.cfg
+        return {
+            "n_layers": cfg.n_layers,
+            "n_heads": cfg.n_heads,
+            "d_model": cfg.d_model,
+            "d_head": cfg.d_head,
+            "d_mlp": cfg.d_mlp,
+            "act_fn": cfg.act_fn,
+            "normalization_type": cfg.normalization_type,
+            "d_vocab": cfg.d_vocab,
+            "d_vocab_out": cfg.d_vocab_out,
+            "n_ctx": cfg.n_ctx,
+            "seed": cfg.seed,
+            **params,
+            "model_seed": params.get("seed", cfg.seed),
+            "data_seed": data_seed,
+            "training_fraction": training_fraction,
+        }
+
+    def run_forward_pass(
+        self,
+        model: Any,
+        probe: torch.Tensor,
+    ) -> Any:
+        """Run a forward pass and return a TransformerLensBundle.
+
+        Args:
+            model: HookedTransformer instance created by create_model()
+            probe: Analysis dataset tensor from generate_analysis_dataset()
+
+        Returns:
+            TransformerLensBundle wrapping the model, cache, and logits
+        """
+        from miscope.analysis.bundle import TransformerLensBundle
+
+        with torch.inference_mode():
+            logits, cache = model.run_with_cache(probe)
+        return TransformerLensBundle(model, cache, logits)
 
     def make_probe(
         self,

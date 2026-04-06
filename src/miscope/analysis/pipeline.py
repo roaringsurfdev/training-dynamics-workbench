@@ -281,12 +281,11 @@ class AnalysisPipeline:
         model = self.variant.family.create_model(self.variant.params, device=self._device)
         model.load_state_dict(state_dict)
 
-        with torch.inference_mode():
-            _, cache = model.run_with_cache(probe)
+        bundle = self.variant.family.run_forward_pass(model, probe)
 
         for analyzer, needed_epochs in work_queue:
             if epoch in needed_epochs:
-                result = analyzer.analyze(model, probe, cache, context)
+                result = analyzer.analyze(bundle, probe, context)
                 self._save_epoch_artifact(analyzer.name, epoch, result)
 
                 if summary_collectors and analyzer.name in summary_collectors:
@@ -297,7 +296,7 @@ class AnalysisPipeline:
                         collector["values"][key].append(value)
 
         # Explicit cleanup to prevent GPU memory accumulation
-        del model, cache, state_dict
+        del model, bundle, state_dict
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
