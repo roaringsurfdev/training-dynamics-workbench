@@ -81,9 +81,9 @@ Hash each `.npz` file with `hashlib.sha256`. Save to `regression/reference_check
 analyzer code. Checksums should match exactly on the same hardware. If they don't after the
 refactor, something changed in the computation.
 
-**TDW_PROJECT_ROOT:** The existing env var already redirects the results root. The script can
-set this to `results_regression/` before constructing the family/variant objects — this may
-be the zero-infrastructure path.
+**MISCOPE_PROJECT_ROOT:** The env var redirects the results root. The script can set this to
+`results_regression/` before constructing the family/variant objects — this may be the
+zero-infrastructure path. (`TDW_PROJECT_ROOT` is still accepted as a legacy alias.)
 
 ---
 
@@ -95,4 +95,4 @@ be the zero-infrastructure path.
   they exercise the full range of pipeline behavior.
 - Once REQ_087 (ActivationBundle) passes regression, the scaffold remains in place for REQ_088/089.
   It should not be retired until the 2L MLP work is complete and validated.
-- If `TDW_PROJECT_ROOT` redirection works cleanly, the script may be as short as 30-40 lines.
+- If `MISCOPE_PROJECT_ROOT` redirection works cleanly, the script may be as short as 30-40 lines.
