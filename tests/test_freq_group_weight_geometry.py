@@ -9,6 +9,7 @@ from miscope.analysis.analyzers.freq_group_weight_geometry import (
     _compute_group_geometry,
 )
 from miscope.visualization.renderers.freq_group_weight_geometry import (
+    render_weight_geometry_centroid_pca,
     render_weight_geometry_group_snapshot,
     render_weight_geometry_timeseries,
 )
@@ -390,6 +391,45 @@ def test_render_group_snapshot_wout():
 
     data = _make_artifact()
     fig = render_weight_geometry_group_snapshot(data, matrix="Wout")
+    assert isinstance(fig, go.Figure)
+
+
+def test_render_centroid_pca_returns_figure():
+    import plotly.graph_objects as go
+
+    data = _make_artifact()
+    fig = render_weight_geometry_centroid_pca(data, matrix="Win")
+    assert isinstance(fig, go.Figure)
+
+
+def test_render_centroid_pca_wout():
+    import plotly.graph_objects as go
+
+    data = _make_artifact()
+    fig = render_weight_geometry_centroid_pca(data, matrix="Wout")
+    assert isinstance(fig, go.Figure)
+
+
+def test_render_centroid_pca_with_epoch():
+    import plotly.graph_objects as go
+
+    data = _make_artifact()
+    fig = render_weight_geometry_centroid_pca(data, epoch=2500, matrix="Win")
+    assert isinstance(fig, go.Figure)
+
+
+def test_render_centroid_pca_no_groups():
+    """Zero groups renders a fallback figure without error."""
+    import plotly.graph_objects as go
+
+    n_epochs = 3
+    data = {
+        "group_freqs": np.array([], dtype=np.int32),
+        "group_sizes": np.array([], dtype=np.int32),
+        "Win_centroids": np.empty((n_epochs, 0, 16), dtype=np.float32),
+        "epochs": np.array([0, 1000, 5000], dtype=np.int32),
+    }
+    fig = render_weight_geometry_centroid_pca(data)
     assert isinstance(fig, go.Figure)
 
 

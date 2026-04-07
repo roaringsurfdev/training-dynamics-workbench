@@ -1197,11 +1197,18 @@ def _register_all() -> None:
         matrix = kwargs.pop("matrix", "Win")
         return viz.render_weight_geometry_group_snapshot(data, epoch=epoch, matrix=matrix, **kwargs)
 
+    def _render_weight_geometry_centroid_pca(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        matrix = kwargs.pop("matrix", "Win")
+        return viz.render_weight_geometry_centroid_pca(data, epoch=epoch, matrix=matrix, **kwargs)
+
     _fgwg_req = [AnalyzerRequirement("freq_group_weight_geometry", ArtifactKind.CROSS_EPOCH)]
 
     for name, renderer in [
         ("weight_geometry.timeseries", _render_weight_geometry_timeseries),
         ("weight_geometry.group_snapshot", _render_weight_geometry_group_snapshot),
+        ("weight_geometry.centroid_pca", _render_weight_geometry_centroid_pca),
     ]:
         _catalog.register(
             ViewDefinition(

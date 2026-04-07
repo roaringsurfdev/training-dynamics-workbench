@@ -130,6 +130,7 @@ from miscope.visualization.renderers.parameter_trajectory import (
     render_trajectory_proximity,
 )
 from miscope.visualization.renderers.freq_group_weight_geometry import (
+    render_weight_geometry_centroid_pca,
     render_weight_geometry_group_snapshot,
     render_weight_geometry_timeseries,
 )
@@ -251,4 +252,5 @@ __all__ = [
     # REQ_090: Frequency group weight geometry
     "render_weight_geometry_timeseries",
     "render_weight_geometry_group_snapshot",
+    "render_weight_geometry_centroid_pca",
 ]
