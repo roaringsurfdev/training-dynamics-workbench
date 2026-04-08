@@ -27,11 +27,18 @@ WEIGHT_MATRIX_NAMES = [
     "W_U",
 ]
 
+# Architecture-specific weight names not in the transformer set.
+# extract_parameter_snapshot tries these in addition to WEIGHT_MATRIX_NAMES.
+ARCH_WEIGHT_NAMES: dict[str, list[str]] = {
+    "learned_emb_mlp": ["embed_a", "embed_b"],
+}
+
 # Predefined component groups for trajectory/velocity analysis
 COMPONENT_GROUPS = {
     "embedding": ["W_E", "W_pos", "W_U"],
     "attention": ["W_Q", "W_K", "W_V", "W_O"],
     "mlp": ["W_in", "W_out"],
+    "learned_embeddings": ["embed_a", "embed_b"],  # Learned-embedding MLP only
 }
 
 
@@ -41,20 +48,26 @@ def extract_parameter_snapshot(
     """Extract all trainable weight matrices from a bundle.
 
     Returns dict mapping weight matrix names to numpy arrays
-    in their original shapes.
+    in their original shapes. Tries both the standard transformer names
+    (WEIGHT_MATRIX_NAMES) and architecture-specific names (ARCH_WEIGHT_NAMES),
+    silently skipping any that the bundle doesn't expose.
 
     Args:
         bundle: ActivationBundle providing weight access via bundle.weight(name).
 
     Returns:
-        Dict with keys from WEIGHT_MATRIX_NAMES, values are numpy arrays.
+        Dict with available weight matrix names as keys, numpy arrays as values.
     """
+    all_names = list(WEIGHT_MATRIX_NAMES)
+    for extra in ARCH_WEIGHT_NAMES.values():
+        all_names.extend(extra)
+
     result = {}
-    for name in WEIGHT_MATRIX_NAMES:
+    for name in all_names:
         try:
             result[name] = _to_numpy(bundle.weight(name))
         except KeyError:
-            pass  # Architecture doesn't have this weight (e.g., MLP has no W_E)
+            pass  # Architecture doesn't have this weight
     return result
 
 

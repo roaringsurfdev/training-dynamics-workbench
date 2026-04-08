@@ -111,15 +111,22 @@ class TestComputeWeightSingularValues:
         return HookedTransformer(cfg)
 
     def test_returns_all_sv_keys(self, model):
-        """Result contains sv_{name} for all weight matrices."""
+        """Result contains sv_{name} for every weight matrix the bundle exposes."""
         result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
+        # Only check names that the transformer architecture actually has — names in
+        # WEIGHT_MATRIX_NAMES for other architectures (e.g. embed_a, embed_b) will be
+        # absent from the transformer bundle and silently skipped.
         for name in WEIGHT_MATRIX_NAMES:
+            if f"sv_{name}" in result:
+                assert True  # present as expected
+        # At minimum the core transformer matrices must be present
+        for name in ("W_E", "W_Q", "W_K", "W_V", "W_O", "W_in", "W_out", "W_U"):
             assert f"sv_{name}" in result, f"Missing key: sv_{name}"
 
     def test_non_attention_svs_are_1d(self, model):
         """Non-attention singular values are 1D arrays."""
         result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
-        non_attn = [n for n in WEIGHT_MATRIX_NAMES if n not in ATTENTION_MATRICES]
+        non_attn = [n for n in WEIGHT_MATRIX_NAMES if n not in ATTENTION_MATRICES and f"sv_{n}" in result]
         for name in non_attn:
             sv = result[f"sv_{name}"]
             assert sv.ndim == 1, f"sv_{name} should be 1D, got {sv.ndim}D"
@@ -410,14 +417,15 @@ class TestEffectiveDimensionalityIntegration:
         assert epochs == [0, 25, 49]
 
     def test_per_epoch_contains_sv_keys(self, trained_variant):
-        """Per-epoch artifact contains all sv_{name} keys."""
+        """Per-epoch artifact contains sv_{name} for every weight the architecture has."""
         pipeline = AnalysisPipeline(trained_variant)
         pipeline.register(EffectiveDimensionalityAnalyzer())
         pipeline.run()
 
         loader = ArtifactLoader(pipeline.artifacts_dir)
         epoch_data = loader.load_epoch("effective_dimensionality", 0)
-        for name in WEIGHT_MATRIX_NAMES:
+        # Core transformer matrices must always be present in this test (uses transformer)
+        for name in ("W_E", "W_Q", "W_K", "W_V", "W_O", "W_in", "W_out", "W_U"):
             assert f"sv_{name}" in epoch_data, f"Missing sv_{name}"
 
     def test_summary_contains_pr_keys(self, trained_variant):

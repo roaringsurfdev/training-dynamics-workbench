@@ -78,7 +78,7 @@ def create_training_page_layout(app: Dash) -> html.Div:
                                 min=0.1,
                                 max=0.9,
                                 step=0.05,
-                                value=0.3,
+                                value=0.75,
                                 marks={0.1: "0.1", 0.3: "0.3", 0.5: "0.5", 0.7: "0.7", 0.9: "0.9"},
                                 tooltip={"placement": "bottom", "always_visible": False},
                             ),
@@ -86,7 +86,7 @@ def create_training_page_layout(app: Dash) -> html.Div:
                             dbc.Input(
                                 id="training-epochs-input",
                                 type="number",
-                                value=25000,
+                                value=50000,
                                 step=1,
                             ),
                             dbc.Label(
@@ -268,6 +268,26 @@ def register_training_page_callbacks(app: Dash) -> None:
             return no_update, no_update, no_update, no_update
         if training_progress.get_state()["running"]:
             return no_update, no_update, "Training already in progress...", no_update
+
+        registry = get_registry()
+        family = registry.get_family(family_name)
+        params = {
+            "prime": int(prime or 113),
+            "seed": int(seed or 999),
+            "data_seed": int(data_seed or 598),
+        }
+        check_variant = registry.create_variant(family, params)
+        if check_variant.has_checkpoints:
+            variant_name = family.get_variant_directory_name(params)
+            return (
+                no_update,
+                no_update,
+                f"Blocked: variant '{variant_name}' already has checkpoints.\n\n"
+                f"Training over an existing variant is not allowed. "
+                f"Change the prime, seed, or data seed to create a new variant.",
+                no_update,
+            )
+
         training_progress.start()
         thread = threading.Thread(
             target=_run_training_thread,
@@ -276,8 +296,8 @@ def register_training_page_callbacks(app: Dash) -> None:
                 prime or 113,
                 seed or 999,
                 data_seed or 598,
-                train_fraction or 0.3,
-                num_epochs or 25000,
+                train_fraction or 0.75,
+                num_epochs or 50000,
                 checkpoint_str or "",
             ),
             daemon=True,

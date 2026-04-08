@@ -213,7 +213,7 @@ class TwoLayerMLPFamily(JsonModelFamily):
     def generate_training_dataset(
         self,
         params: dict[str, Any],
-        training_fraction: float = 0.3,
+        training_fraction: float = 0.75,
         data_seed: int = 598,
         device: str | torch.device | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -380,26 +380,28 @@ class TwoLayerMLPFamily(JsonModelFamily):
     def get_training_config(self) -> dict[str, Any]:
         """Return default training hyperparameters.
 
-        Based on grokking literature for MLP on modular addition.
-        Weight decay is especially important for MLP grokking.
+        Calibrated to match He et al. (2602.16849) §3.3:
+          - lr=1e-4, weight_decay=2.0, training_fraction=0.75
+        These settings reliably produce grokking in 2L MLPs on modular addition.
+        Weight decay is the primary driver of sparsification and generalization.
 
         Returns:
             Dict with learning_rate, weight_decay, betas, num_epochs,
             and checkpoint configuration
         """
         return {
-            "learning_rate": 1e-3,
-            "weight_decay": 1.0,
+            "learning_rate": 1e-4,
+            "weight_decay": 2.0,
             "betas": (0.9, 0.98),
-            "num_epochs": 25000,
+            "num_epochs": 50000,
             "default_checkpoint_epochs": sorted(
                 list(
                     set(
                         [
                             *range(0, 1500, 100),
-                            *range(1500, 9000, 500),
-                            *range(9000, 13000, 100),
-                            *range(13000, 25000, 500),
+                            *range(1500, 12000, 500),
+                            *range(12000, 22000, 100),
+                            *range(22000, 50000, 500),
                         ]
                     )
                 )
