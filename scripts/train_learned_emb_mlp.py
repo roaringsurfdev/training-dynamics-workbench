@@ -67,13 +67,13 @@ def train(
     variant.ensure_directories()
 
     model = family.create_model(params, device=device)
-    (
-        train_a, train_b, train_labels,
-        test_a, test_b, test_labels,
-        train_indices, test_indices,
-    ) = family.generate_training_dataset(
-        params, training_fraction=training_fraction, data_seed=data_seed, device=device
+    train_data, train_labels, test_data, test_labels, train_indices, test_indices = (
+        family.generate_training_dataset(
+            params, training_fraction=training_fraction, data_seed=data_seed, device=device
+        )
     )
+    train_a, train_b = train_data.unbind(1)
+    test_a, test_b = test_data.unbind(1)
 
     training_config = family.get_training_config()
     optimizer = torch.optim.AdamW(

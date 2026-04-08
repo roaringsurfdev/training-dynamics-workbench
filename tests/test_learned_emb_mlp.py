@@ -24,16 +24,16 @@ def model() -> LearnedEmbeddingMLP:
 
 
 @pytest.fixture
-def probe() -> tuple[torch.Tensor, torch.Tensor]:
-    """Integer index (a, b) pairs for all P² inputs."""
+def probe() -> torch.Tensor:
+    """(N, 2) long tensor of (a, b) index pairs for all P² inputs."""
     a_vals = torch.arange(P).repeat_interleave(P)
     b_vals = torch.arange(P).repeat(P)
-    return a_vals, b_vals
+    return torch.stack([a_vals, b_vals], dim=1)
 
 
 @pytest.fixture
 def bundle(model, probe) -> LearnedEmbMLPActivationBundle:
-    a_vals, b_vals = probe
+    a_vals, b_vals = probe.unbind(1)
     captured: dict = {}
 
     def hook(m, inp, output):
@@ -61,7 +61,7 @@ def params() -> dict:
 
 class TestLearnedEmbeddingMLP:
     def test_forward_output_shape(self, model, probe):
-        a_vals, b_vals = probe
+        a_vals, b_vals = probe.unbind(1)
         with torch.inference_mode():
             out = model(a_vals, b_vals)
         assert out.shape == (P * P, P)
@@ -91,14 +91,12 @@ class TestLearnedEmbeddingMLP:
         assert model.W_out.bias is None
 
     def test_sum_embedding_symmetry(self, model):
-        """embed_a(3) + embed_b(5) should differ from embed_a(5) + embed_b(3)
-        unless embed_a == embed_b (which they shouldn't be after seeded init)."""
+        """embed_a(3) + embed_b(5) should differ from embed_a(5) + embed_b(3)."""
         a = torch.tensor([3])
         b = torch.tensor([5])
         with torch.inference_mode():
             sum_ab = model.embed_a(a) + model.embed_b(b)
             sum_ba = model.embed_a(b) + model.embed_b(a)
-        # The sums will generally differ (a and b embeddings are independent)
         assert not torch.equal(sum_ab, sum_ba)
 
 
@@ -182,33 +180,33 @@ class TestLearnedEmbMLPFamily:
         assert model.d_embed == family.architecture.get("d_embed", 16)
 
     def test_generate_analysis_dataset_shape(self, family, params):
-        a_vals, b_vals = family.generate_analysis_dataset(params)
-        assert a_vals.shape == (P * P,)
-        assert b_vals.shape == (P * P,)
-        assert a_vals.dtype == torch.long
-        assert b_vals.dtype == torch.long
+        probe = family.generate_analysis_dataset(params)
+        assert probe.shape == (P * P, 2)
+        assert probe.dtype == torch.long
 
     def test_generate_analysis_dataset_covers_all_pairs(self, family, params):
-        a_vals, b_vals = family.generate_analysis_dataset(params)
-        pairs = set(zip(a_vals.tolist(), b_vals.tolist()))
+        probe = family.generate_analysis_dataset(params)
+        pairs = set(map(tuple, probe.tolist()))
         assert len(pairs) == P * P
 
-    def test_generate_training_dataset_returns_8_tuple(self, family, params):
+    def test_generate_training_dataset_returns_6_tuple(self, family, params):
         result = family.generate_training_dataset(params)
-        assert len(result) == 8
+        assert len(result) == 6
 
     def test_generate_training_dataset_shapes(self, family, params):
-        train_a, train_b, train_l, test_a, test_b, test_l, tr_idx, te_idx = (
+        train_data, train_l, test_data, test_l, tr_idx, te_idx = (
             family.generate_training_dataset(params)
         )
         assert len(tr_idx) + len(te_idx) == P * P
-        assert train_a.shape == train_b.shape == train_l.shape == (len(tr_idx),)
-        assert test_a.shape == test_b.shape == test_l.shape == (len(te_idx),)
+        assert train_data.shape == (len(tr_idx), 2)
+        assert test_data.shape == (len(te_idx), 2)
+        assert train_l.shape == (len(tr_idx),)
+        assert test_l.shape == (len(te_idx),)
 
     def test_generate_training_dataset_reproducible(self, family, params):
         r1 = family.generate_training_dataset(params)
         r2 = family.generate_training_dataset(params)
-        assert torch.equal(r1[6], r2[6])  # train_indices
+        assert torch.equal(r1[4], r2[4])  # train_indices
 
     def test_run_forward_pass_returns_bundle(self, family, params):
         model = family.create_model(params)
@@ -242,12 +240,12 @@ class TestLearnedEmbMLPFamily:
         assert isinstance(loss, float)
         assert loss > 0
 
-    def test_make_probe_returns_tuple(self, family, params):
-        a_t, b_t = family.make_probe(params, [[3, 5], [0, 12]])
-        assert a_t.shape == (2,)
-        assert b_t.shape == (2,)
-        assert a_t[0].item() == 3
-        assert b_t[0].item() == 5
+    def test_make_probe_shape(self, family, params):
+        probe = family.make_probe(params, [[3, 5], [0, 12]])
+        assert probe.shape == (2, 2)
+        assert probe.dtype == torch.long
+        assert probe[0, 0].item() == 3  # a
+        assert probe[0, 1].item() == 5  # b
 
     def test_get_variant_directory_name(self, family, params):
         name = family.get_variant_directory_name(params)

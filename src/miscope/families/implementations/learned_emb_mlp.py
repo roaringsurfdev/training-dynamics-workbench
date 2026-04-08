@@ -192,19 +192,19 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         self,
         params: dict[str, Any],
         device: str | torch.device | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> torch.Tensor:
         """Generate full (a, b) integer index grid for analysis.
 
         Returns:
-            Tuple of (a_vals, b_vals), each shape (p²,) — integer indices.
+            Long tensor of shape (p², 2) — each row is (a, b) index pair.
         """
         p = params["prime"]
         a_vals = torch.arange(p).repeat_interleave(p)
         b_vals = torch.arange(p).repeat(p)
+        probe = torch.stack([a_vals, b_vals], dim=1)
         if device is not None:
-            a_vals = a_vals.to(device)
-            b_vals = b_vals.to(device)
-        return a_vals, b_vals
+            probe = probe.to(device)
+        return probe
 
     def generate_training_dataset(
         self,
@@ -216,12 +216,13 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         """Generate train/test split for training.
 
         Returns:
-            Tuple of (train_a, train_b, train_labels, test_a, test_b,
-                     test_labels, train_indices, test_indices)
-            Note: 8-tuple vs 6-tuple in one-hot MLP — returns separate a/b.
+            6-tuple of (train_data, train_labels, test_data, test_labels,
+                        train_indices, test_indices) matching the ModelFamily protocol.
+            train_data / test_data are (N, 2) long tensors of (a, b) index pairs.
         """
         p = params["prime"]
-        a_vals, b_vals = self.generate_analysis_dataset(params, device=device)
+        probe = self.generate_analysis_dataset(params, device=device)
+        a_vals, b_vals = probe.unbind(1)
         labels = (a_vals + b_vals) % p
 
         torch.manual_seed(data_seed)
@@ -233,11 +234,9 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         test_idx = indices[cutoff:]
 
         return (
-            a_vals[train_idx],
-            b_vals[train_idx],
+            probe[train_idx],
             labels[train_idx],
-            a_vals[test_idx],
-            b_vals[test_idx],
+            probe[test_idx],
             labels[test_idx],
             train_idx,
             test_idx,
@@ -246,18 +245,18 @@ class LearnedEmbMLPFamily(JsonModelFamily):
     def run_forward_pass(
         self,
         model: LearnedEmbeddingMLP,
-        probe: tuple[torch.Tensor, torch.Tensor],
+        probe: torch.Tensor,
     ) -> LearnedEmbMLPActivationBundle:
         """Run a forward pass and return a LearnedEmbMLPActivationBundle.
 
         Args:
             model: LearnedEmbeddingMLP instance
-            probe: Tuple of (a_vals, b_vals) integer index tensors
+            probe: (N, 2) long tensor of (a, b) index pairs from generate_analysis_dataset()
 
         Returns:
             LearnedEmbMLPActivationBundle with hidden activations and logits
         """
-        a_vals, b_vals = probe
+        a_vals, b_vals = probe.unbind(1)
         captured: dict[str, torch.Tensor] = {}
 
         def _hook(module: nn.Module, inp: Any, output: torch.Tensor) -> None:
@@ -281,8 +280,8 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         p = params["prime"]
         fourier_basis, _ = get_fourier_basis(p, device)
 
-        def loss_fn(model: LearnedEmbeddingMLP, probe: tuple[torch.Tensor, torch.Tensor]) -> float:
-            a_vals, b_vals = probe
+        def loss_fn(model: LearnedEmbeddingMLP, probe: torch.Tensor) -> float:
+            a_vals, b_vals = probe.unbind(1)
             labels = (a_vals + b_vals) % p
             with torch.no_grad():
                 logits = model(a_vals, b_vals)
@@ -290,8 +289,8 @@ class LearnedEmbMLPFamily(JsonModelFamily):
             loss = -log_probs.gather(1, labels.unsqueeze(1)).squeeze(1).mean()
             return loss.item()
 
-        a_vals = torch.arange(p).repeat_interleave(p)
-        b_vals = torch.arange(p).repeat(p)
+        ab = self.generate_analysis_dataset(params)
+        a_vals, b_vals = ab.unbind(1)
         labels = ((a_vals + b_vals) % p).numpy()
 
         return {
@@ -306,20 +305,16 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         params: dict[str, Any],
         inputs: list[list[int]],
         device: str | torch.device | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Construct integer index probe tensors from (a, b) input pairs.
+    ) -> torch.Tensor:
+        """Construct a (N, 2) index probe tensor from (a, b) input pairs.
 
         Returns:
-            Tuple of (a_tensor, b_tensor), each shape (n,).
+            Long tensor of shape (n, 2) — each row is (a, b).
         """
-        a_list = [pair[0] for pair in inputs]
-        b_list = [pair[1] for pair in inputs]
-        a_tensor = torch.tensor(a_list, dtype=torch.long)
-        b_tensor = torch.tensor(b_list, dtype=torch.long)
+        probe = torch.tensor(inputs, dtype=torch.long)
         if device is not None:
-            a_tensor = a_tensor.to(device)
-            b_tensor = b_tensor.to(device)
-        return a_tensor, b_tensor
+            probe = probe.to(device)
+        return probe
 
     def get_training_config(self) -> dict[str, Any]:
         """Return default training hyperparameters.
