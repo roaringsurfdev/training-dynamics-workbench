@@ -17,10 +17,7 @@ Implementation Details: [Completion status, Generic Analyzer->Renderer map, Poss
 **Animations**
 At a high level, many of my requests are coming from the motivation to build animations for points of interest over training. I may also want to the ability to have a job queue for creating animations.
 
-*Note: I can currently create animations using a purpose-built notebook.*
-
-**Dominant Frequencies - All Weights**
-We currently have an Analyzer called "Dominant Frequencies" that provides analysis on embedding frequencies. I would like to create a new analyzer that provides data on all weight spaces. At the very least, this should be expanded to include Output weights. We can leave the existing Analyzer as-is for now and create a new one if that's best. *Note: This is currently in progress*
+*Resolved by REQ_094 (animation infrastructure — dashboard page + fieldnotes export). Plotly native animation (frames + scrubber) in the dashboard eliminates the notebook dependency. Job queue deferred as a stretch goal.*
 
 **Cross-Variant Analysis**
 Going to start needing some cross-variant comparison. This seems like it might be easiest for time/epoch series visualizations.
@@ -63,7 +60,7 @@ It was brought to my attention that another independent researcher has been doin
 *The first pass of this has been implemented*
 Where Centroid Class PCA shows geometric organization, it seems that Frequency Group PCA (for MLPs) is showing us loss landscape traversal. It's also showing that transient frequencies may reside in separate basins from the the selected frequencies.
 
-The existing Frequency Group PCA plots are useful in animations, but this leans on visual inspection and interpretation and is inaccessible to Claude for analysis.
+The existing Frequency Group PCA plots are useful in animations, but this leans on visual inspection and interpretation and is inaccessible to Claude for analysis. *Animation support addressed by REQ_094. Metric extraction from animated views remains open.*
 
 I don't think it will be sufficient to create metrics against only one pair of PCs. Trajectories that are in separate spaces appear to cross in some PC pairs.
 

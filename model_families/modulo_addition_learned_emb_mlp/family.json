@@ -32,9 +32,7 @@
     "effective_dimensionality",
     "repr_geometry"
   ],
-  "secondary_analyzers": [
-    "neuron_fourier"
-  ],
+  "secondary_analyzers": [],
   "cross_epoch_analyzers": [
     "parameter_trajectory",
     "neuron_dynamics",
