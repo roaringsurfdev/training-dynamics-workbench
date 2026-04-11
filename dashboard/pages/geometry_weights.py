@@ -65,9 +65,9 @@ def create_weight_geometry_page_layout(app: Dash) -> html.Div:
             # Time-series (full width, tall)
             dbc.Row(dbc.Col(_graph_manager.create_graph("training-loss-curves", "350px"))),
             dbc.Row(dbc.Col(_graph_manager.create_graph("timeseries-plot", "1000px"))),
-            dbc.Row(dbc.Col(_graph_manager.create_graph("centroid-dist-plot", "400px"))),
+            dbc.Row(dbc.Col(_graph_manager.create_graph("centroid-dist-plot", "800px"))),
             # Centroid PCA
-            dbc.Row(dbc.Col(_graph_manager.create_graph("centroid-pca-plot", "400px"))),
+            dbc.Row(dbc.Col(_graph_manager.create_graph("centroid-pca-plot", "1400px"))),
         ],
     )
 
