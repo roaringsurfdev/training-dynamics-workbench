@@ -173,7 +173,7 @@ def main() -> None:
         "--d-hidden", type=int, default=512, help="Hidden layer width (default: 512)"
     )
     parser.add_argument(
-        "--training-fraction", type=float, default=0.75, help="Fraction for training (default: 0.75)"
+        "--training-fraction", type=float, default=0.30, help="Fraction for training (default: 0.30)"
     )
     parser.add_argument("--device", type=str, default=None, help="Device (cpu/cuda, default: auto)")
     args = parser.parse_args()

@@ -213,7 +213,7 @@ class TwoLayerMLPFamily(JsonModelFamily):
     def generate_training_dataset(
         self,
         params: dict[str, Any],
-        training_fraction: float = 0.75,
+        training_fraction: float = 0.3,
         data_seed: int = 598,
         device: str | torch.device | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -391,7 +391,7 @@ class TwoLayerMLPFamily(JsonModelFamily):
         """
         return {
             "learning_rate": 1e-4,
-            "weight_decay": 2.0,
+            "weight_decay": 1.0,
             "betas": (0.9, 0.98),
             "num_epochs": 50000,
             "default_checkpoint_epochs": sorted(
