@@ -55,6 +55,27 @@ class ActivationBundle(Protocol):
 
 
 @dataclass
+class ActivationContext:
+    """Single-checkpoint analysis context passed to every primary analyzer.
+
+    Bundles the three objects previously passed as separate analyze() arguments:
+    the activation bundle, the probe tensor, and the family-provided domain
+    parameters. Constructed by the pipeline in _run_single_epoch(); families
+    are not responsible for building it.
+
+    Attributes:
+        bundle: Architecture-agnostic wrapper over model activations and weights.
+        probe: The full analysis dataset tensor (e.g., all p² (a, b) pairs).
+        analysis_params: Family-provided domain context — 'params', 'fourier_basis',
+            'loss_fn', 'labels', and any other family-specific precomputed values.
+    """
+
+    bundle: ActivationBundle
+    probe: torch.Tensor
+    analysis_params: dict[str, Any]
+
+
+@dataclass
 class AnalysisRunConfig:
     """Configuration for an analysis run.
 
@@ -108,19 +129,14 @@ class Analyzer(Protocol):
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,
-        context: dict[str, Any],
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """
         Run analysis on a single checkpoint.
 
         Args:
-            bundle: Architecture-agnostic wrapper over the model and its activations
-            probe: The analysis dataset tensor (e.g., full (a, b) grid)
-            context: Family-provided analysis context containing:
-                - 'params': Domain parameter values (e.g., {'prime': 113, 'seed': 42})
-                - Family-specific precomputed values (e.g., 'fourier_basis')
+            ctx: Single-checkpoint context bundling the activation bundle,
+                 probe tensor, and family-provided analysis parameters.
 
         Returns:
             Dict mapping artifact keys to numpy arrays.

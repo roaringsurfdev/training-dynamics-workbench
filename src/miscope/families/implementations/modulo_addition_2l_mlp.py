@@ -17,10 +17,10 @@ import torch
 import torch.nn as nn
 
 from miscope.analysis.library import get_fourier_basis
-from miscope.families.json_family import JsonModelFamily
+from miscope.families.base_model_family import BaseModelFamily
 
 
-class TwoLayerMLP(nn.Module):
+class ModuloAddition2LMLP(nn.Module):
     """Two-layer MLP for modular addition.
 
     Architecture: Linear(2p, d_hidden) → ReLU → Linear(d_hidden, p) → logits
@@ -59,8 +59,8 @@ class TwoLayerMLP(nn.Module):
         return self.W_out(hidden)
 
 
-class MLPActivationBundle:
-    """ActivationBundle implementation for TwoLayerMLP.
+class ModuloAddition2LMLPActivationBundle:
+    """ActivationBundle implementation for ModuloAddition2LMLP.
 
     Captures hidden activations via a forward hook registered during
     run_forward_pass(). Exposes them via the ActivationBundle protocol.
@@ -73,7 +73,7 @@ class MLPActivationBundle:
 
     def __init__(
         self,
-        model: TwoLayerMLP,
+        model: ModuloAddition2LMLP,
         hidden_acts: torch.Tensor,
         logits: torch.Tensor,
     ) -> None:
@@ -96,7 +96,7 @@ class MLPActivationBundle:
         """
         if layer != 0:
             raise ValueError(
-                f"MLPActivationBundle has one hidden layer (layer 0), got layer={layer}"
+                f"ModuloAddition2LMLPActivationBundle has one hidden layer (layer 0), got layer={layer}"
             )
         return self._hidden_acts
 
@@ -116,14 +116,14 @@ class MLPActivationBundle:
             KeyError: If name is not available for this architecture.
         """
         if name not in self._WEIGHT_LOOKUP:
-            raise KeyError(f"Weight '{name}' not available in MLPActivationBundle")
+            raise KeyError(f"Weight '{name}' not available in ModuloAddition2LMLPActivationBundle")
         return self._WEIGHT_LOOKUP[name](self._model)
 
     def attention_pattern(self, layer: int) -> torch.Tensor:
-        raise NotImplementedError("MLPActivationBundle has no attention patterns")
+        raise NotImplementedError("ModuloAddition2LMLPActivationBundle has no attention patterns")
 
     def residual_stream(self, layer: int, position: int, location: str) -> torch.Tensor:
-        raise NotImplementedError("MLPActivationBundle has no residual stream")
+        raise NotImplementedError("ModuloAddition2LMLPActivationBundle has no residual stream")
 
     def logits(self, position: int) -> torch.Tensor:
         """Return output logits.
@@ -141,7 +141,7 @@ class MLPActivationBundle:
         return extractor == "mlp"
 
 
-class TwoLayerMLPFamily(JsonModelFamily):
+class ModuloAddition2LMLPFamily(BaseModelFamily):
     """ModelFamily implementation for the 2-layer MLP on modular addition.
 
     Same task as ModuloAddition1LayerFamily, but the architecture is
@@ -157,21 +157,21 @@ class TwoLayerMLPFamily(JsonModelFamily):
         self,
         params: dict[str, Any],
         device: str | torch.device | None = None,
-    ) -> TwoLayerMLP:
-        """Create a TwoLayerMLP for modular addition.
+    ) -> ModuloAddition2LMLP:
+        """Create a ModuloAddition2LMLP for modular addition.
 
         Args:
             params: Domain parameters containing 'prime', 'seed'
             device: Device to place the model on
 
         Returns:
-            TwoLayerMLP configured for this prime
+            ModuloAddition2LMLP configured for this prime
         """
         p = params["prime"]
         seed = params.get("seed", self.get_default_params().get("seed", 999))
         d_hidden = self.architecture.get("d_hidden", 512)
 
-        model = TwoLayerMLP(vocab_size=p, d_hidden=d_hidden, seed=seed)
+        model = ModuloAddition2LMLP(vocab_size=p, d_hidden=d_hidden, seed=seed)
 
         if device is not None:
             model = model.to(device)
@@ -255,14 +255,33 @@ class TwoLayerMLPFamily(JsonModelFamily):
             test_indices,
         )
 
+    def compute_loss(
+        self,
+        logits: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        """Cross-entropy loss on MLP logits (batch, vocab_size).
+
+        Args:
+            logits: Shape (batch, vocab_size) from ModuloAddition2LMLP.
+            labels: Target class indices of shape (batch,).
+
+        Returns:
+            Scalar mean negative log-probability of correct labels.
+        """
+        logits = logits.to(torch.float64)
+        log_probs = logits.log_softmax(dim=-1)
+        correct_log_probs = log_probs.gather(dim=-1, index=labels[:, None])[:, 0]
+        return -correct_log_probs.mean()
+
     def build_config_dict(
         self,
-        model: TwoLayerMLP,
+        model: ModuloAddition2LMLP,
         params: dict[str, Any],
         data_seed: int,
         training_fraction: float,
     ) -> dict[str, Any]:
-        """Build config.json dict for a TwoLayerMLP."""
+        """Build config.json dict for a ModuloAddition2LMLP."""
         return {
             "architecture": "two_layer_mlp",
             "vocab_size": model.vocab_size,
@@ -276,20 +295,20 @@ class TwoLayerMLPFamily(JsonModelFamily):
 
     def run_forward_pass(
         self,
-        model: TwoLayerMLP,
+        model: ModuloAddition2LMLP,
         probe: torch.Tensor,
-    ) -> MLPActivationBundle:
-        """Run a forward pass and return an MLPActivationBundle.
+    ) -> ModuloAddition2LMLPActivationBundle:
+        """Run a forward pass and return a ModuloAddition2LMLPActivationBundle.
 
         Registers a forward hook on the ReLU to capture hidden activations,
         then runs the probe through the model.
 
         Args:
-            model: TwoLayerMLP instance created by create_model()
+            model: ModuloAddition2LMLP instance created by create_model()
             probe: One-hot encoded probe tensor of shape (batch, 2p)
 
         Returns:
-            MLPActivationBundle with hidden activations and logits
+            ModuloAddition2LMLPActivationBundle with hidden activations and logits
         """
         captured: dict[str, torch.Tensor] = {}
 
@@ -303,7 +322,7 @@ class TwoLayerMLPFamily(JsonModelFamily):
         finally:
             hook.remove()
 
-        return MLPActivationBundle(model, captured["hidden"], logits)
+        return ModuloAddition2LMLPActivationBundle(model, captured["hidden"], logits)
 
     def prepare_analysis_context(
         self,
@@ -325,7 +344,7 @@ class TwoLayerMLPFamily(JsonModelFamily):
         p = params["prime"]
         fourier_basis, _ = get_fourier_basis(p, device)
 
-        def loss_fn(model: TwoLayerMLP, probe: torch.Tensor) -> float:
+        def loss_fn(model: ModuloAddition2LMLP, probe: torch.Tensor) -> float:
             """Cross-entropy loss on one-hot modular addition probe."""
             a_vals = probe[:, :p].argmax(dim=1)
             b_vals = probe[:, p:].argmax(dim=1)
@@ -409,18 +428,18 @@ class TwoLayerMLPFamily(JsonModelFamily):
         }
 
 
-def load_two_layer_mlp_family(
+def load_modulo_addition_2l_mlp_family(
     model_families_dir: Path | str = "model_families",
-) -> TwoLayerMLPFamily:
+) -> ModuloAddition2LMLPFamily:
     """Load the 2-layer MLP family from the standard location.
 
     Args:
         model_families_dir: Path to model_families directory
 
     Returns:
-        TwoLayerMLPFamily instance
+        ModuloAddition2LMLPFamily instance
     """
     family_json = Path(model_families_dir) / "modulo_addition_2layer_mlp" / "family.json"
-    family = TwoLayerMLPFamily.from_json(family_json)
-    assert isinstance(family, TwoLayerMLPFamily)
+    family = ModuloAddition2LMLPFamily.from_json(family_json)
+    assert isinstance(family, ModuloAddition2LMLPFamily)
     return family

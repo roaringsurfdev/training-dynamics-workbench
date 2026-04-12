@@ -26,10 +26,10 @@ import torch
 import torch.nn as nn
 
 from miscope.analysis.library import get_fourier_basis
-from miscope.families.json_family import JsonModelFamily
+from miscope.families.base_model_family import BaseModelFamily
 
 
-class LearnedEmbeddingMLP(nn.Module):
+class ModuloAdditionEmbedMLP(nn.Module):
     """Two-layer MLP with separate learned embeddings for a and b, summed.
 
     Architecture:
@@ -78,8 +78,8 @@ class LearnedEmbeddingMLP(nn.Module):
         return self.W_out(hidden)
 
 
-class LearnedEmbMLPActivationBundle:
-    """ActivationBundle implementation for LearnedEmbeddingMLP.
+class ModuloAdditionEmbedMLPActivationBundle:
+    """ActivationBundle implementation for ModuloAdditionEmbedMLP.
 
     Captures hidden activations via a forward hook registered during
     run_forward_pass(). Exposes them via the ActivationBundle protocol.
@@ -105,7 +105,7 @@ class LearnedEmbMLPActivationBundle:
 
     def __init__(
         self,
-        model: LearnedEmbeddingMLP,
+        model: ModuloAdditionEmbedMLP,
         hidden_acts: torch.Tensor,
         logits: torch.Tensor,
     ) -> None:
@@ -125,25 +125,25 @@ class LearnedEmbMLPActivationBundle:
         """
         if layer != 0:
             raise ValueError(
-                f"LearnedEmbMLPActivationBundle has one hidden layer (layer 0), got layer={layer}"
+                f"ModuloAdditionEmbedMLPActivationBundle has one hidden layer (layer 0), got layer={layer}"
             )
         return self._hidden_acts
 
     def weight(self, name: str) -> torch.Tensor:
         """Return a named weight matrix.
 
-        Supported: W_in, W_out, W_E.
+        Supported: W_in, W_out, embed_a, embed_b.
         Raises KeyError for unsupported weight names.
         """
         if name not in self._WEIGHT_LOOKUP:
-            raise KeyError(f"Weight '{name}' not available in LearnedEmbMLPActivationBundle")
+            raise KeyError(f"Weight '{name}' not available in ModuloAdditionEmbedMLPActivationBundle")
         return self._WEIGHT_LOOKUP[name](self._model)
 
     def attention_pattern(self, layer: int) -> torch.Tensor:
-        raise NotImplementedError("LearnedEmbMLPActivationBundle has no attention patterns")
+        raise NotImplementedError("ModuloAdditionEmbedMLPActivationBundle has no attention patterns")
 
     def residual_stream(self, layer: int, position: int, location: str) -> torch.Tensor:
-        raise NotImplementedError("LearnedEmbMLPActivationBundle has no residual stream")
+        raise NotImplementedError("ModuloAdditionEmbedMLPActivationBundle has no residual stream")
 
     def logits(self, position: int) -> torch.Tensor:
         """Return output logits.
@@ -161,7 +161,7 @@ class LearnedEmbMLPActivationBundle:
         return extractor == "mlp"
 
 
-class LearnedEmbMLPFamily(JsonModelFamily):
+class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
     """ModelFamily for the learned-embedding MLP on modular addition.
 
     Same task as the one-hot MLP and 1-layer transformer, but with
@@ -177,13 +177,13 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         self,
         params: dict[str, Any],
         device: str | torch.device | None = None,
-    ) -> LearnedEmbeddingMLP:
+    ) -> ModuloAdditionEmbedMLP:
         p = params["prime"]
         seed = params.get("seed", self.get_default_params().get("seed", 999))
         d_embed = self.architecture.get("d_embed", 16)
         d_hidden = self.architecture.get("d_hidden", 512)
 
-        model = LearnedEmbeddingMLP(vocab_size=p, d_embed=d_embed, d_hidden=d_hidden, seed=seed)
+        model = ModuloAdditionEmbedMLP(vocab_size=p, d_embed=d_embed, d_hidden=d_hidden, seed=seed)
         if device is not None:
             model = model.to(device)
         return model
@@ -244,17 +244,17 @@ class LearnedEmbMLPFamily(JsonModelFamily):
 
     def run_forward_pass(
         self,
-        model: LearnedEmbeddingMLP,
+        model: ModuloAdditionEmbedMLP,
         probe: torch.Tensor,
-    ) -> LearnedEmbMLPActivationBundle:
-        """Run a forward pass and return a LearnedEmbMLPActivationBundle.
+    ) -> ModuloAdditionEmbedMLPActivationBundle:
+        """Run a forward pass and return a ModuloAdditionEmbedMLPActivationBundle.
 
         Args:
-            model: LearnedEmbeddingMLP instance
+            model: ModuloAdditionEmbedMLP instance
             probe: (N, 2) long tensor of (a, b) index pairs from generate_analysis_dataset()
 
         Returns:
-            LearnedEmbMLPActivationBundle with hidden activations and logits
+            ModuloAdditionEmbedMLPActivationBundle with hidden activations and logits
         """
         a_vals, b_vals = probe.unbind(1)
         captured: dict[str, torch.Tensor] = {}
@@ -269,7 +269,7 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         finally:
             hook.remove()
 
-        return LearnedEmbMLPActivationBundle(model, captured["hidden"], logits)
+        return ModuloAdditionEmbedMLPActivationBundle(model, captured["hidden"], logits)
 
     def prepare_analysis_context(
         self,
@@ -280,7 +280,7 @@ class LearnedEmbMLPFamily(JsonModelFamily):
         p = params["prime"]
         fourier_basis, _ = get_fourier_basis(p, device)
 
-        def loss_fn(model: LearnedEmbeddingMLP, probe: torch.Tensor) -> float:
+        def loss_fn(model: ModuloAdditionEmbedMLP, probe: torch.Tensor) -> float:
             a_vals, b_vals = probe.unbind(1)
             labels = (a_vals + b_vals) % p
             with torch.no_grad():
@@ -345,14 +345,53 @@ class LearnedEmbMLPFamily(JsonModelFamily):
             ),
         }
 
+    def compute_loss(
+        self,
+        logits: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        """Cross-entropy loss on MLP logits (batch, vocab_size).
 
-def load_learned_emb_mlp_family(
+        Args:
+            logits: Shape (batch, vocab_size) from ModuloAdditionEmbedMLP.
+            labels: Target class indices of shape (batch,).
+
+        Returns:
+            Scalar mean negative log-probability of correct labels.
+        """
+        logits = logits.to(torch.float64)
+        log_probs = logits.log_softmax(dim=-1)
+        correct_log_probs = log_probs.gather(dim=-1, index=labels[:, None])[:, 0]
+        return -correct_log_probs.mean()
+
+    def build_config_dict(
+        self,
+        model: ModuloAdditionEmbedMLP,
+        params: dict[str, Any],
+        data_seed: int,
+        training_fraction: float,
+    ) -> dict[str, Any]:
+        """Build config.json dict for a ModuloAdditionEmbedMLP."""
+        return {
+            "architecture": "learned_emb_mlp",
+            "vocab_size": model.vocab_size,
+            "d_embed": model.d_embed,
+            "d_hidden": model.d_hidden,
+            "act_fn": "relu",
+            **params,
+            "model_seed": params.get("seed"),
+            "data_seed": data_seed,
+            "training_fraction": training_fraction,
+        }
+
+
+def load_modulo_addition_embed_mlp_family(
     model_families_dir: Path | str = "model_families",
-) -> LearnedEmbMLPFamily:
+) -> ModuloAdditionEmbedMLPFamily:
     """Load the learned-embedding MLP family from the standard location."""
     family_json = (
         Path(model_families_dir) / "modulo_addition_learned_emb_mlp" / "family.json"
     )
-    family = LearnedEmbMLPFamily.from_json(family_json)
-    assert isinstance(family, LearnedEmbMLPFamily)
+    family = ModuloAdditionEmbedMLPFamily.from_json(family_json)
+    assert isinstance(family, ModuloAdditionEmbedMLPFamily)
     return family

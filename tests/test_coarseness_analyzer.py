@@ -14,6 +14,7 @@ from miscope.analysis.analyzers import CoarsenessAnalyzer
 from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.library.fourier import compute_neuron_coarseness
 from miscope.families import FamilyRegistry
+from miscope.analysis.protocols import ActivationContext
 
 # ── Library function tests ──────────────────────────────────────────────
 
@@ -271,28 +272,28 @@ class TestCoarsenessAnalyzerOutput:
         """analyze returns a dict."""
         bundle, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert isinstance(result, dict)
 
     def test_returns_coarseness_key(self, model_with_context):
         """Result contains 'coarseness' key."""
         bundle, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert "coarseness" in result
 
     def test_coarseness_is_numpy_array(self, model_with_context):
         """Coarseness is a numpy array."""
         bundle, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert isinstance(result["coarseness"], np.ndarray)
 
     def test_coarseness_shape(self, model_with_context):
         """Coarseness has shape (d_mlp,)."""
         bundle, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         # d_mlp = 512 from architecture
         assert result["coarseness"].shape == (512,)
 
@@ -300,7 +301,7 @@ class TestCoarsenessAnalyzerOutput:
         """Coarseness values are in [0, 1]."""
         bundle, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert np.all(result["coarseness"] >= 0.0)
         assert np.all(result["coarseness"] <= 1.0)
 

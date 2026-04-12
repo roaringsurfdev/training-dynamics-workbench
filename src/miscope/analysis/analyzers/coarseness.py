@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import torch
 
 from miscope.analysis.library import (
     compute_2d_fourier_transform,
@@ -20,7 +19,7 @@ from miscope.analysis.library import (
 )
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationContext
 
 
 class CoarsenessAnalyzer:
@@ -50,24 +49,21 @@ class CoarsenessAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,
-        context: dict[str, Any],
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """Compute per-neuron coarseness values.
 
         Args:
-            bundle: Activation bundle from the forward pass.
-            probe: Full probe tensor (p^2, 3)
-            context: Analysis context containing 'fourier_basis'
+            ctx: Analysis context with bundle, probe, and analysis_params.
+                 analysis_params must contain 'fourier_basis'.
 
         Returns:
             Dict with 'coarseness' array of shape (d_mlp,)
         """
-        fourier_basis = context["fourier_basis"]
-        p = compute_grid_size_from_dataset(probe)
+        fourier_basis = ctx.analysis_params["fourier_basis"]
+        p = compute_grid_size_from_dataset(ctx.probe)
 
-        neuron_acts = bundle.mlp_post(0, -1)
+        neuron_acts = ctx.bundle.mlp_post(0, -1)
         reshaped = reshape_to_grid(neuron_acts, p)
         fourier_neuron_acts = compute_2d_fourier_transform(reshaped, fourier_basis)
         freq_fractions = compute_frequency_variance_fractions(fourier_neuron_acts, p)

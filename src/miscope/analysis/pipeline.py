@@ -14,6 +14,7 @@ import torch
 import tqdm.auto as tqdm
 
 from miscope.analysis.protocols import (
+    ActivationContext,
     AnalysisRunConfig,
     Analyzer,
     CrossEpochAnalyzer,
@@ -282,10 +283,11 @@ class AnalysisPipeline:
         model.load_state_dict(state_dict)
 
         bundle = self.variant.family.run_forward_pass(model, probe)
+        ctx = ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
 
         for analyzer, needed_epochs in work_queue:
             if epoch in needed_epochs:
-                result = analyzer.analyze(bundle, probe, context)
+                result = analyzer.analyze(ctx)
                 self._save_epoch_artifact(analyzer.name, epoch, result)
 
                 if summary_collectors and analyzer.name in summary_collectors:

@@ -1,6 +1,6 @@
 """Train a learned-embedding MLP on modular addition.
 
-Standalone training script for LearnedEmbMLPFamily variants.
+Standalone training script for ModuloAdditionEmbedMLPFamily variants.
 Produces the same checkpoint format (safetensors) and directory structure
 as the other MLP families.
 
@@ -24,7 +24,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 from miscope.config import get_config  # noqa: E402
-from miscope.families.implementations.learned_emb_mlp import load_learned_emb_mlp_family  # noqa: E402
+from miscope.families.implementations.modulo_addition_embed_mlp import load_modulo_addition_embed_mlp_family  # noqa: E402
 from miscope.families.variant import Variant  # noqa: E402
 
 
@@ -57,7 +57,7 @@ def train(
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     cfg = get_config()
-    family = load_learned_emb_mlp_family(cfg.model_families_dir)
+    family = load_modulo_addition_embed_mlp_family(cfg.model_families_dir)
 
     family._config["architecture"]["d_embed"] = d_embed
     family._config["architecture"]["d_hidden"] = d_hidden

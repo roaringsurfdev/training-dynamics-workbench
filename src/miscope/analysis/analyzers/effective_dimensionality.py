@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import torch
 
 from miscope.analysis.library.weights import (
     WEIGHT_MATRIX_NAMES,
@@ -20,7 +19,7 @@ from miscope.analysis.library.weights import (
 )
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationContext
 
 
 class EffectiveDimensionalityAnalyzer:
@@ -39,21 +38,17 @@ class EffectiveDimensionalityAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,  # noqa: ARG002
-        context: dict[str, Any],  # noqa: ARG002
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """Compute singular values of all trainable weight matrices.
 
         Args:
-            bundle: Activation bundle with checkpoint weights.
-            probe: Unused (protocol conformance).
-            context: Unused (protocol conformance).
+            ctx: Analysis context with bundle (probe and analysis_params unused).
 
         Returns:
             Dict mapping sv_{name} to singular value arrays.
         """
-        return compute_weight_singular_values(bundle)
+        return compute_weight_singular_values(ctx.bundle)
 
     def get_summary_keys(self) -> list[str]:
         """Declare participation ratio summary keys."""

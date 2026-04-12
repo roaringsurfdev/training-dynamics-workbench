@@ -14,10 +14,10 @@ import torch
 from transformer_lens import HookedTransformer, HookedTransformerConfig
 
 from miscope.analysis.library import get_fourier_basis
-from miscope.families.json_family import JsonModelFamily
+from miscope.families.base_model_family import BaseModelFamily
 
 
-class ModuloAddition1LayerFamily(JsonModelFamily):
+class ModuloAddition1LayerFamily(BaseModelFamily):
     """Implementation of ModelFamily for 1-layer modular addition transformer.
 
     This family represents single-layer transformers trained on the modular
@@ -233,6 +233,25 @@ class ModuloAddition1LayerFamily(JsonModelFamily):
             "loss_fn": loss_fn,
             "labels": labels,
         }
+
+    def compute_loss(
+        self,
+        logits: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        """Cross-entropy loss on last-position transformer logits.
+
+        Args:
+            logits: Shape (batch, seq_len, vocab_size) from HookedTransformer.
+            labels: Target class indices of shape (batch,).
+
+        Returns:
+            Scalar mean negative log-probability of correct labels.
+        """
+        last_logits = logits[:, -1].to(torch.float64)
+        log_probs = last_logits.log_softmax(dim=-1)
+        correct_log_probs = log_probs.gather(dim=-1, index=labels[:, None])[:, 0]
+        return -correct_log_probs.mean()
 
     def build_config_dict(
         self,

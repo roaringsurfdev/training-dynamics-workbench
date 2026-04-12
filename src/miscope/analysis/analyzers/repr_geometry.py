@@ -17,7 +17,7 @@ from miscope.analysis.library import (
 )
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationBundle, ActivationContext
 from miscope.analysis.library.geometry import (
     _pca_project,
     compute_center_spread,
@@ -79,29 +79,26 @@ class RepresentationalGeometryAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,
-        context: dict[str, Any],
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """Compute geometric measures at all activation sites.
 
         Args:
-            bundle: Activation bundle from the forward pass.
-            probe: Full probe tensor (p^2, 3)
-            context: Analysis context with 'params' containing 'prime'
+            ctx: Analysis context with bundle, probe, and analysis_params.
+                 analysis_params may contain 'labels' or 'params' with 'prime'.
 
         Returns:
             Dict with site-prefixed keys for centroids, radii,
             dimensionality, and global scalar measures.
         """
-        p = compute_grid_size_from_dataset(probe)
-        labels = self._compute_labels(probe, p, context)
+        p = compute_grid_size_from_dataset(ctx.probe)
+        labels = self._compute_labels(ctx.probe, p, ctx.analysis_params)
 
         result: dict[str, np.ndarray] = {}
         for site_name, site_config in _SITES.items():
-            if not bundle.supports_site(site_config["extractor"]):
+            if not ctx.bundle.supports_site(site_config["extractor"]):
                 continue
-            activations = self._extract_site(bundle, site_config)
+            activations = self._extract_site(ctx.bundle, site_config)
             site_result = self._compute_site_measures(activations, labels, p)
             for key, value in site_result.items():
                 result[f"{site_name}_{key}"] = value

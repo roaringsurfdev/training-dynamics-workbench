@@ -30,7 +30,7 @@ WEIGHT_MATRIX_NAMES = [
 # Architecture-specific weight names not in the transformer set.
 # extract_parameter_snapshot tries these in addition to WEIGHT_MATRIX_NAMES.
 ARCH_WEIGHT_NAMES: dict[str, list[str]] = {
-    "learned_emb_mlp": ["embed_a", "embed_b"],
+    "modulo_addition_embed_mlp": ["embed_a", "embed_b"],
 }
 
 # Predefined component groups for trajectory/velocity analysis

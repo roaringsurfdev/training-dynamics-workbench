@@ -7,22 +7,20 @@ geometric analyses (REQ_029).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
 
 from miscope.analysis.library import extract_parameter_snapshot
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationContext
 
 
 class ParameterSnapshotAnalyzer:
     """Stores per-epoch weight matrix snapshots for trajectory analysis.
 
-    Extracts weights via the bundle. Probe and context are accepted
-    for protocol conformance but ignored.
+    Extracts weights via the bundle. Probe and analysis_params are unused.
     """
 
     name = "parameter_snapshot"
@@ -31,19 +29,15 @@ class ParameterSnapshotAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,  # noqa: ARG002
-        context: dict[str, Any],  # noqa: ARG002
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """Extract all trainable weight matrices from the bundle.
 
         Args:
-            bundle: Activation bundle with checkpoint weights.
-            probe: Unused (protocol conformance).
-            context: Unused (protocol conformance).
+            ctx: Analysis context with bundle (probe and analysis_params unused).
 
         Returns:
             Dict mapping weight matrix names to numpy arrays in
             their original shapes (e.g., W_E, W_Q, W_in, etc.)
         """
-        return extract_parameter_snapshot(bundle)
+        return extract_parameter_snapshot(ctx.bundle)

@@ -12,6 +12,7 @@ from miscope.analysis.analyzers.fourier_nucleation import (
     _snapshot,
 )
 from miscope.analysis.bundle import TransformerLensBundle
+from miscope.analysis.protocols import ActivationContext
 
 # ---------------------------------------------------------------------------
 # Unit: Fourier basis construction
@@ -209,9 +210,11 @@ class TestFourierNucleationAnalyzerOutput:
         model, prime, d_mlp = minimal_model
         analyzer = FourierNucleationAnalyzer(iterations=3)
         result = analyzer.analyze(
-            TransformerLensBundle(model, None, None),  # type: ignore
-            None,  # type: ignore
-            {"params": {"prime": prime}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                probe=None,  # type: ignore
+                analysis_params={"params": {"prime": prime}},
+            )
         )  # type: ignore[arg-type]
         expected_keys = {
             "aggregate_energy",
@@ -229,9 +232,11 @@ class TestFourierNucleationAnalyzerOutput:
         n_iters = 4
         analyzer = FourierNucleationAnalyzer(iterations=n_iters)
         result = analyzer.analyze(
-            TransformerLensBundle(model, None, None),  # type: ignore
-            None,  # type: ignore
-            {"params": {"prime": prime}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                probe=None,  # type: ignore
+                analysis_params={"params": {"prime": prime}},
+            )
         )  # type: ignore[arg-type]
         n_freqs = prime // 2
         assert result["aggregate_energy"].shape == (n_iters + 1, n_freqs)
@@ -241,9 +246,11 @@ class TestFourierNucleationAnalyzerOutput:
         n_iters = 3
         analyzer = FourierNucleationAnalyzer(iterations=n_iters)
         result = analyzer.analyze(
-            TransformerLensBundle(model, None, None),  # type: ignore
-            None,  # type: ignore
-            {"params": {"prime": prime}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                probe=None,  # type: ignore
+                analysis_params={"params": {"prime": prime}},
+            )
         )  # type: ignore[arg-type]
         assert result["neuron_peak_freq"].shape == (n_iters + 1, d_mlp)
 
@@ -251,9 +258,11 @@ class TestFourierNucleationAnalyzerOutput:
         model, prime, _ = minimal_model
         analyzer = FourierNucleationAnalyzer(iterations=2)
         result = analyzer.analyze(
-            TransformerLensBundle(model, None, None),  # type: ignore
-            None,  # type: ignore
-            {"params": {"prime": prime}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                probe=None,  # type: ignore
+                analysis_params={"params": {"prime": prime}},
+            )
         )  # type: ignore[arg-type]
         expected = np.arange(1, prime // 2 + 1, dtype=np.int32)
         np.testing.assert_array_equal(result["frequencies"], expected)
@@ -262,9 +271,11 @@ class TestFourierNucleationAnalyzerOutput:
         model, prime, _ = minimal_model
         analyzer = FourierNucleationAnalyzer(iterations=4)
         result = analyzer.analyze(
-            TransformerLensBundle(model, None, None),  # type: ignore
-            None,  # type: ignore
-            {"params": {"prime": prime}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                probe=None,  # type: ignore
+                analysis_params={"params": {"prime": prime}},
+            )
         )  # type: ignore[arg-type]
         # Max value per iteration should be 1.0
         for it in range(result["aggregate_energy"].shape[0]):
@@ -275,9 +286,11 @@ class TestFourierNucleationAnalyzerOutput:
         model, prime, d_mlp = minimal_model
         analyzer = FourierNucleationAnalyzer(iterations=8, sharpness=0.8)
         result = analyzer.analyze(
-            TransformerLensBundle(model, None, None),  # type: ignore
-            None,  # type: ignore
-            {"params": {"prime": prime}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                probe=None,  # type: ignore
+                analysis_params={"params": {"prime": prime}},
+            )
         )  # type: ignore[arg-type]
         energy_0 = result["aggregate_energy"][0]
         energy_final = result["aggregate_energy"][-1]

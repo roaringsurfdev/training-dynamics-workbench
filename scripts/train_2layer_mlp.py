@@ -1,6 +1,6 @@
 """Train a 2-layer MLP on modular addition.
 
-Standalone training script for TwoLayerMLPFamily variants.
+Standalone training script for ModuloAddition2LMLPFamily variants.
 Produces the same checkpoint format (safetensors) and directory structure
 as the 1-layer transformer family, but writes an MLP-specific config.json.
 
@@ -25,7 +25,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 from miscope.config import get_config  # noqa: E402
-from miscope.families.implementations.two_layer_mlp import load_two_layer_mlp_family  # noqa: E402
+from miscope.families.implementations.modulo_addition_2l_mlp import load_modulo_addition_2l_mlp_family  # noqa: E402
 from miscope.families.variant import Variant  # noqa: E402
 
 
@@ -76,7 +76,7 @@ def train(
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     cfg = get_config()
-    family = load_two_layer_mlp_family(cfg.model_families_dir)
+    family = load_modulo_addition_2l_mlp_family(cfg.model_families_dir)
 
     params = {"prime": prime, "seed": seed, "data_seed": data_seed}
     # Override d_hidden from CLI if different from family.json default
