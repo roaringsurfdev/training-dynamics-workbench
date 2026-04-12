@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 import einops
 import numpy as np
-import torch
 
 from miscope.analysis.library import (
     compute_2d_fourier_transform,
@@ -19,7 +18,7 @@ from miscope.analysis.library import (
 )
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationContext
 
 
 class AttentionFreqAnalyzer:
@@ -46,25 +45,22 @@ class AttentionFreqAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,
-        context: dict[str, Any],
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """Compute frequency variance fractions for each attention head.
 
         Args:
-            bundle: Activation bundle from the forward pass.
-            probe: Full probe tensor (p^2, 3)
-            context: Analysis context containing 'fourier_basis'
+            ctx: Analysis context with bundle, probe, and analysis_params.
+                 analysis_params must contain 'fourier_basis'.
 
         Returns:
             Dict with 'freq_matrix' array of shape (n_freq, n_heads)
         """
-        fourier_basis = context["fourier_basis"]
-        p = compute_grid_size_from_dataset(probe)
+        fourier_basis = ctx.analysis_params["fourier_basis"]
+        p = compute_grid_size_from_dataset(ctx.probe)
 
         # Extract attention patterns: (p*p, n_heads, n_pos, n_pos)
-        attn = bundle.attention_pattern(0)
+        attn = ctx.bundle.attention_pattern(0)
 
         # Select position pair, e.g. = → a: (p*p, n_heads)
         attn_pair = attn[:, :, self.to_position, self.from_position]

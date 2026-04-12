@@ -12,6 +12,7 @@ import torch
 
 from miscope.analysis.analyzers import AnalyzerRegistry
 from miscope.analysis.bundle import TransformerLensBundle
+from miscope.analysis.protocols import ActivationContext
 from miscope.families import FamilyRegistry, VariantState
 from miscope.families.implementations import ModuloAddition1LayerFamily
 
@@ -275,7 +276,7 @@ class TestAnalyzerIntegration:
             logits, cache = model.run_with_cache(dataset)
 
         analyzer = AnalyzerRegistry.get("dominant_frequencies")
-        result = analyzer.analyze(TransformerLensBundle(model, cache, logits), dataset, context)
+        result = analyzer.analyze(ActivationContext(bundle=TransformerLensBundle(model, cache, logits), probe=dataset, analysis_params=context))
 
         assert "coefficients" in result
         assert result["coefficients"].shape[0] == context["fourier_basis"].shape[0]
@@ -293,7 +294,7 @@ class TestAnalyzerIntegration:
             logits, cache = model.run_with_cache(dataset)
 
         analyzer = AnalyzerRegistry.get("neuron_activations")
-        result = analyzer.analyze(TransformerLensBundle(model, cache, logits), dataset, context)
+        result = analyzer.analyze(ActivationContext(bundle=TransformerLensBundle(model, cache, logits), probe=dataset, analysis_params=context))
 
         assert "activations" in result
         p = params["prime"]
@@ -313,7 +314,7 @@ class TestAnalyzerIntegration:
             logits, cache = model.run_with_cache(dataset)
 
         analyzer = AnalyzerRegistry.get("neuron_freq_norm")
-        result = analyzer.analyze(TransformerLensBundle(model, cache, logits), dataset, context)
+        result = analyzer.analyze(ActivationContext(bundle=TransformerLensBundle(model, cache, logits), probe=dataset, analysis_params=context))
 
         assert "norm_matrix" in result
         p = params["prime"]
@@ -356,7 +357,7 @@ class TestEndToEnd:
         analyzers = AnalyzerRegistry.get_for_family(family)
 
         for analyzer in analyzers:
-            result = analyzer.analyze(TransformerLensBundle(model, cache, logits), dataset, context)
+            result = analyzer.analyze(ActivationContext(bundle=TransformerLensBundle(model, cache, logits), probe=dataset, analysis_params=context))
             assert len(result) > 0
 
 

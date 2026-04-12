@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import torch
 
-from miscope.families.types import AnalysisDatasetSpec, ArchitectureSpec, ParameterSpec
+from miscope.families.types import AnalysisDatasetSpec, ParameterSpec
 
 if TYPE_CHECKING:
     from transformer_lens import HookedTransformer
@@ -41,11 +41,6 @@ class ModelFamily(Protocol):
     @property
     def description(self) -> str:
         """Brief description of the family."""
-        ...
-
-    @property
-    def architecture(self) -> ArchitectureSpec:
-        """Architectural properties (n_layers, n_heads, etc.)."""
         ...
 
     @property
@@ -119,17 +114,6 @@ class ModelFamily(Protocol):
 
         Returns:
             Tensor of inputs for analysis forward passes
-        """
-        ...
-
-    def get_variant_directory_name(self, params: dict[str, Any]) -> str:
-        """Generate variant directory name from parameters.
-
-        Args:
-            params: Domain parameter values
-
-        Returns:
-            Directory name (e.g., "modulo_addition_1layer_p113_seed598_dseed_598")
         """
         ...
 
@@ -234,6 +218,38 @@ class ModelFamily(Protocol):
 
         Returns:
             Dict containing 'params' and any precomputed analysis context
+        """
+        ...
+
+    def create_optimizer(
+        self,
+        model: Any,
+    ) -> torch.optim.Optimizer:
+        """Create an optimizer for model training.
+
+        Args:
+            model: Model instance created by create_model()
+
+        Returns:
+            Configured optimizer for this family's training regime
+        """
+        ...
+
+    def compute_loss(
+        self,
+        logits: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute training loss from model output logits and target labels.
+
+        Args:
+            logits: Model output. Shape is architecture-dependent:
+                    (batch, seq_len, vocab_size) for transformers,
+                    (batch, vocab_size) for plain MLPs.
+            labels: Target class indices of shape (batch,).
+
+        Returns:
+            Scalar loss tensor.
         """
         ...
 

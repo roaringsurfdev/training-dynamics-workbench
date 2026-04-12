@@ -1,4 +1,4 @@
-"""Tests for LearnedEmbeddingMLP, LearnedEmbMLPActivationBundle, and LearnedEmbMLPFamily."""
+"""Tests for ModuloAdditionEmbedMLP, ModuloAdditionEmbedMLPActivationBundle, and ModuloAdditionEmbedMLPFamily."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ import pytest
 import torch
 
 from miscope.analysis.protocols import ActivationBundle
-from miscope.families.implementations.learned_emb_mlp import (
-    LearnedEmbMLPActivationBundle,
-    LearnedEmbeddingMLP,
-    LearnedEmbMLPFamily,
-    load_learned_emb_mlp_family,
+from miscope.families.implementations.modulo_addition_embed_mlp import (
+    ModuloAdditionEmbedMLP,
+    ModuloAdditionEmbedMLPActivationBundle,
+    ModuloAdditionEmbedMLPFamily,
+    load_modulo_addition_embed_mlp_family,
 )
 
 P = 13       # Small prime for fast tests
@@ -19,8 +19,8 @@ D_HIDDEN = 32
 
 
 @pytest.fixture
-def model() -> LearnedEmbeddingMLP:
-    return LearnedEmbeddingMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=42)
+def model() -> ModuloAdditionEmbedMLP:
+    return ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=42)
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def probe() -> torch.Tensor:
 
 
 @pytest.fixture
-def bundle(model, probe) -> LearnedEmbMLPActivationBundle:
+def bundle(model, probe) -> ModuloAdditionEmbedMLPActivationBundle:
     a_vals, b_vals = probe.unbind(1)
     captured: dict = {}
 
@@ -43,12 +43,12 @@ def bundle(model, probe) -> LearnedEmbMLPActivationBundle:
     with torch.inference_mode():
         logits = model(a_vals, b_vals)
     h.remove()
-    return LearnedEmbMLPActivationBundle(model, captured["hidden"], logits)
+    return ModuloAdditionEmbedMLPActivationBundle(model, captured["hidden"], logits)
 
 
 @pytest.fixture
-def family() -> LearnedEmbMLPFamily:
-    return load_learned_emb_mlp_family("model_families")
+def family() -> ModuloAdditionEmbedMLPFamily:
+    return load_modulo_addition_embed_mlp_family("model_families")
 
 
 @pytest.fixture
@@ -56,10 +56,10 @@ def params() -> dict:
     return {"prime": P, "seed": 42, "data_seed": 598}
 
 
-# ── LearnedEmbeddingMLP ───────────────────────────────────────────────────────
+# ── ModuloAdditionEmbedMLP ────────────────────────────────────────────────────
 
 
-class TestLearnedEmbeddingMLP:
+class TestModuloAdditionEmbedMLP:
     def test_forward_output_shape(self, model, probe):
         a_vals, b_vals = probe.unbind(1)
         with torch.inference_mode():
@@ -67,14 +67,14 @@ class TestLearnedEmbeddingMLP:
         assert out.shape == (P * P, P)
 
     def test_seedable_initialization(self):
-        m1 = LearnedEmbeddingMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
-        m2 = LearnedEmbeddingMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        m1 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        m2 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
         for p1, p2 in zip(m1.parameters(), m2.parameters()):
             assert torch.equal(p1, p2)
 
     def test_different_seeds_differ(self):
-        m1 = LearnedEmbeddingMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=1)
-        m2 = LearnedEmbeddingMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=2)
+        m1 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=1)
+        m2 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=2)
         differs = any(not torch.equal(p1, p2) for p1, p2 in zip(m1.parameters(), m2.parameters()))
         assert differs
 
@@ -100,10 +100,10 @@ class TestLearnedEmbeddingMLP:
         assert not torch.equal(sum_ab, sum_ba)
 
 
-# ── LearnedEmbMLPActivationBundle ─────────────────────────────────────────────
+# ── ModuloAdditionEmbedMLPActivationBundle ────────────────────────────────────
 
 
-class TestLearnedEmbMLPActivationBundle:
+class TestModuloAdditionEmbedMLPActivationBundle:
     def test_implements_activation_bundle_protocol(self, bundle):
         assert isinstance(bundle, ActivationBundle)
 
@@ -162,21 +162,20 @@ class TestLearnedEmbMLPActivationBundle:
         assert bundle.supports_site("attn") is False
 
 
-# ── LearnedEmbMLPFamily ───────────────────────────────────────────────────────
+# ── ModuloAdditionEmbedMLPFamily ──────────────────────────────────────────────
 
 
-class TestLearnedEmbMLPFamily:
+class TestModuloAdditionEmbedMLPFamily:
     def test_name(self, family):
         assert family.name == "modulo_addition_learned_emb_mlp"
 
     def test_create_model_returns_correct_type(self, family, params):
         model = family.create_model(params)
-        assert isinstance(model, LearnedEmbeddingMLP)
+        assert isinstance(model, ModuloAdditionEmbedMLP)
         assert model.vocab_size == P
 
     def test_create_model_d_embed_from_architecture(self, family, params):
         model = family.create_model(params)
-        # family.json specifies d_embed=16; test with the loaded family
         assert model.d_embed == family.architecture.get("d_embed", 16)
 
     def test_generate_analysis_dataset_shape(self, family, params):
@@ -212,7 +211,7 @@ class TestLearnedEmbMLPFamily:
         model = family.create_model(params)
         probe = family.generate_analysis_dataset(params)
         bundle = family.run_forward_pass(model, probe)
-        assert isinstance(bundle, LearnedEmbMLPActivationBundle)
+        assert isinstance(bundle, ModuloAdditionEmbedMLPActivationBundle)
 
     def test_run_forward_pass_bundle_shapes(self, family, params):
         model = family.create_model(params)
@@ -247,10 +246,6 @@ class TestLearnedEmbMLPFamily:
         assert probe[0, 0].item() == 3  # a
         assert probe[0, 1].item() == 5  # b
 
-    def test_get_variant_directory_name(self, family, params):
-        name = family.get_variant_directory_name(params)
-        assert name == f"modulo_addition_learned_emb_mlp_p{P}_seed42_dseed598"
-
     def test_analyzers_includes_neuron_activations(self, family):
         assert "neuron_activations" in family.analyzers
 
@@ -266,8 +261,10 @@ class TestLearnedEmbMLPFamily:
         }
         assert not transformer_only.intersection(set(family.analyzers))
 
-    def test_secondary_analyzers_includes_neuron_fourier(self, family):
-        assert "neuron_fourier" in family.secondary_analyzers
+    def test_secondary_analyzers_excludes_neuron_fourier(self, family):
+        # neuron_fourier assumes W_in has 2*p columns (one-hot encoding);
+        # learned-emb MLP uses d_embed=16 — incompatible, excluded intentionally.
+        assert "neuron_fourier" not in family.secondary_analyzers
 
     def test_cross_epoch_analyzers_includes_neuron_group_pca(self, family):
         assert "neuron_group_pca" in family.cross_epoch_analyzers

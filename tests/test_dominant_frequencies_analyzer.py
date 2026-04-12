@@ -13,6 +13,7 @@ from miscope.analysis import AnalysisPipeline, Analyzer
 from miscope.analysis.analyzers import DominantFrequenciesAnalyzer
 from miscope.analysis.bundle import TransformerLensBundle
 from miscope.families import FamilyRegistry
+from miscope.analysis.protocols import ActivationContext
 
 
 class TestDominantFrequenciesAnalyzerProtocol:
@@ -132,28 +133,28 @@ class TestDominantFrequenciesAnalyzerOutput:
         """analyze returns a dict."""
         bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert isinstance(result, dict)
 
     def test_returns_coefficients_key(self, model_with_context):
         """Result contains 'coefficients' key."""
         bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert "coefficients" in result
 
     def test_coefficients_is_numpy_array(self, model_with_context):
         """Coefficients is a numpy array."""
         bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert isinstance(result["coefficients"], np.ndarray)
 
     def test_coefficients_shape(self, model_with_context):
         """Coefficients has correct shape (n_fourier_components,)."""
         bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
 
         fourier_basis = context["fourier_basis"]
         n_components = fourier_basis.shape[0]
@@ -163,14 +164,14 @@ class TestDominantFrequenciesAnalyzerOutput:
         """Coefficient values are non-negative (they are norms)."""
         bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert np.all(result["coefficients"] >= 0)
 
     def test_coefficients_on_cpu(self, model_with_context):
         """Coefficients are on CPU (numpy array, not tensor)."""
         bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert not isinstance(result["coefficients"], torch.Tensor)
 
 

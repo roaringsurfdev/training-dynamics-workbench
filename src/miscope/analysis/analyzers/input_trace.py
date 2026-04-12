@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationContext
 
 
 class InputTraceAnalyzer:
@@ -42,27 +42,24 @@ class InputTraceAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,
-        context: dict[str, Any],
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """Run predictions on all p² pairs and record train/test split.
 
         Args:
-            bundle: Activation bundle — logits from the pipeline's cached forward pass.
-            probe: Full p² analysis grid (p², 3)
-            context: Family-provided analysis context with 'params' containing
-                     'prime', 'data_seed', 'training_fraction'
+            ctx: Analysis context with bundle, probe, and analysis_params.
+                 analysis_params must contain 'params' with 'prime', 'data_seed',
+                 'training_fraction'.
 
         Returns:
             Dict with 'predictions', 'correct', 'confidence', 'split'
         """
-        params = context["params"]
+        params = ctx.analysis_params["params"]
         p = int(params["prime"])
         data_seed = int(params.get("data_seed", 598))
         training_fraction = float(params.get("training_fraction", 0.3))
 
-        last_logits = bundle.logits(-1)  # (p², p)
+        last_logits = ctx.bundle.logits(-1)  # (p², p)
         device = last_logits.device
         probs = last_logits.softmax(dim=-1)
         predictions = last_logits.argmax(dim=-1)

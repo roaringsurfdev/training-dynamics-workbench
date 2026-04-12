@@ -1,4 +1,4 @@
-"""Tests for TwoLayerMLP, MLPActivationBundle, and TwoLayerMLPFamily."""
+"""Tests for ModuloAddition2LMLP, ModuloAddition2LMLPActivationBundle, and ModuloAddition2LMLPFamily."""
 
 from __future__ import annotations
 
@@ -6,19 +6,19 @@ import pytest
 import torch
 
 from miscope.analysis.protocols import ActivationBundle
-from miscope.families.implementations.two_layer_mlp import (
-    MLPActivationBundle,
-    TwoLayerMLP,
-    TwoLayerMLPFamily,
-    load_two_layer_mlp_family,
+from miscope.families.implementations.modulo_addition_2l_mlp import (
+    ModuloAddition2LMLP,
+    ModuloAddition2LMLPActivationBundle,
+    ModuloAddition2LMLPFamily,
+    load_modulo_addition_2l_mlp_family,
 )
 
 P = 13  # Small prime for fast tests
 
 
 @pytest.fixture
-def model() -> TwoLayerMLP:
-    return TwoLayerMLP(vocab_size=P, d_hidden=64, seed=42)
+def model() -> ModuloAddition2LMLP:
+    return ModuloAddition2LMLP(vocab_size=P, d_hidden=64, seed=42)
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ def probe() -> torch.Tensor:
 
 
 @pytest.fixture
-def bundle(model, probe) -> MLPActivationBundle:
+def bundle(model, probe) -> ModuloAddition2LMLPActivationBundle:
     captured: dict = {}
 
     def hook(m, inp, output):
@@ -44,12 +44,12 @@ def bundle(model, probe) -> MLPActivationBundle:
     with torch.inference_mode():
         logits = model(probe)
     h.remove()
-    return MLPActivationBundle(model, captured["hidden"], logits)
+    return ModuloAddition2LMLPActivationBundle(model, captured["hidden"], logits)
 
 
 @pytest.fixture
-def family() -> TwoLayerMLPFamily:
-    return load_two_layer_mlp_family("model_families")
+def family() -> ModuloAddition2LMLPFamily:
+    return load_modulo_addition_2l_mlp_family("model_families")
 
 
 @pytest.fixture
@@ -57,24 +57,24 @@ def params() -> dict:
     return {"prime": P, "seed": 42, "data_seed": 598}
 
 
-# ── TwoLayerMLP ──────────────────────────────────────────────────────────────
+# ── ModuloAddition2LMLP ───────────────────────────────────────────────────────
 
 
-class TestTwoLayerMLP:
+class TestModuloAddition2LMLP:
     def test_forward_output_shape(self, model, probe):
         with torch.inference_mode():
             out = model(probe)
         assert out.shape == (P * P, P)
 
     def test_seedable_initialization(self):
-        m1 = TwoLayerMLP(vocab_size=P, d_hidden=64, seed=7)
-        m2 = TwoLayerMLP(vocab_size=P, d_hidden=64, seed=7)
+        m1 = ModuloAddition2LMLP(vocab_size=P, d_hidden=64, seed=7)
+        m2 = ModuloAddition2LMLP(vocab_size=P, d_hidden=64, seed=7)
         for p1, p2 in zip(m1.parameters(), m2.parameters()):
             assert torch.equal(p1, p2)
 
     def test_different_seeds_differ(self):
-        m1 = TwoLayerMLP(vocab_size=P, d_hidden=64, seed=1)
-        m2 = TwoLayerMLP(vocab_size=P, d_hidden=64, seed=2)
+        m1 = ModuloAddition2LMLP(vocab_size=P, d_hidden=64, seed=1)
+        m2 = ModuloAddition2LMLP(vocab_size=P, d_hidden=64, seed=2)
         differs = any(not torch.equal(p1, p2) for p1, p2 in zip(m1.parameters(), m2.parameters()))
         assert differs
 
@@ -87,10 +87,10 @@ class TestTwoLayerMLP:
         assert model.W_out.bias is None
 
 
-# ── MLPActivationBundle ───────────────────────────────────────────────────────
+# ── ModuloAddition2LMLPActivationBundle ──────────────────────────────────────
 
 
-class TestMLPActivationBundle:
+class TestModuloAddition2LMLPActivationBundle:
     def test_implements_activation_bundle_protocol(self, bundle):
         assert isinstance(bundle, ActivationBundle)
 
@@ -133,16 +133,16 @@ class TestMLPActivationBundle:
         assert torch.equal(bundle.logits(0), bundle.logits(99))
 
 
-# ── TwoLayerMLPFamily ────────────────────────────────────────────────────────
+# ── ModuloAddition2LMLPFamily ─────────────────────────────────────────────────
 
 
-class TestTwoLayerMLPFamily:
+class TestModuloAddition2LMLPFamily:
     def test_name(self, family):
         assert family.name == "modulo_addition_2layer_mlp"
 
-    def test_create_model_returns_two_layer_mlp(self, family, params):
+    def test_create_model_returns_2l_mlp(self, family, params):
         model = family.create_model(params)
-        assert isinstance(model, TwoLayerMLP)
+        assert isinstance(model, ModuloAddition2LMLP)
         assert model.vocab_size == P
 
     def test_generate_analysis_dataset_shape(self, family, params):
@@ -169,11 +169,11 @@ class TestTwoLayerMLPFamily:
         r2 = family.generate_training_dataset(params)
         assert torch.equal(r1[4], r2[4])  # train_indices
 
-    def test_run_forward_pass_returns_mlp_bundle(self, family, params):
+    def test_run_forward_pass_returns_bundle(self, family, params):
         model = family.create_model(params)
         probe = family.generate_analysis_dataset(params)
         bundle = family.run_forward_pass(model, probe)
-        assert isinstance(bundle, MLPActivationBundle)
+        assert isinstance(bundle, ModuloAddition2LMLPActivationBundle)
 
     def test_run_forward_pass_bundle_shapes(self, family, params):
         model = family.create_model(params)
@@ -204,10 +204,6 @@ class TestTwoLayerMLPFamily:
         assert probe[0, 3] == 1.0
         assert probe[0, P + 5] == 1.0
         assert probe[0].sum() == 2.0
-
-    def test_get_variant_directory_name(self, family, params):
-        name = family.get_variant_directory_name(params)
-        assert name == f"modulo_addition_2layer_mlp_p{P}_seed42_dseed598"
 
     def test_analyzers_excludes_transformer_specific(self, family):
         transformer_only = {

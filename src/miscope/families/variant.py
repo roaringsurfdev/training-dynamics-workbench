@@ -78,7 +78,7 @@ class Variant:
     @property
     def name(self) -> str:
         """Variant directory name derived from family pattern."""
-        return self._family.get_variant_directory_name(self._params)
+        return self._family.variant_pattern.format(**self._params)
 
     @property
     def variant_dir(self) -> Path:
@@ -535,10 +535,7 @@ class Variant:
         )
 
         # Setup optimizer
-        lr = training_config.get("learning_rate", 1e-3)
-        wd = training_config.get("weight_decay", 1.0)
-        betas = training_config.get("betas", (0.9, 0.98))
-        optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wd, betas=betas)
+        optimizer = self._family.create_optimizer(model)
 
         train_losses: list[float] = []
         test_losses: list[float] = []
@@ -552,7 +549,7 @@ class Variant:
                 train_logits = model.run_with_hooks(train_data, fwd_hooks=list(fwd_hooks))
             else:
                 train_logits = model(train_data)
-            train_loss = self._loss_function(train_logits, train_labels)
+            train_loss = self._family.compute_loss(train_logits, train_labels)
 
             # Backward pass
             train_loss.backward()
@@ -564,7 +561,7 @@ class Variant:
             # Evaluate on test set
             with torch.inference_mode():
                 test_logits = model(test_data)
-                test_loss = self._loss_function(test_logits, test_labels)
+                test_loss = self._family.compute_loss(test_logits, test_labels)
                 test_losses.append(test_loss.item())
 
             # Save checkpoint if scheduled
@@ -609,23 +606,6 @@ class Variant:
             final_test_loss=test_losses[-1],
             variant_dir=self.variant_dir,
         )
-
-    def _loss_function(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        """Compute cross-entropy loss for sequence prediction.
-
-        Args:
-            logits: Model output logits, shape (batch, seq_len, vocab) or (batch, vocab)
-            labels: Target labels, shape (batch,)
-
-        Returns:
-            Mean negative log probability of correct labels
-        """
-        if len(logits.shape) == 3:
-            logits = logits[:, -1]  # Take last position
-        logits = logits.to(torch.float64)
-        log_probs = logits.log_softmax(dim=-1)
-        correct_log_probs = log_probs.gather(dim=-1, index=labels[:, None])[:, 0]
-        return -correct_log_probs.mean()
 
     def _save_checkpoint(self, state_dict: dict[str, Any], epoch: int) -> None:
         """Save a checkpoint to disk as safetensors.

@@ -5,15 +5,14 @@ Computes Fourier coefficient norms for embedding weights.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
 
 from miscope.analysis.library import project_onto_fourier_basis
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationContext
 
 
 class DominantFrequenciesAnalyzer:
@@ -29,25 +28,22 @@ class DominantFrequenciesAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,  # noqa: ARG002
-        context: dict[str, Any],
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """
         Compute Fourier coefficient norms for embedding weights.
 
         Args:
-            bundle: Activation bundle with checkpoint weights.
-            probe: Unused (protocol conformance).
-            context: Analysis context containing 'fourier_basis'
+            ctx: Analysis context with bundle and analysis_params.
+                 analysis_params must contain 'fourier_basis'.
 
         Returns:
             Dict with 'coefficients' array of shape (n_fourier_components,)
         """
-        fourier_basis = context["fourier_basis"]
+        fourier_basis = ctx.analysis_params["fourier_basis"]
 
         # Get embedding weights, excluding the equals token
-        W_E = bundle.weight("W_E")[:-1]
+        W_E = ctx.bundle.weight("W_E")[:-1]
 
         # Compute norms of embedding projected onto Fourier basis
         coefficients = project_onto_fourier_basis(W_E, fourier_basis)

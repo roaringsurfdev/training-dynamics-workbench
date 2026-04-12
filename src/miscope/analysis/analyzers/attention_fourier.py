@@ -10,13 +10,13 @@ Output per epoch: qk_freq_norms (n_heads, n_freq), v_freq_norms (n_heads, n_freq
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+    from miscope.analysis.protocols import ActivationContext
 
 
 class AttentionFourierAnalyzer:
@@ -26,8 +26,7 @@ class AttentionFourierAnalyzer:
     computes QK^T, and decomposes it in the prime-based Fourier basis.
     Does the same for V. Stores per-head, per-frequency energy fractions.
 
-    Probe and cache are accepted for protocol conformance but unused —
-    this analyzer operates purely on weight matrices.
+    Probe is unused — this analyzer operates purely on weight matrices.
     """
 
     name = "attention_fourier"
@@ -36,30 +35,27 @@ class AttentionFourierAnalyzer:
 
     def analyze(
         self,
-        bundle: ActivationBundle,
-        probe: torch.Tensor,  # noqa: ARG002
-        context: dict[str, Any],
+        ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
         """Decompose each head's QK^T and V into Fourier frequency fractions.
 
         Args:
-            bundle: Activation bundle with checkpoint weights.
-            probe: Unused (protocol conformance).
-            context: Must include 'fourier_basis': Tensor (p+1, p).
+            ctx: Analysis context with bundle and analysis_params.
+                 analysis_params must include 'fourier_basis': Tensor (p+1, p).
 
         Returns:
             Dict with:
             - qk_freq_norms: (n_heads, n_freq) — fraction of QK^T energy per frequency.
             - v_freq_norms: (n_heads, n_freq) — fraction of V energy per frequency.
         """
-        fourier_basis = context["fourier_basis"]  # (p+1, p)
+        fourier_basis = ctx.analysis_params["fourier_basis"]  # (p+1, p)
         p = fourier_basis.shape[1]
         n_freq = p // 2
 
-        W_E_tok = bundle.weight("W_E").detach()[:p]  # (p, d_model) — token rows only
-        W_Q = bundle.weight("W_Q").detach()  # (n_heads, d_model, d_head)
-        W_K = bundle.weight("W_K").detach()  # (n_heads, d_model, d_head)
-        W_V = bundle.weight("W_V").detach()  # (n_heads, d_model, d_head)
+        W_E_tok = ctx.bundle.weight("W_E").detach()[:p]  # (p, d_model) — token rows only
+        W_Q = ctx.bundle.weight("W_Q").detach()  # (n_heads, d_model, d_head)
+        W_K = ctx.bundle.weight("W_K").detach()  # (n_heads, d_model, d_head)
+        W_V = ctx.bundle.weight("W_V").detach()  # (n_heads, d_model, d_head)
 
         n_heads = W_Q.shape[0]
         qk_freq_norms = np.zeros((n_heads, n_freq), dtype=np.float32)

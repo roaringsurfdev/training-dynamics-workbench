@@ -22,6 +22,7 @@ from miscope.analysis.library.weights import (
     WEIGHT_MATRIX_NAMES,
     extract_parameter_snapshot,
 )
+from miscope.analysis.protocols import ActivationContext
 from miscope.families import FamilyRegistry
 from miscope.visualization.renderers.parameter_trajectory import (
     get_group_label,
@@ -587,14 +588,14 @@ class TestParameterSnapshotAnalyzerOutput:
         """analyze returns a dict."""
         bundle, probe, context = model_with_context
         analyzer = ParameterSnapshotAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         assert isinstance(result, dict)
 
     def test_returns_all_weight_names(self, model_with_context):
         """Result contains all weight matrix names."""
         bundle, probe, context = model_with_context
         analyzer = ParameterSnapshotAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         for name in WEIGHT_MATRIX_NAMES:
             assert name in result, f"Missing weight: {name}"
 
@@ -602,7 +603,7 @@ class TestParameterSnapshotAnalyzerOutput:
         """Weight matrices have correct shapes for p=17 model."""
         bundle, probe, context = model_with_context
         analyzer = ParameterSnapshotAnalyzer()
-        result = analyzer.analyze(bundle, probe, context)
+        result = analyzer.analyze(ActivationContext(bundle=bundle, probe=probe, analysis_params=context))
         # d_model=128, d_mlp=512, n_heads=4, d_head=32
         assert result["W_E"].shape[1] == 128  # d_model
         assert result["W_in"].shape == (128, 512)  # (d_model, d_mlp)

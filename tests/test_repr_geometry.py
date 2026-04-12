@@ -14,6 +14,7 @@ from miscope.analysis.analyzers.repr_geometry import (
     _get_summary_keys,
 )
 from miscope.analysis.bundle import TransformerLensBundle
+from miscope.analysis.protocols import ActivationContext
 from miscope.analysis.library.geometry import (
     compute_center_spread,
     compute_circularity,
@@ -263,9 +264,11 @@ class TestRepresentationalGeometryAnalyzer:
         # model = MagicMock()
 
         result = analyzer.analyze(
-            TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-            probe,
-            {"params": {"prime": p}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
+                probe=probe,
+                analysis_params={"params": {"prime": p}},
+            )
         )
 
         # Check all sites have all expected keys
@@ -293,9 +296,11 @@ class TestRepresentationalGeometryAnalyzer:
         # model = MagicMock()
 
         result = analyzer.analyze(
-            TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-            probe,
-            {"params": {"prime": p}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
+                probe=probe,
+                analysis_params={"params": {"prime": p}},
+            )
         )
 
         # Centroid shapes
@@ -317,9 +322,11 @@ class TestRepresentationalGeometryAnalyzer:
         # model = MagicMock()
 
         result = analyzer.analyze(
-            TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-            probe,
-            {"params": {"prime": p}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
+                probe=probe,
+                analysis_params={"params": {"prime": p}},
+            )
         )
         summary = analyzer.compute_summary(result, {})
 
@@ -355,9 +362,11 @@ class TestRepresentationalGeometryAnalyzer:
         # model = MagicMock()
 
         result = analyzer.analyze(
-            TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-            probe,
-            {"params": {"prime": p}},  # type: ignore
+            ActivationContext(
+                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
+                probe=probe,
+                analysis_params={"params": {"prime": p}},
+            )
         )
 
         for site in _SITES:

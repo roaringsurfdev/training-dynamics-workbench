@@ -218,9 +218,7 @@ def register_training_page_callbacks(app: Dash) -> None:
         prime = defaults.get("prime", 113)
         seed = defaults.get("seed", 999)
         data_seed = defaults.get("data_seed", 598)
-        variant_name = family.get_variant_directory_name(
-            {"prime": prime, "seed": seed, "data_seed": data_seed}
-        )
+        variant_name = family.variant_pattern.format(prime=prime, seed=seed, data_seed=data_seed)
         return f"Variant: {variant_name}", prime, seed
 
     @app.callback(
@@ -239,8 +237,8 @@ def register_training_page_callbacks(app: Dash) -> None:
         try:
             registry = get_registry()
             family = registry.get_family(family_name)
-            variant_name = family.get_variant_directory_name(
-                {"prime": int(prime), "seed": int(seed), "data_seed": int(data_seed or 598)}
+            variant_name = family.variant_pattern.format(
+                prime=int(prime), seed=int(seed), data_seed=int(data_seed or 598)
             )
             return f"Variant: {variant_name}"
         except Exception:
@@ -277,8 +275,9 @@ def register_training_page_callbacks(app: Dash) -> None:
             "data_seed": int(data_seed or 598),
         }
         check_variant = registry.create_variant(family, params)
-        if check_variant.has_checkpoints:
-            variant_name = family.get_variant_directory_name(params)
+        checkpoint_count = len(check_variant.get_available_checkpoints())
+        if checkpoint_count > 0:
+            variant_name = family.variant_pattern.format(**params)
             return (
                 no_update,
                 no_update,
@@ -296,7 +295,7 @@ def register_training_page_callbacks(app: Dash) -> None:
                 prime or 113,
                 seed or 999,
                 data_seed or 598,
-                train_fraction or 0.75,
+                train_fraction or 0.30,
                 num_epochs or 50000,
                 checkpoint_str or "",
             ),
