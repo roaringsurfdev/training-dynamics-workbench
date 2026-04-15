@@ -133,12 +133,12 @@ def create_dimensionality_page_layout(app: Dash) -> html.Div:
                     dbc.Row(
                         children=[
                             dbc.Col(
-                                _graph_manager.create_graph("parameter-pca-summary-plot", "350px"),
+                                _graph_manager.create_graph("parameter-pca-summary-plot", "450px"),
                                 width=6,
                             ),
                             dbc.Col(
                                 _graph_manager.create_graph(
-                                    "centroid-class-pca-summary-plot", "350px"
+                                    "centroid-class-pca-summary-plot", "450px"
                                 ),
                                 width=6,
                             ),
@@ -148,11 +148,11 @@ def create_dimensionality_page_layout(app: Dash) -> html.Div:
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("parameters-pca-3d-scatter", "350px"),
+                                _graph_manager.create_graph("parameters-pca-3d-scatter", "450px"),
                                 width=6,
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("parameters-pca-pc1-pc2", "350px"),
+                                _graph_manager.create_graph("parameters-pca-pc1-pc2", "450px"),
                                 width=6,
                             ),
                         ]
@@ -160,11 +160,11 @@ def create_dimensionality_page_layout(app: Dash) -> html.Div:
                     dbc.Row(
                         [
                             dbc.Col(
-                                _graph_manager.create_graph("parameters-pca-pc1-pc3", "350px"),
+                                _graph_manager.create_graph("parameters-pca-pc1-pc3", "450px"),
                                 width=6,
                             ),
                             dbc.Col(
-                                _graph_manager.create_graph("parameters-pca-pc2-pc3", "350px"),
+                                _graph_manager.create_graph("parameters-pca-pc2-pc3", "450px"),
                                 width=6,
                             ),
                         ]
