@@ -532,3 +532,77 @@ class TestRenderPcBudget:
         assert isinstance(fig, go.Figure)
         # Only 2 sites remain: attn_out and resid_post → 6 traces
         assert len(fig.data) == 6  # pyright: ignore[reportArgumentType]
+
+
+# ── render_network_sync smoke tests ──────────────────────────────
+
+
+def _make_network_sync_data(n_epochs=20, n_groups=3):
+    """Build minimal data dict matching render_network_sync expectations."""
+    rng = np.random.default_rng(88)
+    epochs = np.linspace(0, 12000, n_epochs, dtype=np.int32)
+    summary: dict = {"epochs": epochs}
+    for site in ["attn_out", "mlp_out", "resid_post"]:
+        raw = rng.uniform(0.05, 0.4, (n_epochs, 3)).astype(np.float32)
+        raw = raw / raw.sum(axis=1, keepdims=True)
+        summary[f"{site}_pca_var_pc1"] = raw[:, 0]
+        summary[f"{site}_pca_var_pc2"] = raw[:, 1]
+        summary[f"{site}_pca_var_pc3"] = raw[:, 2]
+        summary[f"{site}_circularity"] = rng.uniform(0.1, 0.9, n_epochs).astype(np.float32)
+        summary[f"{site}_mean_radius"] = rng.uniform(0.5, 5.0, n_epochs).astype(np.float32)
+    return {
+        "repr_summary": summary,
+        "group_spread": rng.uniform(0.1, 2.0, (n_epochs, n_groups)).astype(np.float32),
+        "spread_epochs": epochs,
+        "markers": {
+            "second_descent_onset_epoch": 6000,
+            "effective_dimensionality_cross_over_epoch": 8000,
+        },
+    }
+
+
+class TestRenderNetworkSync:
+    def test_returns_figure(self):
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        fig = render_network_sync(_make_network_sync_data())
+        assert isinstance(fig, go.Figure)
+
+    def test_trace_count_with_group_spread(self):
+        """3 sites × 3 row metrics + 1 W_in spread = 10 traces."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        fig = render_network_sync(_make_network_sync_data())
+        assert len(fig.data) == 10  # pyright: ignore[reportArgumentType]
+
+    def test_trace_count_without_group_spread(self):
+        """Without group_spread, only 3 sites × 3 rows = 9 traces."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        data = _make_network_sync_data()
+        data.pop("group_spread")
+        data.pop("spread_epochs")
+        fig = render_network_sync(data)
+        assert len(fig.data) == 9  # pyright: ignore[reportArgumentType]
+
+    def test_with_epoch_cursor(self):
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        fig = render_network_sync(_make_network_sync_data(), epoch=7000)
+        assert isinstance(fig, go.Figure)
+
+    def test_without_markers(self):
+        """Missing markers dict does not raise."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        data = _make_network_sync_data()
+        data.pop("markers")
+        fig = render_network_sync(data)
+        assert isinstance(fig, go.Figure)
+
+    def test_missing_site_skipped(self):
+        """Sites with missing keys are silently skipped; remaining traces still render."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        data = _make_network_sync_data()
+        for key in list(data["repr_summary"].keys()):
+            if key.startswith("mlp_out_"):
+                del data["repr_summary"][key]
+        fig = render_network_sync(data)
+        assert isinstance(fig, go.Figure)
+        # 2 active sites × 3 rows + 1 W_in spread = 7 traces
+        assert len(fig.data) == 7  # pyright: ignore[reportArgumentType]

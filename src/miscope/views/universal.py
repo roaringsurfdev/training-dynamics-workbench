@@ -492,6 +492,42 @@ def _register_all() -> None:
         )
     )
 
+    def _load_network_sync(variant: Variant, _epoch: int | None) -> dict:
+        import json
+
+        result: dict = {"repr_summary": variant.artifacts.load_summary("repr_geometry")}
+
+        ngpca_path = variant.artifacts_dir / "neuron_group_pca" / "cross_epoch.npz"
+        if ngpca_path.exists():
+            cross = variant.artifacts.load_cross_epoch("neuron_group_pca")
+            result["group_spread"] = cross["mean_spread"]
+            result["spread_epochs"] = cross["epochs"]
+
+        summary_path = variant.variant_dir / "variant_summary.json"
+        if summary_path.exists():
+            with open(summary_path) as f:
+                vs = json.load(f)
+            result["markers"] = {
+                "second_descent_onset_epoch": vs.get("second_descent_onset_epoch"),
+                "effective_dimensionality_cross_over_epoch": vs.get("effective_dimensionality_cross_over_epoch"),
+            }
+
+        return result
+
+    def _render_network_sync(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        return render_network_sync(data, epoch=epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="geometry.network_sync",
+            load_data=_load_network_sync,
+            renderer=_render_network_sync,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
+        )
+    )
+
     def _load_repr_geometry_epoch(variant: Variant, epoch: int | None) -> dict:
         return {
             "epoch_data": variant.artifacts.load_epoch("repr_geometry", epoch),  # type: ignore[arg-type]

@@ -88,6 +88,7 @@ from miscope.visualization.renderers.input_trace import (
     render_pair_graduation_heatmap,
     render_residue_class_accuracy_timeline,
 )
+from miscope.visualization.renderers.network_sync import render_network_sync
 from miscope.visualization.renderers.intragroup_manifold import (
     render_intragroup_manifold_summary,
     render_intragroup_manifold_surface_fit,
@@ -263,6 +264,8 @@ __all__ = [
     "render_weight_geometry_timeseries",
     "render_weight_geometry_group_snapshot",
     "render_weight_geometry_centroid_pca",
+    # Cross-site synchronization
+    "render_network_sync",
     # REQ_092: Intra-group manifold geometry
     "render_intragroup_manifold_summary",
     "render_intragroup_manifold_timeseries",
