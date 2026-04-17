@@ -17,6 +17,7 @@ Usage:
     fig.show()  # or pass to Gradio
 """
 
+from miscope.visualization.common import get_frequency_color
 from miscope.visualization.line_plot import line
 from miscope.visualization.renderers.attention_fourier import (
     render_head_alignment_trajectory,
@@ -87,6 +88,16 @@ from miscope.visualization.renderers.input_trace import (
     render_pair_graduation_heatmap,
     render_residue_class_accuracy_timeline,
 )
+from miscope.visualization.renderers.dimensionality_dynamics import (
+    build_dimensionality_timeseries,
+    build_dimensionality_state_space,
+)
+from miscope.visualization.renderers.network_sync import render_network_sync
+from miscope.visualization.renderers.intragroup_manifold import (
+    render_intragroup_manifold_summary,
+    render_intragroup_manifold_surface_fit,
+    render_intragroup_manifold_timeseries,
+)
 from miscope.visualization.renderers.landscape_flatness import (
     FLATNESS_METRICS,
     render_flatness_trajectory,
@@ -112,6 +123,8 @@ from miscope.visualization.renderers.neuron_freq_clusters import (
     render_specialization_trajectory,
 )
 from miscope.visualization.renderers.neuron_group_pca import (
+    render_group_centroid_paths,
+    render_group_centroid_timeseries,
     render_neuron_group_all_panels,
     render_neuron_group_pca_cohesion,
     render_neuron_group_polar_histogram,
@@ -142,9 +155,11 @@ from miscope.visualization.renderers.repr_geometry import (
     render_centroid_pca_variance_summary,
     render_fisher_heatmap,
     render_geometry_timeseries,
+    render_pc_budget,
 )
 
 __all__ = [
+    "get_frequency_color",
     # REQ_012: Line plot utility (replaces neel-plotly)
     "line",
     # REQ_052: Fourier frequency quality
@@ -253,4 +268,13 @@ __all__ = [
     "render_weight_geometry_timeseries",
     "render_weight_geometry_group_snapshot",
     "render_weight_geometry_centroid_pca",
+    # REQ_095: Dimensionality dynamics
+    "build_dimensionality_timeseries",
+    "build_dimensionality_state_space",
+    # Cross-site synchronization
+    "render_network_sync",
+    # REQ_092: Intra-group manifold geometry
+    "render_intragroup_manifold_summary",
+    "render_intragroup_manifold_timeseries",
+    "render_intragroup_manifold_surface_fit",
 ]

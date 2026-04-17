@@ -25,7 +25,7 @@ from miscope.analysis.library.geometry import (
     compute_fourier_alignment,
 )
 from miscope.analysis.protocols import ActivationContext
-from miscope.visualization.renderers.repr_geometry import render_fisher_heatmap
+from miscope.visualization.renderers.repr_geometry import render_fisher_heatmap, render_pc_budget
 
 # ── Geometry Library Tests ───────────────────────────────────────────
 
@@ -487,3 +487,122 @@ class TestRenderFisherHeatmap:
     def test_title_contains_min_pair(self, epoch_data):
         fig = render_fisher_heatmap(epoch_data, epoch=100, site="resid_post")
         assert "Min pair" in fig.layout.title.text  # type: ignore[attr-defined]
+
+
+# ── render_pc_budget smoke tests ──────────────────────────────────
+
+
+def _make_summary_data(n_epochs=20):
+    """Build minimal summary_data dict matching render_pc_budget expectations."""
+    rng = np.random.default_rng(77)
+    epochs = np.linspace(0, 10000, n_epochs, dtype=np.int32)
+    data: dict = {"epochs": epochs}
+    for site in ["attn_out", "mlp_out", "resid_post"]:
+        raw = rng.uniform(0.05, 0.4, (n_epochs, 3)).astype(np.float32)
+        raw = raw / raw.sum(axis=1, keepdims=True)
+        data[f"{site}_pca_var_pc1"] = raw[:, 0]
+        data[f"{site}_pca_var_pc2"] = raw[:, 1]
+        data[f"{site}_pca_var_pc3"] = raw[:, 2]
+    return data
+
+
+class TestRenderPcBudget:
+    def test_returns_figure(self):
+        fig = render_pc_budget(_make_summary_data())
+        assert isinstance(fig, go.Figure)
+
+    def test_has_two_rows(self):
+        """Each active site contributes 2 traces in row1 (line + min marker) and 1 in row2."""
+        fig = render_pc_budget(_make_summary_data())
+        # 3 sites × (1 pc3 line + 1 min marker + 1 pc1+pc2 line) = 9 traces
+        assert len(fig.data) == 9  # pyright: ignore[reportArgumentType]
+
+    def test_with_epoch_cursor(self):
+        fig = render_pc_budget(_make_summary_data(), current_epoch=5000)
+        assert isinstance(fig, go.Figure)
+
+    def test_missing_site_skipped(self):
+        """Sites with missing keys are silently skipped."""
+        data = _make_summary_data()
+        # Remove mlp_out keys to simulate missing site
+        for key in list(data.keys()):
+            if key.startswith("mlp_out_"):
+                del data[key]
+        fig = render_pc_budget(data)
+        assert isinstance(fig, go.Figure)
+        # Only 2 sites remain: attn_out and resid_post → 6 traces
+        assert len(fig.data) == 6  # pyright: ignore[reportArgumentType]
+
+
+# ── render_network_sync smoke tests ──────────────────────────────
+
+
+def _make_network_sync_data(n_epochs=20, n_groups=3):
+    """Build minimal data dict matching render_network_sync expectations."""
+    rng = np.random.default_rng(88)
+    epochs = np.linspace(0, 12000, n_epochs, dtype=np.int32)
+    summary: dict = {"epochs": epochs}
+    for site in ["attn_out", "mlp_out", "resid_post"]:
+        raw = rng.uniform(0.05, 0.4, (n_epochs, 3)).astype(np.float32)
+        raw = raw / raw.sum(axis=1, keepdims=True)
+        summary[f"{site}_pca_var_pc1"] = raw[:, 0]
+        summary[f"{site}_pca_var_pc2"] = raw[:, 1]
+        summary[f"{site}_pca_var_pc3"] = raw[:, 2]
+        summary[f"{site}_circularity"] = rng.uniform(0.1, 0.9, n_epochs).astype(np.float32)
+        summary[f"{site}_mean_radius"] = rng.uniform(0.5, 5.0, n_epochs).astype(np.float32)
+    return {
+        "repr_summary": summary,
+        "group_spread": rng.uniform(0.1, 2.0, (n_epochs, n_groups)).astype(np.float32),
+        "spread_epochs": epochs,
+        "markers": {
+            "second_descent_onset_epoch": 6000,
+            "effective_dimensionality_cross_over_epoch": 8000,
+        },
+    }
+
+
+class TestRenderNetworkSync:
+    def test_returns_figure(self):
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        fig = render_network_sync(_make_network_sync_data())
+        assert isinstance(fig, go.Figure)
+
+    def test_trace_count_with_group_spread(self):
+        """3 sites × 3 row metrics + 1 W_in spread = 10 traces."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        fig = render_network_sync(_make_network_sync_data())
+        assert len(fig.data) == 10  # pyright: ignore[reportArgumentType]
+
+    def test_trace_count_without_group_spread(self):
+        """Without group_spread, only 3 sites × 3 rows = 9 traces."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        data = _make_network_sync_data()
+        data.pop("group_spread")
+        data.pop("spread_epochs")
+        fig = render_network_sync(data)
+        assert len(fig.data) == 9  # pyright: ignore[reportArgumentType]
+
+    def test_with_epoch_cursor(self):
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        fig = render_network_sync(_make_network_sync_data(), epoch=7000)
+        assert isinstance(fig, go.Figure)
+
+    def test_without_markers(self):
+        """Missing markers dict does not raise."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        data = _make_network_sync_data()
+        data.pop("markers")
+        fig = render_network_sync(data)
+        assert isinstance(fig, go.Figure)
+
+    def test_missing_site_skipped(self):
+        """Sites with missing keys are silently skipped; remaining traces still render."""
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        data = _make_network_sync_data()
+        for key in list(data["repr_summary"].keys()):
+            if key.startswith("mlp_out_"):
+                del data["repr_summary"][key]
+        fig = render_network_sync(data)
+        assert isinstance(fig, go.Figure)
+        # 2 active sites × 3 rows + 1 W_in spread = 7 traces
+        assert len(fig.data) == 7  # pyright: ignore[reportArgumentType]

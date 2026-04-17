@@ -479,6 +479,55 @@ def _register_all() -> None:
         )
     )
 
+    def _render_pc_budget(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_pc_budget(data, current_epoch=epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="geometry.pc_budget",
+            load_data=_load_repr_geometry_summary,
+            renderer=_render_pc_budget,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
+        )
+    )
+
+    def _load_network_sync(variant: Variant, _epoch: int | None) -> dict:
+        import json
+
+        result: dict = {"repr_summary": variant.artifacts.load_summary("repr_geometry")}
+
+        ngpca_path = variant.artifacts_dir / "neuron_group_pca" / "cross_epoch.npz"
+        if ngpca_path.exists():
+            cross = variant.artifacts.load_cross_epoch("neuron_group_pca")
+            result["group_spread"] = cross["mean_spread"]
+            result["spread_epochs"] = cross["epochs"]
+
+        summary_path = variant.variant_dir / "variant_summary.json"
+        if summary_path.exists():
+            with open(summary_path) as f:
+                vs = json.load(f)
+            result["markers"] = {
+                "second_descent_onset_epoch": vs.get("second_descent_onset_epoch"),
+                "effective_dimensionality_cross_over_epoch": vs.get("effective_dimensionality_cross_over_epoch"),
+            }
+
+        return result
+
+    def _render_network_sync(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.network_sync import render_network_sync
+        return render_network_sync(data, epoch=epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="geometry.network_sync",
+            load_data=_load_network_sync,
+            renderer=_render_network_sync,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
+        )
+    )
+
     def _load_repr_geometry_epoch(variant: Variant, epoch: int | None) -> dict:
         return {
             "epoch_data": variant.artifacts.load_epoch("repr_geometry", epoch),  # type: ignore[arg-type]
@@ -1023,6 +1072,35 @@ def _register_all() -> None:
             )
         )
 
+    # --- Group centroid trajectory views ---
+    # Both load centroid_pca_coords and centroid_pca_var from neuron_group_pca.
+
+    def _render_group_centroid_timeseries(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.neuron_group_pca import (
+            render_group_centroid_timeseries,
+        )
+
+        return render_group_centroid_timeseries(data, epoch, **kwargs)
+
+    def _render_group_centroid_paths(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        from miscope.visualization.renderers.neuron_group_pca import render_group_centroid_paths
+
+        return render_group_centroid_paths(data, epoch, **kwargs)
+
+    for name, renderer in [
+        ("neuron_group.centroid_pc_timeseries", _render_group_centroid_timeseries),
+        ("neuron_group.centroid_paths", _render_group_centroid_paths),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_neuron_group_pca,
+                renderer=renderer,
+                epoch_source_analyzer=None,
+                required_analyzers=_ngpca_req,
+            )
+        )
+
     # --- Neuron group purity views (cross_epoch + per-epoch neuron_freq_norm) ---
 
     def _load_neuron_group_with_purity(variant: Variant, epoch: int | None) -> dict:
@@ -1219,6 +1297,112 @@ def _register_all() -> None:
                 required_analyzers=_fgwg_req,
             )
         )
+
+    # --- Intra-group manifold geometry (REQ_092) ---
+    # All three views load from intragroup_manifold cross_epoch.npz.
+
+    def _load_intragroup_manifold(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_cross_epoch("intragroup_manifold")
+
+    def _render_intragroup_summary(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_intragroup_manifold_summary(data, epoch=epoch, **kwargs)
+
+    def _render_intragroup_timeseries(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_intragroup_manifold_timeseries(data, epoch=epoch, **kwargs)
+
+    def _render_intragroup_surface_fit(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_intragroup_manifold_surface_fit(data, epoch=epoch, **kwargs)
+
+    _im_req = [AnalyzerRequirement("intragroup_manifold", ArtifactKind.CROSS_EPOCH)]
+
+    for name, renderer in [
+        ("intragroup_manifold.summary", _render_intragroup_summary),
+        ("intragroup_manifold.timeseries", _render_intragroup_timeseries),
+        ("intragroup_manifold.surface_fit", _render_intragroup_surface_fit),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_intragroup_manifold,
+                renderer=renderer,
+                epoch_source_analyzer=None,
+                required_analyzers=_im_req,
+            )
+        )
+
+    # --- Dimensionality dynamics views (REQ_095) ---
+    # Two cross-epoch views measuring PR₃ and f_top3 across three domains.
+
+    def _load_dimensionality_timeseries(variant: Variant, epoch: int | None) -> dict:
+        import json
+
+        pt = variant.artifacts.load_cross_epoch("parameter_trajectory")
+        rg = variant.artifacts.load_summary("repr_geometry")
+        wg = variant.artifacts.load_cross_epoch("freq_group_weight_geometry")
+
+        markers: dict[str, Any] = {}
+        summary_path = variant.variant_dir / "variant_summary.json"
+        if summary_path.exists():
+            with open(summary_path) as f:
+                vs = json.load(f)
+            markers["onset"] = vs.get("second_descent_onset_epoch")
+            markers["fd_end"] = (vs.get("first_descent_window") or {}).get("end_epoch")
+            markers["eff_xover"] = vs.get("effective_dimensionality_cross_over_epoch")
+
+        return {
+            "parameter_trajectory": pt,
+            "repr_geometry_summary": rg,
+            "weight_geometry": wg,
+            "markers": markers,
+        }
+
+    def _render_dimensionality_timeseries(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.build_dimensionality_timeseries(data, epoch=epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="dimensionality.timeseries",
+            load_data=_load_dimensionality_timeseries,
+            renderer=_render_dimensionality_timeseries,
+            epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("parameter_trajectory", ArtifactKind.CROSS_EPOCH),
+                AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY),
+                AnalyzerRequirement("freq_group_weight_geometry", ArtifactKind.CROSS_EPOCH),
+            ],
+        )
+    )
+
+    def _load_dimensionality_state_space(variant: Variant, epoch: int | None) -> dict:
+        import json
+
+        rg = variant.artifacts.load_summary("repr_geometry")
+
+        markers: dict[str, Any] = {}
+        summary_path = variant.variant_dir / "variant_summary.json"
+        if summary_path.exists():
+            with open(summary_path) as f:
+                vs = json.load(f)
+            markers["onset"] = vs.get("second_descent_onset_epoch")
+            markers["eff_xover"] = vs.get("effective_dimensionality_cross_over_epoch")
+
+        return {
+            "repr_geometry_summary": rg,
+            "markers": markers,
+        }
+
+    def _render_dimensionality_state_space(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.build_dimensionality_state_space(data, epoch=epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="dimensionality.state_space",
+            load_data=_load_dimensionality_state_space,
+            renderer=_render_dimensionality_state_space,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
+        )
+    )
 
     # --- Loss curve (metadata-based, no artifact loader involved) ---
     # This is the canonical example of a non-artifact view source.
