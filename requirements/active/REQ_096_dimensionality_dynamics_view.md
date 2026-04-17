@@ -1,8 +1,8 @@
-# REQ_095: Dimensionality Dynamics View
+# REQ_096: Dimensionality Dynamics View
 
 **Status:** Draft
 **Priority:** High
-**Branch:** feature/req-095-dimensionality-dynamics-view
+**Branch:** feature/req-096-dimensionality-dynamics-view
 **Dependencies:** REQ_090 (freq_group_weight_geometry artifacts), REQ_047 (view catalog)
 **Attribution:** Engineering Claude
 
