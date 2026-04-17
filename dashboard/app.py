@@ -20,6 +20,7 @@ from dashboard.pages.initialization_sweep import register_initialization_sweep_p
 from dashboard.pages.input_trace import register_input_trace_page_callbacks
 from dashboard.pages.intervention_check import register_intervention_check_callbacks
 from dashboard.pages.loss_landscape import register_loss_landscape_page_callbacks
+from dashboard.pages.dimensionality_dynamics import register_dimensionality_dynamics_page_callbacks
 from dashboard.pages.multistream import register_multistream_page_callbacks
 from dashboard.pages.neuron_dynamics import register_neuron_dynamics_page_callbacks
 from dashboard.pages.neuron_group import register_neuron_group_page_callbacks
@@ -59,6 +60,7 @@ def create_app() -> Dash:
     register_summary_page_callbacks(app)
     register_dimensionality_page_callbacks(app)
     register_loss_landscape_page_callbacks(app)
+    register_dimensionality_dynamics_page_callbacks(app)
     register_multistream_page_callbacks(app)
     register_peer_comparison_page_callbacks(app)
     register_checkpoint_schedule_page_callbacks(app)

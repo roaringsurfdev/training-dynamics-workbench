@@ -1330,6 +1330,80 @@ def _register_all() -> None:
             )
         )
 
+    # --- Dimensionality dynamics views (REQ_095) ---
+    # Two cross-epoch views measuring PR₃ and f_top3 across three domains.
+
+    def _load_dimensionality_timeseries(variant: Variant, epoch: int | None) -> dict:
+        import json
+
+        pt = variant.artifacts.load_cross_epoch("parameter_trajectory")
+        rg = variant.artifacts.load_summary("repr_geometry")
+        wg = variant.artifacts.load_cross_epoch("freq_group_weight_geometry")
+
+        markers: dict[str, Any] = {}
+        summary_path = variant.variant_dir / "variant_summary.json"
+        if summary_path.exists():
+            with open(summary_path) as f:
+                vs = json.load(f)
+            markers["onset"] = vs.get("second_descent_onset_epoch")
+            markers["fd_end"] = (vs.get("first_descent_window") or {}).get("end_epoch")
+            markers["eff_xover"] = vs.get("effective_dimensionality_cross_over_epoch")
+
+        return {
+            "parameter_trajectory": pt,
+            "repr_geometry_summary": rg,
+            "weight_geometry": wg,
+            "markers": markers,
+        }
+
+    def _render_dimensionality_timeseries(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.build_dimensionality_timeseries(data, epoch=epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="dimensionality.timeseries",
+            load_data=_load_dimensionality_timeseries,
+            renderer=_render_dimensionality_timeseries,
+            epoch_source_analyzer=None,
+            required_analyzers=[
+                AnalyzerRequirement("parameter_trajectory", ArtifactKind.CROSS_EPOCH),
+                AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY),
+                AnalyzerRequirement("freq_group_weight_geometry", ArtifactKind.CROSS_EPOCH),
+            ],
+        )
+    )
+
+    def _load_dimensionality_state_space(variant: Variant, epoch: int | None) -> dict:
+        import json
+
+        rg = variant.artifacts.load_summary("repr_geometry")
+
+        markers: dict[str, Any] = {}
+        summary_path = variant.variant_dir / "variant_summary.json"
+        if summary_path.exists():
+            with open(summary_path) as f:
+                vs = json.load(f)
+            markers["onset"] = vs.get("second_descent_onset_epoch")
+            markers["eff_xover"] = vs.get("effective_dimensionality_cross_over_epoch")
+
+        return {
+            "repr_geometry_summary": rg,
+            "markers": markers,
+        }
+
+    def _render_dimensionality_state_space(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.build_dimensionality_state_space(data, epoch=epoch, **kwargs)
+
+    _catalog.register(
+        ViewDefinition(
+            name="dimensionality.state_space",
+            load_data=_load_dimensionality_state_space,
+            renderer=_render_dimensionality_state_space,
+            epoch_source_analyzer=None,
+            required_analyzers=[AnalyzerRequirement("repr_geometry", ArtifactKind.SUMMARY)],
+        )
+    )
+
     # --- Loss curve (metadata-based, no artifact loader involved) ---
     # This is the canonical example of a non-artifact view source.
 

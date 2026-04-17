@@ -29,6 +29,7 @@ def create_sitenav() -> dbc.NavbarSimple:
                     dbc.DropdownMenuItem("Input Trace", href="/input-trace"),
                     dbc.DropdownMenuItem("Neuron Groups", href="/neuron-group"),
                     dbc.DropdownMenuItem("Transient Frequencies", href="/transient-frequencies"),
+                    dbc.DropdownMenuItem("Dimensionality Dynamics", href="/dimensionality-dynamics"),
                 ],
                 nav=True,
                 in_navbar=True,
@@ -114,6 +115,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
     from dashboard.pages.loss_landscape import (
         create_loss_landscape_page_layout,
         create_loss_landscape_page_nav,
+    )
+    from dashboard.pages.dimensionality_dynamics import (
+        create_dimensionality_dynamics_page_layout,
+        create_dimensionality_dynamics_page_nav,
     )
     from dashboard.pages.multistream import (
         create_multistream_page_layout,
@@ -210,6 +215,11 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_variant_table_page_nav(app), create_variant_table_page_layout(app)]
         elif pathname == "/transient-frequencies":
             return [create_transient_page_nav(app), create_transient_page_layout(app)]
+        elif pathname == "/dimensionality-dynamics":
+            return [
+                create_dimensionality_dynamics_page_nav(app),
+                create_dimensionality_dynamics_page_layout(app),
+            ]
         elif pathname == "/initialization-sweep":
             return [
                 create_initialization_sweep_page_nav(app),
