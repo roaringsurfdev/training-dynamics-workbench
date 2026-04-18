@@ -126,8 +126,8 @@ def render_pc_budget(
             fig.add_vline(
                 x=current_epoch,
                 line=dict(color="rgba(0,0,0,0.35)", width=1.5, dash="dash"),
-                row=row, # type: ignore
-                col=1, # type: ignore
+                row=row,  # type: ignore
+                col=1,  # type: ignore
             )
 
     fig.update_yaxes(title_text="PC3 fraction", row=1, col=1)

@@ -710,8 +710,8 @@ def render_group_centroid_timeseries(
             fig.add_vline(
                 x=epoch,
                 line=dict(color="rgba(0,0,0,0.3)", width=1, dash="dash"),
-                row=row, # type: ignore
-                col=1, # type: ignore
+                row=row,  # type: ignore
+                col=1,  # type: ignore
             )
 
     fig.update_xaxes(title_text="Epoch", row=3, col=1)

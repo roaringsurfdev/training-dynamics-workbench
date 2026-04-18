@@ -94,7 +94,7 @@ def render_network_sync(
 
     _add_site_traces(fig, summary, epochs)
     if n_rows == 4:
-        _add_spread_trace(fig, group_spread, spread_epochs, n_rows) # type: ignore
+        _add_spread_trace(fig, group_spread, spread_epochs, n_rows)  # type: ignore
 
     _add_grokking_markers(fig, markers, n_rows)
 
@@ -103,8 +103,8 @@ def render_network_sync(
             fig.add_vline(
                 x=epoch,
                 line=dict(color="rgba(0,0,0,0.2)", width=1, dash="dash"),
-                row=row, # type: ignore
-                col=1, # type: ignore
+                row=row,  # type: ignore
+                col=1,  # type: ignore
             )
 
     fig.update_xaxes(title_text="Epoch", row=n_rows, col=1)
@@ -200,13 +200,13 @@ def _add_grokking_markers(
             fig.add_vline(
                 x=onset,
                 line=_ONSET_STYLE,
-                row=row, # type: ignore
-                col=1, # type: ignore
+                row=row,  # type: ignore
+                col=1,  # type: ignore
             )
         if crossover is not None:
             fig.add_vline(
                 x=crossover,
                 line=_CROSSOVER_STYLE,
-                row=row, # type: ignore
-                col=1, # type: ignore
+                row=row,  # type: ignore
+                col=1,  # type: ignore
             )

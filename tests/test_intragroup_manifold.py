@@ -78,26 +78,26 @@ def test_r2_curvature_nonnegative():
     """R²_curvature is non-negative (clipped at 0)."""
     for proj in [_make_saddle(), _make_bowl(), _make_flat()]:
         result = fit_quadratic_surface(proj)
-        assert result["r2_curvature"] >= 0.0 # type: ignore
+        assert result["r2_curvature"] >= 0.0  # type: ignore
 
 
 def test_r2_range():
     """R² values are within [0, 1]."""
     result = fit_quadratic_surface(_make_saddle(n=50, noise=0.01))
     for key in ("r2_linear", "r2_quadratic", "r2_curvature"):
-        assert 0.0 <= result[key] <= 1.0, f"{key} out of [0, 1]: {result[key]}" # type: ignore
+        assert 0.0 <= result[key] <= 1.0, f"{key} out of [0, 1]: {result[key]}"  # type: ignore
 
 
 def test_r2_quadratic_ge_linear():
     """R²_quadratic >= R²_linear (quadratic fit cannot be worse)."""
     result = fit_quadratic_surface(_make_saddle(n=50, noise=0.01))
-    assert result["r2_quadratic"] >= result["r2_linear"] - 1e-9 # type: ignore
+    assert result["r2_quadratic"] >= result["r2_linear"] - 1e-9  # type: ignore
 
 
 def test_saddle_r2_curvature_high():
     """A clean saddle has high R²_curvature (well above the flat threshold)."""
     result = fit_quadratic_surface(_make_saddle(n=50, noise=0.01))
-    assert result["r2_curvature"] > 0.5 # type: ignore
+    assert result["r2_curvature"] > 0.5  # type: ignore
 
 
 def test_too_few_neurons_returns_nan():
