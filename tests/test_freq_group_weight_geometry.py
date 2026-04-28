@@ -33,6 +33,8 @@ def test_compute_group_geometry_keys():
         "centroids",
         "radii",
         "dimensionality",
+        "pr3",
+        "f_top3",
         "center_spread",
         "mean_radius",
         "snr",
