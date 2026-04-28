@@ -240,9 +240,7 @@ def build_valley_segments(pr3, epochs, fd_end, commit_ep, topology, prom=0.05):
     for i, pk in enumerate(peak_eps):
         ep_lo = fd_end if i == 0 else valley_eps[i - 1]
         ep_hi = commit_ep if i == len(peak_eps) - 1 else valley_eps[i]
-        segments.append(
-            dict(segment_idx=i, ep_lo=int(ep_lo), ep_hi=int(ep_hi), peak_ep=pk)
-        )
+        segments.append(dict(segment_idx=i, ep_lo=int(ep_lo), ep_hi=int(ep_hi), peak_ep=pk))
     return segments
 
 
