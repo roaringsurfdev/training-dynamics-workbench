@@ -34,6 +34,8 @@ loaders fetch and shape; renderers plot. Each layer has one responsibility.
 - [ ] All view renderers under `src/miscope/visualization/renderers/` audited
   for compute calls (`np.linalg.*`, `sklearn.*`, manual SVD/eigendecomp,
   in-renderer Fourier projection, etc.).
+- [ ] All view renderers under `src/miscope/visualization/renderers/` audited
+  for imports of `miscope.analysis.library` in order to re-compute data that is already stored as pre-computed artifacts.
 - [ ] All `load_data` callbacks in `src/miscope/views/universal.py` and
   `dataview_universal.py` audited similarly.
 - [ ] Audit results documented (list of offending sites + planned migration
