@@ -44,6 +44,47 @@ class TestComputeClassCentroids:
             compute_class_centroids(np.zeros((5, 3)), np.zeros(4, dtype=int))
 
 
+class TestFloat32StabilityRegression:
+    """Bit-identical float32 samples must produce exact zero within-class metrics.
+
+    Regression for a dtype bug introduced in REQ_109 phase 1b: the clustering
+    primitives originally accumulated centroids in ``samples.dtype`` (float32
+    for torch-derived activations), which produced spurious ~1e-5 noise on
+    structurally-degenerate sites like resid_pre at the EQ position.
+    """
+
+    @staticmethod
+    def _make_bit_identical_float32(n_classes=11, n_per_class=11, d=128, seed=0):
+        rng = np.random.default_rng(seed)
+        x = (rng.normal(size=d) * 100).astype(np.float32)
+        n_samples = n_classes * n_per_class
+        samples = np.tile(x, (n_samples, 1))
+        labels = np.repeat(np.arange(n_classes), n_per_class)
+        return samples, labels, n_classes
+
+    def test_centroids_are_float64(self):
+        samples, labels, n_classes = self._make_bit_identical_float32()
+        centroids = compute_class_centroids(samples, labels, n_classes=n_classes)
+        assert centroids.dtype == np.float64
+
+    def test_radii_exactly_zero_for_identical_samples(self):
+        samples, labels, n_classes = self._make_bit_identical_float32()
+        centroids = compute_class_centroids(samples, labels, n_classes=n_classes)
+        radii = compute_class_radii(samples, labels, centroids)
+        np.testing.assert_array_equal(radii, np.zeros(n_classes))
+
+    def test_center_spread_exactly_zero_for_identical_samples(self):
+        samples, labels, n_classes = self._make_bit_identical_float32()
+        centroids = compute_class_centroids(samples, labels, n_classes=n_classes)
+        # All centroids equal the shared sample value → spread is 0
+        assert compute_center_spread(centroids) == 0.0
+
+    def test_class_dimensionality_zero_for_identical_samples(self):
+        samples, labels, n_classes = self._make_bit_identical_float32()
+        dims = compute_class_dimensionality(samples, labels, n_classes=n_classes)
+        np.testing.assert_array_equal(dims, np.zeros(n_classes))
+
+
 class TestComputeClassRadii:
     def test_zero_radii_for_collapsed_classes(self):
         samples = np.array([[1.0, 1.0], [1.0, 1.0], [3.0, 3.0], [3.0, 3.0]])

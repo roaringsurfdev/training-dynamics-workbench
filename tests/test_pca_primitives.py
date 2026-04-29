@@ -147,6 +147,24 @@ class TestPCAMetrics:
         assert full.spread == pytest.approx(truncated.spread)
 
 
+class TestPCAFloat32Stability:
+    """Bit-identical float32 input must produce exact-zero singular values.
+
+    Regression for the dtype bug in REQ_109 phase 1b: float32 ``X.mean``
+    + subtraction produced spurious noise that propagated to singular
+    values and eigenvalues for structurally-degenerate sites.
+    """
+
+    def test_zero_singular_values_for_identical_float32(self):
+        rng = np.random.default_rng(0)
+        x = (rng.normal(size=8) * 100).astype(np.float32)
+        X = np.tile(x, (20, 1))  # all rows identical, float32
+        result = pca(X)
+        np.testing.assert_array_equal(result.singular_values, np.zeros_like(result.singular_values))
+        assert result.spread == 0.0
+        assert result.participation_ratio == 0.0
+
+
 class TestPCAErrors:
     def test_rejects_1d_input(self):
         with pytest.raises(ValueError, match="2D input"):

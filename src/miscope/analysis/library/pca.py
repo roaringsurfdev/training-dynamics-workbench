@@ -45,6 +45,11 @@ def pca(X: np.ndarray, n_components: int | None = None) -> PCAResult:
             f"for input shape {X.shape}"
         )
 
+    # Promote to float64 for the centering and SVD: float32 ``X.mean`` and
+    # subtraction produce spurious noise on bit-identical samples (e.g.
+    # resid_pre at a fixed position) that propagates into singular values
+    # and breaks downstream metrics.
+    X = np.asarray(X, dtype=np.float64)
     center = X.mean(axis=0)
     Xc = X - center
     U, S, Vt = np.linalg.svd(Xc, full_matrices=False)

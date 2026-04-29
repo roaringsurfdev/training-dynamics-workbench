@@ -52,10 +52,14 @@ def compute_class_centroids(
     if n_classes is None:
         n_classes = int(labels.max()) + 1 if labels.size > 0 else 0
 
+    # Accumulate in float64 regardless of input dtype: for bit-identical
+    # samples (e.g. resid_pre at a fixed position), float32 accumulation
+    # introduces rounding artifacts that show up as spurious within-class
+    # variance downstream.
     n_features = samples.shape[1]
-    sums = np.zeros((n_classes, n_features), dtype=samples.dtype)
+    sums = np.zeros((n_classes, n_features), dtype=np.float64)
     np.add.at(sums, labels, samples)
-    counts = np.bincount(labels, minlength=n_classes).astype(samples.dtype)
+    counts = np.bincount(labels, minlength=n_classes).astype(np.float64)
     counts = np.maximum(counts, 1)
     return sums / counts[:, np.newaxis]
 
@@ -77,10 +81,12 @@ def compute_class_radii(
         have radius 0.
     """
     n_classes = centroids.shape[0]
+    samples = np.asarray(samples, dtype=np.float64)
+    centroids = np.asarray(centroids, dtype=np.float64)
     diffs = samples - centroids[labels]
     sq_dists = np.sum(diffs**2, axis=1)
     sum_sq = np.bincount(labels, weights=sq_dists, minlength=n_classes)
-    counts = np.bincount(labels, minlength=n_classes).astype(float)
+    counts = np.bincount(labels, minlength=n_classes).astype(np.float64)
     counts = np.maximum(counts, 1)
     return np.sqrt(sum_sq / counts)
 
@@ -112,11 +118,13 @@ def compute_fisher_discriminant(
         centroids = compute_class_centroids(samples, labels)
 
     n_classes = centroids.shape[0]
+    samples = np.asarray(samples, dtype=np.float64)
+    centroids = np.asarray(centroids, dtype=np.float64)
 
     diffs = samples - centroids[labels]
     sq_dists = np.sum(diffs**2, axis=1)
     sum_sq = np.bincount(labels, weights=sq_dists, minlength=n_classes)
-    counts = np.bincount(labels, minlength=n_classes).astype(float)
+    counts = np.bincount(labels, minlength=n_classes).astype(np.float64)
     counts = np.maximum(counts, 1)
     variances = sum_sq / counts
 
