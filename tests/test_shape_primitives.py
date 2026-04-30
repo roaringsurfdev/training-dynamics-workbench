@@ -1,9 +1,10 @@
-"""Unit tests for curve-shape primitives in library/shape.py (REQ_109 phase 2b)."""
+"""Unit tests for shape primitives in library/shape.py (REQ_109 phase 2)."""
 
 import numpy as np
 import pytest
 
 from miscope.analysis.library.shape import (
+    characterize_jerk,
     compute_arc_length,
     compute_curvature_profile,
     compute_signed_loop_area,
@@ -163,3 +164,82 @@ class TestComputeCurvatureProfile:
         result = compute_curvature_profile(curve)
         # Curvature of a straight line is 0; allow numerical noise
         np.testing.assert_allclose(result["kappa"], 0.0, atol=1e-6)
+
+
+class TestCharacterizeJerk:
+    def test_output_shape_matches_input(self):
+        # Vector form: same shape as input
+        rng = np.random.default_rng(0)
+        trajectory = rng.normal(size=(50, 3))
+        jerk = characterize_jerk(trajectory)
+        assert jerk.shape == trajectory.shape
+
+    def test_constant_velocity_zero_jerk(self):
+        # x(t) = v*t — first derivative is constant, all higher derivatives zero
+        n = 50
+        velocity = np.array([1.0, 2.0, -0.5])
+        t = np.arange(n, dtype=float)
+        trajectory = t[:, np.newaxis] * velocity
+        jerk = characterize_jerk(trajectory)
+        np.testing.assert_allclose(jerk, 0.0, atol=1e-10)
+
+    def test_constant_acceleration_zero_jerk(self):
+        # x(t) = 0.5 * a * t² — second derivative is constant, third is zero
+        n = 50
+        accel = np.array([1.0, -2.0])
+        t = np.arange(n, dtype=float)
+        trajectory = 0.5 * t[:, np.newaxis] ** 2 * accel
+        jerk = characterize_jerk(trajectory)
+        # np.gradient is exact on quadratic interiors; endpoints may have noise
+        np.testing.assert_allclose(jerk[2:-2], 0.0, atol=1e-9)
+
+    def test_constant_jerk_for_cubic(self):
+        # x(t) = (1/6) * j * t³ — third derivative is the constant j
+        n = 50
+        jerk_const = np.array([1.0, -2.0, 0.5])
+        t = np.arange(n, dtype=float)
+        trajectory = (t[:, np.newaxis] ** 3 / 6.0) * jerk_const
+        jerk = characterize_jerk(trajectory)
+        # np.gradient is exact on cubics for interior points; check well inside.
+        # Broadcast-subtract to compare against the per-component constant.
+        np.testing.assert_allclose(jerk[5:-5] - jerk_const, 0.0, atol=1e-8)
+
+    def test_time_axis_changes_scale(self):
+        # Same trajectory sampled with epoch gap = 10 should have jerk
+        # scaled by 1/10³ relative to unit-spacing baseline
+        rng = np.random.default_rng(0)
+        trajectory = rng.normal(size=(40, 2))
+        jerk_unit = characterize_jerk(trajectory)
+        epochs_dense = np.arange(40, dtype=float) * 10.0
+        jerk_scaled = characterize_jerk(trajectory, time_axis=epochs_dense)
+        np.testing.assert_allclose(jerk_scaled, jerk_unit / (10.0**3), atol=1e-9)
+
+    def test_non_uniform_time_axis(self):
+        # Mix dense + sparse spacing — characterize_jerk must respect the gaps,
+        # so a smooth cubic still gives near-constant jerk inside each uniform
+        # segment. Boundary cells (curve start, segment transition, curve end)
+        # are contaminated by the second-order one-sided differences propagating
+        # inward through three gradient passes; only interior cells away from
+        # those three boundaries are clean.
+        sparse = np.arange(0, 100, 10, dtype=float)  # 10 points at gap 10 (indices 0–9)
+        dense = np.arange(100, 110, 1, dtype=float)  # 10 points at gap 1 (indices 10–19)
+        epochs = np.concatenate([sparse, dense])
+        trajectory = epochs[:, np.newaxis] ** 3 / 6.0
+        jerk = characterize_jerk(trajectory, time_axis=epochs)
+        # Clean interior of sparse segment: indices 3–7 (away from start + transition)
+        np.testing.assert_allclose(jerk[3:8, 0], 1.0, atol=1e-6)
+        # Clean interior of dense segment: indices 13–16 (away from transition + end)
+        np.testing.assert_allclose(jerk[13:17, 0], 1.0, atol=1e-6)
+
+    def test_rejects_short_trajectory(self):
+        with pytest.raises(ValueError, match="at least 4 timesteps"):
+            characterize_jerk(np.zeros((3, 2)))
+
+    def test_rejects_1d_input(self):
+        with pytest.raises(ValueError, match="2D input"):
+            characterize_jerk(np.zeros(10))
+
+    def test_rejects_mismatched_time_axis(self):
+        trajectory = np.zeros((10, 2))
+        with pytest.raises(ValueError, match="length n_timesteps"):
+            characterize_jerk(trajectory, time_axis=np.arange(5, dtype=float))

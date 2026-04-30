@@ -1,4 +1,4 @@
-"""Tests for IntraGroupManifoldAnalyzer, fit_quadratic_surface, and renderers."""
+"""Tests for IntraGroupManifoldAnalyzer, characterize_surface, and renderers."""
 
 import numpy as np
 
@@ -7,9 +7,9 @@ from miscope.analysis.analyzers.intragroup_manifold import (
     _compute_final_shapes,
     decode_shapes,
 )
-from miscope.analysis.library.manifold_geometry import (
-    _MIN_NEURONS,
-    fit_quadratic_surface,
+from miscope.analysis.library.shape import (
+    _SURFACE_MIN_POINTS,
+    characterize_surface,
 )
 from miscope.visualization.renderers.intragroup_manifold import (
     render_intragroup_manifold_summary,
@@ -18,7 +18,7 @@ from miscope.visualization.renderers.intragroup_manifold import (
 )
 
 # ---------------------------------------------------------------------------
-# fit_quadratic_surface unit tests
+# characterize_surface unit tests
 # ---------------------------------------------------------------------------
 
 
@@ -49,64 +49,68 @@ def _make_flat(n: int = 20) -> np.ndarray:
     return np.column_stack([pc1, pc2, pc3])
 
 
-def test_fit_returns_expected_keys():
-    """fit_quadratic_surface returns all required keys."""
-    result = fit_quadratic_surface(_make_saddle())
+def test_fit_returns_expected_fields():
+    """characterize_surface returns a SurfaceParameters NamedTuple with all fields."""
+    result = characterize_surface(_make_saddle())
     expected = {"r2_linear", "r2_quadratic", "r2_curvature", "a", "b", "c", "shape"}
-    assert expected == set(result.keys())
+    assert expected == set(result._fields)
 
 
 def test_saddle_classified_correctly():
     """A clear saddle surface gets classified as 'saddle'."""
-    result = fit_quadratic_surface(_make_saddle(n=50, noise=0.01))
-    assert result["shape"] == "saddle"
+    result = characterize_surface(_make_saddle(n=50, noise=0.01))
+    assert result.shape == "saddle"
 
 
 def test_bowl_classified_correctly():
     """A clear bowl surface gets classified as 'bowl'."""
-    result = fit_quadratic_surface(_make_bowl(n=50, noise=0.01))
-    assert result["shape"] == "bowl"
+    result = characterize_surface(_make_bowl(n=50, noise=0.01))
+    assert result.shape == "bowl"
 
 
 def test_flat_classified_correctly():
     """Constant PC3 (zero curvature by construction) gets classified as 'flat/blob'."""
-    result = fit_quadratic_surface(_make_flat(n=50))
-    assert result["shape"] == "flat/blob"
+    result = characterize_surface(_make_flat(n=50))
+    assert result.shape == "flat/blob"
 
 
 def test_r2_curvature_nonnegative():
     """R²_curvature is non-negative (clipped at 0)."""
     for proj in [_make_saddle(), _make_bowl(), _make_flat()]:
-        result = fit_quadratic_surface(proj)
-        assert result["r2_curvature"] >= 0.0  # type: ignore
+        result = characterize_surface(proj)
+        assert result.r2_curvature >= 0.0
 
 
 def test_r2_range():
     """R² values are within [0, 1]."""
-    result = fit_quadratic_surface(_make_saddle(n=50, noise=0.01))
-    for key in ("r2_linear", "r2_quadratic", "r2_curvature"):
-        assert 0.0 <= result[key] <= 1.0, f"{key} out of [0, 1]: {result[key]}"  # type: ignore
+    result = characterize_surface(_make_saddle(n=50, noise=0.01))
+    for value, name in (
+        (result.r2_linear, "r2_linear"),
+        (result.r2_quadratic, "r2_quadratic"),
+        (result.r2_curvature, "r2_curvature"),
+    ):
+        assert 0.0 <= value <= 1.0, f"{name} out of [0, 1]: {value}"
 
 
 def test_r2_quadratic_ge_linear():
     """R²_quadratic >= R²_linear (quadratic fit cannot be worse)."""
-    result = fit_quadratic_surface(_make_saddle(n=50, noise=0.01))
-    assert result["r2_quadratic"] >= result["r2_linear"] - 1e-9  # type: ignore
+    result = characterize_surface(_make_saddle(n=50, noise=0.01))
+    assert result.r2_quadratic >= result.r2_linear - 1e-9
 
 
 def test_saddle_r2_curvature_high():
     """A clean saddle has high R²_curvature (well above the flat threshold)."""
-    result = fit_quadratic_surface(_make_saddle(n=50, noise=0.01))
-    assert result["r2_curvature"] > 0.5  # type: ignore
+    result = characterize_surface(_make_saddle(n=50, noise=0.01))
+    assert result.r2_curvature > 0.5
 
 
-def test_too_few_neurons_returns_nan():
-    """Groups with fewer than _MIN_NEURONS neurons return NaN values."""
-    proj = np.random.default_rng(0).standard_normal((_MIN_NEURONS - 1, 3))
-    result = fit_quadratic_surface(proj)
-    assert np.isnan(result["r2_linear"])
-    assert np.isnan(result["r2_curvature"])
-    assert result["shape"] == "flat/blob"
+def test_too_few_points_returns_nan():
+    """Point clouds smaller than _SURFACE_MIN_POINTS return NaN values."""
+    proj = np.random.default_rng(0).standard_normal((_SURFACE_MIN_POINTS - 1, 3))
+    result = characterize_surface(proj)
+    assert np.isnan(result.r2_linear)
+    assert np.isnan(result.r2_curvature)
+    assert result.shape == "flat/blob"
 
 
 # ---------------------------------------------------------------------------

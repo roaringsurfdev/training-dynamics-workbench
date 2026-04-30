@@ -38,10 +38,12 @@ from miscope.analysis.library.fourier import (
 )
 from miscope.analysis.library.geometry import find_circularity_crossovers
 from miscope.analysis.library.landscape import compute_landscape_flatness
-from miscope.analysis.library.manifold_geometry import fit_quadratic_surface
 from miscope.analysis.library.shape import (
+    SurfaceParameters,
     characterize_circularity,
     characterize_fourier_alignment,
+    characterize_jerk,
+    characterize_surface,
     compute_arc_length,
     compute_curvature_profile,
     compute_signed_loop_area,
@@ -87,11 +89,15 @@ __all__ = [
     # Shape characterization
     "characterize_circularity",
     "characterize_fourier_alignment",
+    "characterize_surface",
+    "SurfaceParameters",
     # Curve-shape helpers
     "compute_arc_length",
     "detect_self_intersection",
     "compute_signed_loop_area",
     "compute_curvature_profile",
+    # Trajectory dynamics
+    "characterize_jerk",
     # Geometry helpers
     "find_circularity_crossovers",
     # Fourier weight composition
@@ -110,6 +116,4 @@ __all__ = [
     "normalize_per_group",
     # Landscape flatness functions
     "compute_landscape_flatness",
-    # Manifold geometry functions
-    "fit_quadratic_surface",
 ]
