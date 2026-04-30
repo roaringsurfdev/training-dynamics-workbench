@@ -19,7 +19,7 @@ from typing import Any
 import numpy as np
 
 from miscope.analysis.artifact_loader import ArtifactLoader
-from miscope.analysis.library.manifold_geometry import fit_quadratic_surface
+from miscope.analysis.library.shape import characterize_surface
 
 _SHAPE_TO_INT = {"flat/blob": 0, "bowl": 1, "saddle": 2}
 _INT_TO_SHAPE = {v: k for k, v in _SHAPE_TO_INT.items()}
@@ -86,13 +86,13 @@ class IntraGroupManifoldAnalyzer:
                 proj = projections[ep_idx, members, :]  # (n_members, 3)
                 if np.any(np.isnan(proj)):
                     continue
-                result = fit_quadratic_surface(proj)
-                r2_linear[ep_idx, g_idx] = result["r2_linear"]
-                r2_quadratic[ep_idx, g_idx] = result["r2_quadratic"]
-                r2_curvature[ep_idx, g_idx] = result["r2_curvature"]
-                a_coeff[ep_idx, g_idx] = result["a"]
-                b_coeff[ep_idx, g_idx] = result["b"]
-                c_coeff[ep_idx, g_idx] = result["c"]
+                result = characterize_surface(proj)
+                r2_linear[ep_idx, g_idx] = result.r2_linear
+                r2_quadratic[ep_idx, g_idx] = result.r2_quadratic
+                r2_curvature[ep_idx, g_idx] = result.r2_curvature
+                a_coeff[ep_idx, g_idx] = result.a
+                b_coeff[ep_idx, g_idx] = result.b
+                c_coeff[ep_idx, g_idx] = result.c
 
         shape_int = _compute_final_shapes(r2_curvature, a_coeff, b_coeff, c_coeff, n_groups)
 
@@ -131,7 +131,7 @@ def _compute_final_shapes(
     n_groups: int,
 ) -> np.ndarray:
     """Derive shape label from the final epoch's fitted coefficients."""
-    from miscope.analysis.library.manifold_geometry import _classify_shape
+    from miscope.analysis.library.shape import _classify_surface_shape as _classify_shape
 
     shape_int = np.zeros(n_groups, dtype=np.int32)
     for g_idx in range(n_groups):
