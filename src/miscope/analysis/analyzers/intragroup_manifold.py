@@ -110,7 +110,6 @@ class IntraGroupManifoldAnalyzer:
         }
 
 
-
 def _build_group_members(
     neuron_group_idx: np.ndarray,
     n_groups: int,

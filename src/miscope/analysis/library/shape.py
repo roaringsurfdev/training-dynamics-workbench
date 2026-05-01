@@ -416,6 +416,7 @@ def characterize_surface(point_cloud_3d: np.ndarray) -> SurfaceParameters:
         shape=shape,
     )
 
+
 def decode_shapes(shape_int: np.ndarray) -> list[str]:
     """Convert integer shape labels back to human-readable strings."""
     return [_INT_TO_SHAPE.get(int(v), "flat/blob") for v in shape_int]

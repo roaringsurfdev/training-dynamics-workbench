@@ -31,16 +31,17 @@ def _freq_color(freq_idx: int, n_freq: int) -> str:
     r, g, b = colorsys.hls_to_rgb(hue, 0.55, 0.5)
     return f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"
 
-def _get_final_shapes(shape_int: np.ndarray):
 
+def _get_final_shapes(shape_int: np.ndarray):
     # maintain backwards-compatibility with change in shape of shape_int
     if len(shape_int.shape) == 2:
-        final_shape_int = shape_int[-1, :] # (n_groups,)
+        final_shape_int = shape_int[-1, :]  # (n_groups,)
     else:
         # legacy
-        final_shape_int = shape_int # (n_groups,)
+        final_shape_int = shape_int  # (n_groups,)
 
     return decode_shapes(final_shape_int)
+
 
 def render_intragroup_manifold_summary(
     data: dict,
