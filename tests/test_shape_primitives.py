@@ -1,12 +1,16 @@
-"""Unit tests for curve-shape primitives in library/shape.py (REQ_109 phase 2b)."""
+"""Unit tests for shape primitives in library/shape.py (REQ_109 phase 2)."""
 
 import numpy as np
 import pytest
 
 from miscope.analysis.library.shape import (
+    _SURFACE_MIN_POINTS,
+    characterize_jerk,
+    characterize_surface,
     compute_arc_length,
     compute_curvature_profile,
     compute_signed_loop_area,
+    decode_shapes,
     detect_self_intersection,
 )
 
@@ -163,3 +167,178 @@ class TestComputeCurvatureProfile:
         result = compute_curvature_profile(curve)
         # Curvature of a straight line is 0; allow numerical noise
         np.testing.assert_allclose(result["kappa"], 0.0, atol=1e-6)
+
+
+class TestCharacterizeJerk:
+    def test_output_shape_matches_input(self):
+        # Vector form: same shape as input
+        rng = np.random.default_rng(0)
+        trajectory = rng.normal(size=(50, 3))
+        jerk = characterize_jerk(trajectory)
+        assert jerk.shape == trajectory.shape
+
+    def test_constant_velocity_zero_jerk(self):
+        # x(t) = v*t — first derivative is constant, all higher derivatives zero
+        n = 50
+        velocity = np.array([1.0, 2.0, -0.5])
+        t = np.arange(n, dtype=float)
+        trajectory = t[:, np.newaxis] * velocity
+        jerk = characterize_jerk(trajectory)
+        np.testing.assert_allclose(jerk, 0.0, atol=1e-10)
+
+    def test_constant_acceleration_zero_jerk(self):
+        # x(t) = 0.5 * a * t² — second derivative is constant, third is zero
+        n = 50
+        accel = np.array([1.0, -2.0])
+        t = np.arange(n, dtype=float)
+        trajectory = 0.5 * t[:, np.newaxis] ** 2 * accel
+        jerk = characterize_jerk(trajectory)
+        # np.gradient is exact on quadratic interiors; endpoints may have noise
+        np.testing.assert_allclose(jerk[2:-2], 0.0, atol=1e-9)
+
+    def test_constant_jerk_for_cubic(self):
+        # x(t) = (1/6) * j * t³ — third derivative is the constant j
+        n = 50
+        jerk_const = np.array([1.0, -2.0, 0.5])
+        t = np.arange(n, dtype=float)
+        trajectory = (t[:, np.newaxis] ** 3 / 6.0) * jerk_const
+        jerk = characterize_jerk(trajectory)
+        # np.gradient is exact on cubics for interior points; check well inside.
+        # Broadcast-subtract to compare against the per-component constant.
+        np.testing.assert_allclose(jerk[5:-5] - jerk_const, 0.0, atol=1e-8)
+
+    def test_time_axis_changes_scale(self):
+        # Same trajectory sampled with epoch gap = 10 should have jerk
+        # scaled by 1/10³ relative to unit-spacing baseline
+        rng = np.random.default_rng(0)
+        trajectory = rng.normal(size=(40, 2))
+        jerk_unit = characterize_jerk(trajectory)
+        epochs_dense = np.arange(40, dtype=float) * 10.0
+        jerk_scaled = characterize_jerk(trajectory, time_axis=epochs_dense)
+        np.testing.assert_allclose(jerk_scaled, jerk_unit / (10.0**3), atol=1e-9)
+
+    def test_non_uniform_time_axis(self):
+        # Mix dense + sparse spacing — characterize_jerk must respect the gaps,
+        # so a smooth cubic still gives near-constant jerk inside each uniform
+        # segment. Boundary cells (curve start, segment transition, curve end)
+        # are contaminated by the second-order one-sided differences propagating
+        # inward through three gradient passes; only interior cells away from
+        # those three boundaries are clean.
+        sparse = np.arange(0, 100, 10, dtype=float)  # 10 points at gap 10 (indices 0–9)
+        dense = np.arange(100, 110, 1, dtype=float)  # 10 points at gap 1 (indices 10–19)
+        epochs = np.concatenate([sparse, dense])
+        trajectory = epochs[:, np.newaxis] ** 3 / 6.0
+        jerk = characterize_jerk(trajectory, time_axis=epochs)
+        # Clean interior of sparse segment: indices 3–7 (away from start + transition)
+        np.testing.assert_allclose(jerk[3:8, 0], 1.0, atol=1e-6)
+        # Clean interior of dense segment: indices 13–16 (away from transition + end)
+        np.testing.assert_allclose(jerk[13:17, 0], 1.0, atol=1e-6)
+
+    def test_rejects_short_trajectory(self):
+        with pytest.raises(ValueError, match="at least 4 timesteps"):
+            characterize_jerk(np.zeros((3, 2)))
+
+    def test_rejects_1d_input(self):
+        with pytest.raises(ValueError, match="2D input"):
+            characterize_jerk(np.zeros(10))
+
+    def test_rejects_mismatched_time_axis(self):
+        trajectory = np.zeros((10, 2))
+        with pytest.raises(ValueError, match="length n_timesteps"):
+            characterize_jerk(trajectory, time_axis=np.arange(5, dtype=float))
+
+
+class TestCharacterizeSaddle:
+    # ---------------------------------------------------------------------------
+    # characterize_surface unit tests
+    # ---------------------------------------------------------------------------
+
+    def _make_saddle(self, n: int = 20, noise: float = 0.05) -> np.ndarray:
+        """Synthetic saddle: PC3 = PC1² - PC2² plus small noise."""
+        rng = np.random.default_rng(0)
+        pc1 = rng.uniform(-2, 2, n)
+        pc2 = rng.uniform(-2, 2, n)
+        pc3 = pc1**2 - pc2**2 + rng.normal(0, noise, n)
+        return np.column_stack([pc1, pc2, pc3])
+
+    def _make_bowl(self, n: int = 20, noise: float = 0.05) -> np.ndarray:
+        """Synthetic bowl: PC3 = PC1² + PC2²."""
+        rng = np.random.default_rng(1)
+        pc1 = rng.uniform(-2, 2, n)
+        pc2 = rng.uniform(-2, 2, n)
+        pc3 = pc1**2 + pc2**2 + rng.normal(0, noise, n)
+        return np.column_stack([pc1, pc2, pc3])
+
+    def _make_flat(self, n: int = 20) -> np.ndarray:
+        """Synthetic flat blob: PC3 is constant — zero curvature by construction."""
+        rng = np.random.default_rng(2)
+        pc1 = rng.uniform(-2, 2, n)
+        pc2 = rng.uniform(-2, 2, n)
+        pc3 = np.zeros(n)
+        return np.column_stack([pc1, pc2, pc3])
+
+    def test_fit_returns_expected_fields(self):
+        """characterize_surface returns a SurfaceParameters NamedTuple with all fields."""
+        result = characterize_surface(self._make_saddle())
+        expected = {"r2_linear", "r2_quadratic", "r2_curvature", "a", "b", "c", "shape"}
+        assert expected == set(result._fields)
+
+    def test_saddle_classified_correctly(self):
+        """A clear saddle surface gets classified as 'saddle'."""
+        result = characterize_surface(self._make_saddle(n=50, noise=0.01))
+        assert result.shape == "saddle"
+
+    def test_bowl_classified_correctly(self):
+        """A clear bowl surface gets classified as 'bowl'."""
+        result = characterize_surface(self._make_bowl(n=50, noise=0.01))
+        assert result.shape == "bowl"
+
+    def test_flat_classified_correctly(self):
+        """Constant PC3 (zero curvature by construction) gets classified as 'flat/blob'."""
+        result = characterize_surface(self._make_flat(n=50))
+        assert result.shape == "flat/blob"
+
+    def test_r2_curvature_nonnegative(self):
+        """R²_curvature is non-negative (clipped at 0)."""
+        for proj in [self._make_saddle(), self._make_bowl(), self._make_flat()]:
+            result = characterize_surface(proj)
+            assert result.r2_curvature >= 0.0
+
+    def test_r2_range(self):
+        """R² values are within [0, 1]."""
+        result = characterize_surface(self._make_saddle(n=50, noise=0.01))
+        for value, name in (
+            (result.r2_linear, "r2_linear"),
+            (result.r2_quadratic, "r2_quadratic"),
+            (result.r2_curvature, "r2_curvature"),
+        ):
+            assert 0.0 <= value <= 1.0, f"{name} out of [0, 1]: {value}"
+
+    def test_r2_quadratic_ge_linear(self):
+        """R²_quadratic >= R²_linear (quadratic fit cannot be worse)."""
+        result = characterize_surface(self._make_saddle(n=50, noise=0.01))
+        assert result.r2_quadratic >= result.r2_linear - 1e-9
+
+    def test_saddle_r2_curvature_high(self):
+        """A clean saddle has high R²_curvature (well above the flat threshold)."""
+        result = characterize_surface(self._make_saddle(n=50, noise=0.01))
+        assert result.r2_curvature > 0.5
+
+    def test_too_few_points_returns_nan(self):
+        """Point clouds smaller than _SURFACE_MIN_POINTS return NaN values."""
+        proj = np.random.default_rng(0).standard_normal((_SURFACE_MIN_POINTS - 1, 3))
+        result = characterize_surface(proj)
+        assert np.isnan(result.r2_linear)
+        assert np.isnan(result.r2_curvature)
+        assert result.shape == "flat/blob"
+
+    # ---------------------------------------------------------------------------
+    # decode_shapes
+    # ---------------------------------------------------------------------------
+
+    def test_decode_shapes_roundtrip(self):
+        """decode_shapes is inverse of the _SHAPE_TO_INT mapping."""
+        shape_int = np.array([0, 1, 2, 0, 2], dtype=np.int32)
+        shapes = decode_shapes(shape_int)
+        expected = ["flat/blob", "bowl", "saddle", "flat/blob", "saddle"]
+        assert shapes == expected

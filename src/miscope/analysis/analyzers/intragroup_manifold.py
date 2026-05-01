@@ -19,10 +19,7 @@ from typing import Any
 import numpy as np
 
 from miscope.analysis.artifact_loader import ArtifactLoader
-from miscope.analysis.library.manifold_geometry import fit_quadratic_surface
-
-_SHAPE_TO_INT = {"flat/blob": 0, "bowl": 1, "saddle": 2}
-_INT_TO_SHAPE = {v: k for k, v in _SHAPE_TO_INT.items()}
+from miscope.analysis.library.shape import _SHAPE_TO_INT, characterize_surface
 
 
 class IntraGroupManifoldAnalyzer:
@@ -42,7 +39,7 @@ class IntraGroupManifoldAnalyzer:
         a             float32 (n_epochs, n_groups)    PC1² coefficient
         b             float32 (n_epochs, n_groups)    PC2² coefficient
         c             float32 (n_epochs, n_groups)    PC1·PC2 coefficient
-        shape_int     int32   (n_groups,)             final-epoch shape label
+        shape_int     int32   (n_epochs, n_groups)    shape label
                                                       (0=flat/blob, 1=bowl, 2=saddle)
     """
 
@@ -80,21 +77,24 @@ class IntraGroupManifoldAnalyzer:
         a_coeff = np.full((n_epochs, n_groups), np.nan, dtype=np.float32)
         b_coeff = np.full((n_epochs, n_groups), np.nan, dtype=np.float32)
         c_coeff = np.full((n_epochs, n_groups), np.nan, dtype=np.float32)
+        shape_int = np.full((n_epochs, n_groups), np.nan, dtype=np.float32)
 
         for ep_idx in range(n_epochs):
             for g_idx, members in enumerate(group_members):
                 proj = projections[ep_idx, members, :]  # (n_members, 3)
                 if np.any(np.isnan(proj)):
                     continue
-                result = fit_quadratic_surface(proj)
-                r2_linear[ep_idx, g_idx] = result["r2_linear"]
-                r2_quadratic[ep_idx, g_idx] = result["r2_quadratic"]
-                r2_curvature[ep_idx, g_idx] = result["r2_curvature"]
-                a_coeff[ep_idx, g_idx] = result["a"]
-                b_coeff[ep_idx, g_idx] = result["b"]
-                c_coeff[ep_idx, g_idx] = result["c"]
-
-        shape_int = _compute_final_shapes(r2_curvature, a_coeff, b_coeff, c_coeff, n_groups)
+                result = characterize_surface(proj)
+                r2_linear[ep_idx, g_idx] = result.r2_linear
+                r2_quadratic[ep_idx, g_idx] = result.r2_quadratic
+                r2_curvature[ep_idx, g_idx] = result.r2_curvature
+                a_coeff[ep_idx, g_idx] = result.a
+                b_coeff[ep_idx, g_idx] = result.b
+                c_coeff[ep_idx, g_idx] = result.c
+                if np.isnan(result.r2_curvature):
+                    shape_int[ep_idx, g_idx] = _SHAPE_TO_INT["flat/blob"]
+                else:
+                    shape_int[ep_idx, g_idx] = _SHAPE_TO_INT[result.shape]
 
         return {
             "group_freqs": group_freqs.astype(np.int32),
@@ -110,40 +110,12 @@ class IntraGroupManifoldAnalyzer:
         }
 
 
-def decode_shapes(shape_int: np.ndarray) -> list[str]:
-    """Convert integer shape labels back to human-readable strings."""
-    return [_INT_TO_SHAPE.get(int(v), "flat/blob") for v in shape_int]
-
-
 def _build_group_members(
     neuron_group_idx: np.ndarray,
     n_groups: int,
 ) -> list[np.ndarray]:
     """Reconstruct per-group member index arrays from the flat label array."""
     return [np.where(neuron_group_idx == g)[0] for g in range(n_groups)]
-
-
-def _compute_final_shapes(
-    r2_curvature: np.ndarray,
-    a_coeff: np.ndarray,
-    b_coeff: np.ndarray,
-    c_coeff: np.ndarray,
-    n_groups: int,
-) -> np.ndarray:
-    """Derive shape label from the final epoch's fitted coefficients."""
-    from miscope.analysis.library.manifold_geometry import _classify_shape
-
-    shape_int = np.zeros(n_groups, dtype=np.int32)
-    for g_idx in range(n_groups):
-        r2c = float(r2_curvature[-1, g_idx])
-        a = float(a_coeff[-1, g_idx])
-        b = float(b_coeff[-1, g_idx])
-        c = float(c_coeff[-1, g_idx])
-        if np.isnan(r2c):
-            shape_int[g_idx] = _SHAPE_TO_INT["flat/blob"]
-        else:
-            shape_int[g_idx] = _SHAPE_TO_INT[_classify_shape(r2c, a, b, c)]
-    return shape_int
 
 
 def _empty_result(epochs: np.ndarray) -> dict[str, np.ndarray]:

@@ -7,18 +7,49 @@ typed result describing the shape. Projection / coordinate-frame
 materialization is the caller's responsibility — never re-derived inside
 a measure.
 
-Centroid-shape characterizations (caller passes a 2D PCA projection):
+Point-cloud shape characterizations (caller passes a 2D/3D PCA projection):
 - characterize_circularity: how well projected points lie on a circle.
 - characterize_fourier_alignment: angular ordering matches residue-class ordering.
+- characterize_surface: quadratic-surface fit — flat / bowl / saddle classification.
 
 Curve-shape characterizations (caller passes a 2D/3D curve in coordinates):
 - compute_arc_length: cumulative arc-length along a curve.
 - detect_self_intersection: locate the lemniscate node — the closest self-approach.
 - compute_signed_loop_area: signed area enclosed by a loop segment.
 - compute_curvature_profile: signed curvature κ(s) along a 2D curve.
+
+Trajectory-dynamics characterizations (caller passes a time-ordered curve):
+- characterize_jerk: third time-derivative; spikes at regime transitions.
 """
 
+from typing import NamedTuple
+
 import numpy as np
+
+
+class SurfaceParameters(NamedTuple):
+    """Quadratic-surface fit result describing whether a 3D point cloud is
+    flat, bowl-shaped, or saddle-shaped.
+
+    Fields:
+        r2_linear: R² of a planar fit ``z = d·x + e·y + f`` — captures tilt only.
+        r2_quadratic: R² of the full quadratic fit ``z = a·x² + b·y² + c·x·y + d·x + e·y + f``.
+        r2_curvature: ``r2_quadratic − r2_linear`` clamped to [0, 1]. Variance
+            explained by the quadratic terms net of any planar tilt.
+        a: x² coefficient.
+        b: y² coefficient.
+        c: x·y coefficient.
+        shape: ``"flat/blob"``, ``"bowl"``, or ``"saddle"`` per the Hessian
+            determinant ``4ab − c²``.
+    """
+
+    r2_linear: float
+    r2_quadratic: float
+    r2_curvature: float
+    a: float
+    b: float
+    c: float
+    shape: str
 
 
 def characterize_circularity(projection_2d: np.ndarray, var_explained: float) -> float:
@@ -263,3 +294,183 @@ def compute_curvature_profile(
         "s_raw": arc,
         "kappa_raw": kappa_raw,
     }
+
+
+# ---------------------------------------------------------------------------
+# Trajectory-dynamics characterizations
+# ---------------------------------------------------------------------------
+
+
+def characterize_jerk(
+    trajectory: np.ndarray,
+    time_axis: np.ndarray | None = None,
+) -> np.ndarray:
+    """Per-timestep jerk: the third time-derivative of position.
+
+    Jerk is the rate of change of acceleration. A trajectory accelerating
+    smoothly along a fixed curve has near-zero jerk; trajectories that
+    *suddenly* change their acceleration (regime transitions, kinks, tube
+    switches) show spikes in the jerk magnitude. Useful as a higher-order
+    regime-change detector — picks up transitions that velocity and
+    acceleration have not yet bent through.
+
+    Computed via :func:`numpy.gradient` chained three times. Central
+    differences with arc-length / epoch-gap parameterization handle
+    non-uniform timestep spacing correctly.
+
+    Args:
+        trajectory: ``(n_timesteps, d)`` time-ordered curve in some
+            coordinate frame.
+        time_axis: ``(n_timesteps,)`` per-step time labels (e.g. epoch
+            numbers). When omitted, uniform unit spacing is assumed.
+
+    Returns:
+        ``(n_timesteps, d)`` jerk vector at each timestep. Caller takes
+        ``np.linalg.norm(jerk, axis=1)`` for a scalar magnitude per
+        timestep if a single channel for spike detection is wanted.
+    """
+    if trajectory.ndim != 2:
+        raise ValueError(f"characterize_jerk expects 2D input, got shape {trajectory.shape}")
+    if trajectory.shape[0] < 4:
+        raise ValueError(
+            f"characterize_jerk needs at least 4 timesteps to compute a third "
+            f"derivative; got {trajectory.shape[0]}"
+        )
+    # edge_order=2 gives second-order accurate one-sided differences at the
+    # boundaries — exact on quadratics, far less boundary contamination than
+    # the default first-order behavior when chained three times.
+    if time_axis is None:
+        velocity = np.gradient(trajectory, axis=0, edge_order=2)
+        accel = np.gradient(velocity, axis=0, edge_order=2)
+        jerk = np.gradient(accel, axis=0, edge_order=2)
+    else:
+        if time_axis.ndim != 1 or time_axis.shape[0] != trajectory.shape[0]:
+            raise ValueError(
+                f"time_axis must be 1D with length n_timesteps={trajectory.shape[0]}; "
+                f"got shape {time_axis.shape}"
+            )
+        velocity = np.gradient(trajectory, time_axis, axis=0, edge_order=2)
+        accel = np.gradient(velocity, time_axis, axis=0, edge_order=2)
+        jerk = np.gradient(accel, time_axis, axis=0, edge_order=2)
+    return jerk
+
+
+# ---------------------------------------------------------------------------
+# Point-cloud surface characterization (quadratic fit: flat / bowl / saddle)
+# ---------------------------------------------------------------------------
+
+
+_SURFACE_FLAT_THRESHOLD = 0.05
+_SURFACE_MIN_POINTS = 7  # minimum to fit 6 quadratic parameters
+
+_SHAPE_TO_INT = {"flat/blob": 0, "bowl": 1, "saddle": 2}
+_INT_TO_SHAPE = {v: k for k, v in _SHAPE_TO_INT.items()}
+
+
+def characterize_surface(point_cloud_3d: np.ndarray) -> SurfaceParameters:
+    """Fit a quadratic surface to a 3D point cloud and classify the shape.
+
+    Treats the first two columns as predictors and the third as response,
+    then runs a two-stage regression to isolate curvature from planar tilt:
+
+        Stage 1 (linear):    z = d·x + e·y + f
+        Stage 2 (quadratic): z = a·x² + b·y² + c·x·y + d·x + e·y + f
+
+    ``r2_curvature = r2_quadratic − r2_linear`` captures only the variance
+    explained by the quadratic terms net of any planar tilt — robust even
+    when the projection is not perfectly centered.
+
+    Shape classification uses the Hessian determinant ``4ab − c²``, which
+    is rotation-invariant: a saddle rotated away from the coordinate axes
+    is still detected even when ``a`` and ``b`` share the same sign.
+
+    Args:
+        point_cloud_3d: ``(n_points, 3)`` array. Typically the top-3 PCA
+            projection of a neuron group's weight vectors. Must have at
+            least 7 rows for a meaningful quadratic fit; smaller inputs
+            return NaN parameters and ``shape="flat/blob"``.
+
+    Returns:
+        :class:`SurfaceParameters`.
+    """
+    if point_cloud_3d.shape[0] < _SURFACE_MIN_POINTS:
+        return _surface_nan_result()
+
+    x = point_cloud_3d[:, 0]
+    y = point_cloud_3d[:, 1]
+    z = point_cloud_3d[:, 2]
+
+    r2_linear, _ = _fit_surface_linear(x, y, z)
+    r2_quadratic, (a, b, c) = _fit_surface_quadratic(x, y, z)
+
+    r2_curvature = float(np.clip(r2_quadratic - r2_linear, 0.0, 1.0))
+    shape = _classify_surface_shape(r2_curvature, a, b, c)
+
+    return SurfaceParameters(
+        r2_linear=float(r2_linear),
+        r2_quadratic=float(r2_quadratic),
+        r2_curvature=r2_curvature,
+        a=float(a),
+        b=float(b),
+        c=float(c),
+        shape=shape,
+    )
+
+
+def decode_shapes(shape_int: np.ndarray) -> list[str]:
+    """Convert integer shape labels back to human-readable strings."""
+    return [_INT_TO_SHAPE.get(int(v), "flat/blob") for v in shape_int]
+
+
+def _fit_surface_linear(
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+) -> tuple[float, np.ndarray]:
+    """Fit ``z = d·x + e·y + f`` via least squares."""
+    X = np.column_stack([x, y, np.ones_like(x)])
+    coeffs, _, _, _ = np.linalg.lstsq(X, z, rcond=None)
+    return _surface_r2(z, X @ coeffs), coeffs
+
+
+def _fit_surface_quadratic(
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+) -> tuple[float, tuple[float, float, float]]:
+    """Fit ``z = a·x² + b·y² + c·x·y + d·x + e·y + f`` via least squares."""
+    X = np.column_stack([x**2, y**2, x * y, x, y, np.ones_like(x)])
+    coeffs, _, _, _ = np.linalg.lstsq(X, z, rcond=None)
+    a, b, c = float(coeffs[0]), float(coeffs[1]), float(coeffs[2])
+    return _surface_r2(z, X @ coeffs), (a, b, c)
+
+
+def _surface_r2(y: np.ndarray, y_hat: np.ndarray) -> float:
+    """Coefficient of determination for a regression fit."""
+    ss_res = float(np.sum((y - y_hat) ** 2))
+    ss_tot = float(np.sum((y - y.mean()) ** 2))
+    if ss_tot < 1e-12:
+        return 0.0
+    return float(np.clip(1.0 - ss_res / ss_tot, 0.0, 1.0))
+
+
+def _classify_surface_shape(r2_curvature: float, a: float, b: float, c: float) -> str:
+    """Classify surface from curvature R² and quadratic coefficients."""
+    if r2_curvature < _SURFACE_FLAT_THRESHOLD:
+        return "flat/blob"
+    if 4 * a * b - c**2 > 0:
+        return "bowl"
+    return "saddle"
+
+
+def _surface_nan_result() -> SurfaceParameters:
+    """NaN result for point clouds too small for a meaningful fit."""
+    return SurfaceParameters(
+        r2_linear=float("nan"),
+        r2_quadratic=float("nan"),
+        r2_curvature=float("nan"),
+        a=float("nan"),
+        b=float("nan"),
+        c=float("nan"),
+        shape="flat/blob",
+    )
