@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import torch
-import tqdm.auto as tqdm
+from tqdm import tqdm
 from safetensors.torch import load_file, save_file
 
 from miscope.families.types import VariantState
@@ -542,7 +542,7 @@ class Variant:
         saved_checkpoint_epochs: list[int] = []
 
         # Training loop
-        for epoch in tqdm.tqdm(range(num_epochs), desc="Training"):
+        for epoch in tqdm(range(num_epochs), desc="Training"):
             # Forward pass — apply intervention hooks if provided for this epoch
             fwd_hooks = training_hook(epoch) if training_hook is not None else []
             if fwd_hooks:

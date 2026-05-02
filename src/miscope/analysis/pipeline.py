@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
-import tqdm.auto as tqdm
+from tqdm import tqdm
 
 from miscope.analysis.protocols import (
     ActivationContext,
@@ -171,7 +171,7 @@ class AnalysisPipeline:
             summary_collectors = self._build_summary_collectors(work_queue)
 
             total_epochs = len(all_epochs_needed)
-            for i, epoch in enumerate(tqdm.tqdm(all_epochs_needed, desc="Analyzing checkpoints")):
+            for i, epoch in enumerate(tqdm(all_epochs_needed, desc="Analyzing checkpoints")):
                 if progress_callback:
                     progress_callback(
                         i / total_epochs,
@@ -494,7 +494,7 @@ class AnalysisPipeline:
                         "values": {k: [] for k in keys},
                     }
 
-            for i, epoch in enumerate(tqdm.tqdm(target_epochs, desc=f"Secondary: {analyzer.name}")):
+            for i, epoch in enumerate(tqdm(target_epochs, desc=f"Secondary: {analyzer.name}")):
                 if progress_callback:
                     progress_callback(
                         0.8 + 0.1 * i / len(target_epochs),
