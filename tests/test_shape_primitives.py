@@ -6,8 +6,10 @@ import pytest
 from miscope.analysis.library.shape import (
     _SURFACE_MIN_POINTS,
     LissajousParameters,
+    SigmoidalityParameters,
     characterize_jerk,
     characterize_lissajous,
+    characterize_sigmoidality,
     characterize_surface,
     compute_arc_length,
     compute_curvature_profile,
@@ -474,3 +476,116 @@ class TestCharacterizeLissajous:
     def test_rejects_invalid_period_axis(self):
         with pytest.raises(ValueError, match="period_axis must be 0 or 1"):
             characterize_lissajous(np.zeros((31, 2)), period_axis=2)
+
+
+# ── 1D series: characterize_sigmoidality ───────────────────────────────
+
+
+def _logistic_signal(t: np.ndarray, amplitude: float, midpoint: float,
+                     slope: float, baseline: float) -> np.ndarray:
+    """Reference logistic for test signal generation."""
+    return baseline + amplitude / (1.0 + np.exp(-(t - midpoint) / slope))
+
+
+class TestCharacterizeSigmoidality:
+    def test_returns_typed_result(self):
+        t = np.linspace(0, 1, 30)
+        values = _logistic_signal(t, 1.0, 0.5, 0.1, 0.0)
+        result = characterize_sigmoidality(values)
+        assert isinstance(result, SigmoidalityParameters)
+
+    def test_pure_logistic_high_sigmoidality(self):
+        # Clean logistic → r2_sig ≈ 1, r2_lin lower, sigmoidality clearly positive
+        t = np.linspace(0, 1, 50)
+        values = _logistic_signal(t, 1.0, 0.5, 0.08, 0.0)
+        result = characterize_sigmoidality(values, time_axis=t)
+        assert result.sigmoid_converged is True
+        assert result.r2_sigmoid == pytest.approx(1.0, abs=1e-3)
+        assert result.r2_linear < 0.95
+        assert result.sigmoidality > 0.05
+
+    def test_pure_line_low_sigmoidality(self):
+        # Linear ramp → sigmoid is general enough to fit, but Δ stays near 0
+        t = np.linspace(0, 1, 50)
+        values = 0.3 + 0.7 * t
+        result = characterize_sigmoidality(values, time_axis=t)
+        assert result.sigmoid_converged is True
+        assert result.r2_linear == pytest.approx(1.0, abs=1e-6)
+        assert abs(result.sigmoidality) < 0.01
+
+    def test_recovers_logistic_parameters(self):
+        # Inject known sigmoid params and recover them in caller's scale
+        t = np.linspace(0, 100, 80)
+        amp_in = 5.0
+        mid_in = 50.0
+        slope_in = 4.0
+        base_in = 1.0
+        values = _logistic_signal(t, amp_in, mid_in, slope_in, base_in)
+        result = characterize_sigmoidality(values, time_axis=t)
+        assert result.sigmoid_converged is True
+        assert result.amplitude == pytest.approx(amp_in, rel=1e-3)
+        assert result.midpoint == pytest.approx(mid_in, abs=0.5)
+        assert result.slope == pytest.approx(slope_in, rel=1e-2)
+        assert result.baseline == pytest.approx(base_in, abs=1e-3)
+
+    def test_constant_input_returns_zero_sigmoidality(self):
+        values = np.full(20, 3.5)
+        result = characterize_sigmoidality(values)
+        assert result.r2_sigmoid == 1.0
+        assert result.r2_linear == 1.0
+        assert result.sigmoidality == 0.0
+        assert result.sigmoid_converged is False
+        assert np.isnan(result.amplitude)
+        assert np.isnan(result.midpoint)
+        assert np.isnan(result.slope)
+        assert result.baseline == pytest.approx(3.5)
+
+    def test_uniform_time_axis_default(self):
+        # No time_axis argument → arange(n); fit still works
+        n = 40
+        t = np.arange(n, dtype=np.float64)
+        values = _logistic_signal(t, 1.0, n / 2, 3.0, 0.0)
+        result = characterize_sigmoidality(values)
+        assert result.sigmoid_converged is True
+        assert result.r2_sigmoid > 0.99
+        assert result.midpoint == pytest.approx(n / 2, abs=1.0)
+
+    def test_explicit_nonuniform_time_axis(self):
+        # Non-uniform sampling: dense early, sparse late
+        t = np.concatenate([np.linspace(0, 0.5, 20), np.linspace(0.55, 1.0, 10)])
+        values = _logistic_signal(t, 1.0, 0.5, 0.1, 0.0)
+        result = characterize_sigmoidality(values, time_axis=t)
+        assert result.sigmoid_converged is True
+        assert result.r2_sigmoid > 0.99
+        assert result.midpoint == pytest.approx(0.5, abs=0.05)
+
+    def test_amplitude_offset_recovered_in_caller_scale(self):
+        # Sigmoid centered far from origin with large amplitude
+        t = np.linspace(-50, 50, 60)
+        values = _logistic_signal(t, 20.0, 10.0, 5.0, -3.0)
+        result = characterize_sigmoidality(values, time_axis=t)
+        assert result.amplitude == pytest.approx(20.0, rel=1e-2)
+        assert result.baseline == pytest.approx(-3.0, abs=0.1)
+        assert result.midpoint == pytest.approx(10.0, abs=1.0)
+
+    def test_noise_robustness(self):
+        # Sigmoid + small noise → sigmoidality still positive
+        rng = np.random.default_rng(0)
+        t = np.linspace(0, 1, 80)
+        values = _logistic_signal(t, 1.0, 0.5, 0.08, 0.0) + 0.02 * rng.standard_normal(80)
+        result = characterize_sigmoidality(values, time_axis=t)
+        assert result.sigmoidality > 0.04
+        assert result.r2_sigmoid > 0.97
+
+    def test_rejects_non_1d_input(self):
+        with pytest.raises(ValueError, match="1D values"):
+            characterize_sigmoidality(np.zeros((10, 2)))
+
+    def test_rejects_too_few_points(self):
+        with pytest.raises(ValueError, match="at least 6 points"):
+            characterize_sigmoidality(np.zeros(5))
+
+    def test_rejects_time_axis_length_mismatch(self):
+        values = np.zeros(20)
+        with pytest.raises(ValueError, match="length 20"):
+            characterize_sigmoidality(values, time_axis=np.arange(15))

@@ -20,6 +20,8 @@ Curve-shape characterizations (caller passes a 2D/3D curve in coordinates):
 
 Trajectory-dynamics characterizations (caller passes a time-ordered curve):
 - characterize_jerk: third time-derivative; spikes at regime transitions.
+- characterize_sigmoidality: 1D sigmoid-vs-linear fit comparison; the
+  Δ = R²_sig − R²_lin metric measures saddle-transit-likeness of a segment.
 
 Periodic-trajectory shape characterizations (caller passes a 2D trajectory
 parameterized over a periodic domain):
@@ -30,6 +32,7 @@ parameterized over a periodic domain):
 from typing import NamedTuple
 
 import numpy as np
+from scipy.optimize import curve_fit
 
 from miscope.analysis.library.fourier_basis import (
     get_fourier_basis,
@@ -363,6 +366,181 @@ def characterize_jerk(
         accel = np.gradient(velocity, time_axis, axis=0, edge_order=2)
         jerk = np.gradient(accel, time_axis, axis=0, edge_order=2)
     return jerk
+
+
+# ---------------------------------------------------------------------------
+# Sigmoidality: 1D sigmoid-vs-linear fit comparison
+# ---------------------------------------------------------------------------
+
+
+class SigmoidalityParameters(NamedTuple):
+    """Sigmoid-vs-linear fit comparison for a 1D series.
+
+    Reports both fit qualities and their difference. High ``sigmoidality``
+    indicates a saddle-transit-like shape (slow-fast-slow) that linear
+    fits cannot explain. Low ``sigmoidality`` means linear is sufficient
+    — drift, not transit.
+
+    Sigmoid form (caller's input scale):
+    ``f(t) = baseline + amplitude / (1 + exp(-(t - midpoint) / slope))``
+
+    A true saddle-mediated heteroclinic transit is exponential leave + arrive
+    parameterized by the saddle's eigenvalues. Sigmoid is a useful *shape
+    proxy* — sigmoidality quantifies "transit-likeness" of the shape, not
+    the underlying dynamics. Pair with eigenvalue-aware analysis when
+    investigating saddle structure rigorously.
+
+    Fields:
+        r2_sigmoid: R² of the bounded logistic fit.
+        r2_linear: R² of the best-fit line.
+        sigmoidality: ``r2_sigmoid − r2_linear``. Headline metric. Positive
+            means sigmoid explains the segment better than a line; near
+            zero means linear is sufficient; negative occurs when the
+            sigmoid fit fails to converge.
+        amplitude: Asymptotic span (upper − lower plateau), caller's scale.
+        midpoint: Time at which the sigmoid passes through half-amplitude,
+            caller's time-scale.
+        slope: Rate parameter — smaller is steeper. Caller's time-units.
+        baseline: Lower plateau value, caller's value-scale.
+        sigmoid_converged: ``False`` if the bounded ``curve_fit`` raised
+            (in which case ``r2_sigmoid = 0`` and the four sigmoid
+            parameters are NaN).
+    """
+
+    r2_sigmoid: float
+    r2_linear: float
+    sigmoidality: float
+    amplitude: float
+    midpoint: float
+    slope: float
+    baseline: float
+    sigmoid_converged: bool
+
+
+def _logistic(t: np.ndarray, amplitude: float, midpoint: float, slope: float, baseline: float) -> np.ndarray:
+    """Four-parameter logistic. ``slope`` is floored at 1e-6 for stability."""
+    return baseline + amplitude / (1.0 + np.exp(-(t - midpoint) / max(slope, 1e-6)))
+
+
+def characterize_sigmoidality(
+    values: np.ndarray,
+    time_axis: np.ndarray | None = None,
+) -> SigmoidalityParameters:
+    """Fit a sigmoid and a line to a 1D series; report fit quality and difference.
+
+    Internally normalizes both ``values`` and ``time_axis`` to ``[0, 1]``
+    for numerical stability and stable parameter bounds, then de-normalizes
+    sigmoid parameters back to the caller's input scale before returning.
+    R² values are scale-invariant.
+
+    Saddle-transport context: when the caller has projected a multi-D
+    segment onto its endpoint chord, the resulting 1D coordinate has a
+    sigmoid-like shape if the segment passes through a saddle (slow on
+    approach, fast through the saddle neck, slow on departure). The Δ
+    metric quantifies this. Δ ≥ 0.05 = saddle-like; 0.02–0.05 = mildly
+    sigmoidal; < 0.02 = drift-like (linear traversal).
+
+    Args:
+        values: ``(n,)`` 1D series.
+        time_axis: ``(n,)`` 1D time labels. If ``None``, ``arange(n)`` is
+            used (uniform unit spacing).
+
+    Returns:
+        :class:`SigmoidalityParameters`.
+    """
+    values = np.asarray(values, dtype=np.float64)
+    if values.ndim != 1:
+        raise ValueError(
+            f"characterize_sigmoidality expects 1D values, got shape {values.shape}"
+        )
+    n = values.shape[0]
+    if n < 6:
+        raise ValueError(
+            f"characterize_sigmoidality needs at least 6 points to fit a 4-parameter "
+            f"sigmoid; got {n}"
+        )
+    if time_axis is None:
+        t = np.arange(n, dtype=np.float64)
+    else:
+        t = np.asarray(time_axis, dtype=np.float64)
+        if t.ndim != 1 or t.shape[0] != n:
+            raise ValueError(
+                f"time_axis must be 1D with length {n}; got shape {t.shape}"
+            )
+
+    t_min = float(t.min())
+    t_range = float(t.max() - t_min)
+    v_min = float(values.min())
+    v_range = float(values.max() - v_min)
+
+    # Constant input: both fits are perfect on a degenerate signal.
+    if v_range < 1e-12:
+        return SigmoidalityParameters(
+            r2_sigmoid=1.0,
+            r2_linear=1.0,
+            sigmoidality=0.0,
+            amplitude=float("nan"),
+            midpoint=float("nan"),
+            slope=float("nan"),
+            baseline=v_min,
+            sigmoid_converged=False,
+        )
+
+    # Normalize time and value to [0, 1]; t_range > 0 enforced by the
+    # uniform-arange fallback when time_axis is None and by upstream
+    # caller convention when explicit (zero range = constant t = nonsense).
+    t_norm = (t - t_min) / t_range if t_range > 0 else np.linspace(0.0, 1.0, n)
+    v_norm = (values - v_min) / v_range
+
+    # Linear fit
+    coef = np.polyfit(t_norm, v_norm, 1)
+    v_lin = np.polyval(coef, t_norm)
+    ss_res_lin = float(np.sum((v_norm - v_lin) ** 2))
+
+    # Sigmoid fit (bounds chosen for [0, 1]-normalized data)
+    sigmoid_converged = True
+    popt = None
+    try:
+        popt, _ = curve_fit(
+            _logistic,
+            t_norm,
+            v_norm,
+            p0=[1.0, 0.5, 0.15, 0.0],
+            bounds=([0.1, -0.5, 0.01, -0.5], [2.0, 1.5, 1.0, 0.5]),
+            maxfev=5000,
+        )
+        v_sig = _logistic(t_norm, *popt)
+        ss_res_sig = float(np.sum((v_norm - v_sig) ** 2))
+    except (RuntimeError, ValueError):
+        sigmoid_converged = False
+        ss_res_sig = float("inf")
+
+    ss_tot = float(np.sum((v_norm - v_norm.mean()) ** 2)) + 1e-12
+    r2_sig = 1.0 - ss_res_sig / ss_tot if sigmoid_converged else 0.0
+    r2_lin = 1.0 - ss_res_lin / ss_tot
+
+    if sigmoid_converged and popt is not None:
+        a_n, c_n, s_n, b_n = popt
+        amplitude = float(a_n * v_range)
+        midpoint = float(t_min + c_n * t_range)
+        slope = float(s_n * t_range)
+        baseline = float(v_min + b_n * v_range)
+    else:
+        amplitude = float("nan")
+        midpoint = float("nan")
+        slope = float("nan")
+        baseline = float("nan")
+
+    return SigmoidalityParameters(
+        r2_sigmoid=float(r2_sig),
+        r2_linear=float(r2_lin),
+        sigmoidality=float(r2_sig - r2_lin),
+        amplitude=amplitude,
+        midpoint=midpoint,
+        slope=slope,
+        baseline=baseline,
+        sigmoid_converged=sigmoid_converged,
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -44,11 +44,13 @@ from miscope.analysis.library.geometry import find_circularity_crossovers
 from miscope.analysis.library.landscape import compute_landscape_flatness
 from miscope.analysis.library.shape import (
     LissajousParameters,
+    SigmoidalityParameters,
     SurfaceParameters,
     characterize_circularity,
     characterize_fourier_alignment,
     characterize_jerk,
     characterize_lissajous,
+    characterize_sigmoidality,
     characterize_surface,
     compute_arc_length,
     compute_curvature_profile,
@@ -109,6 +111,8 @@ __all__ = [
     "compute_curvature_profile",
     # Trajectory dynamics
     "characterize_jerk",
+    "characterize_sigmoidality",
+    "SigmoidalityParameters",
     # Geometry helpers
     "find_circularity_crossovers",
     # Fourier weight composition
