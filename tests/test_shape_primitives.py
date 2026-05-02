@@ -5,7 +5,9 @@ import pytest
 
 from miscope.analysis.library.shape import (
     _SURFACE_MIN_POINTS,
+    LissajousParameters,
     characterize_jerk,
+    characterize_lissajous,
     characterize_surface,
     compute_arc_length,
     compute_curvature_profile,
@@ -342,3 +344,133 @@ class TestCharacterizeSaddle:
         shapes = decode_shapes(shape_int)
         expected = ["flat/blob", "bowl", "saddle", "flat/blob", "saddle"]
         assert shapes == expected
+
+
+# ── Periodic 2D trajectory: characterize_lissajous ─────────────────────
+
+
+def _lissajous_pure(period: int, kx: int, ky: int, amp_x: float, amp_y: float,
+                    phase_x: float, phase_y: float) -> np.ndarray:
+    """Pure-mode Lissajous trajectory: shape (period, 2)."""
+    t = np.arange(period)
+    angle = 2 * np.pi * t / period
+    x = amp_x * np.cos(kx * angle - phase_x)
+    y = amp_y * np.cos(ky * angle - phase_y)
+    return np.column_stack([x, y])
+
+
+class TestCharacterizeLissajous:
+    def test_returns_typed_result(self):
+        traj = _lissajous_pure(31, 1, 1, 1.0, 1.0, 0.0, 0.0)
+        result = characterize_lissajous(traj)
+        assert isinstance(result, LissajousParameters)
+
+    def test_pure_ellipse_quarter_phase(self):
+        # x = cos(2π·3·t/N), y = sin(2π·3·t/N) = cos(2π·3·t/N − π/2)
+        period = 31
+        traj = _lissajous_pure(period, 3, 3, 1.0, 1.0, 0.0, np.pi / 2)
+        result = characterize_lissajous(traj)
+        assert result.frequency_x == 3
+        assert result.frequency_y == 3
+        assert result.same_frequency is True
+        assert result.amplitude_x == pytest.approx(1.0, abs=1e-10)
+        assert result.amplitude_y == pytest.approx(1.0, abs=1e-10)
+        assert result.amplitude_ratio == pytest.approx(1.0, abs=1e-10)
+        assert result.phase_offset == pytest.approx(np.pi / 2, abs=1e-10)
+        assert result.joint_r2 == pytest.approx(1.0, abs=1e-10)
+        assert result.r2_x == pytest.approx(1.0, abs=1e-10)
+        assert result.r2_y == pytest.approx(1.0, abs=1e-10)
+
+    def test_diagonal_line_zero_phase(self):
+        # x = y = cos(2π·k·t/N) → identical axes, phase_offset = 0
+        period = 31
+        traj = _lissajous_pure(period, 4, 4, 1.0, 1.0, 0.0, 0.0)
+        result = characterize_lissajous(traj)
+        assert result.frequency_x == 4
+        assert result.frequency_y == 4
+        assert result.phase_offset == pytest.approx(0.0, abs=1e-10)
+        assert result.amplitude_ratio == pytest.approx(1.0, abs=1e-10)
+        assert result.joint_r2 == pytest.approx(1.0, abs=1e-10)
+
+    def test_three_to_two_lissajous(self):
+        # x at freq 3, y at freq 2 → classic 3:2 Lissajous
+        period = 31
+        traj = _lissajous_pure(period, 3, 2, 1.0, 1.0, 0.0, 0.0)
+        result = characterize_lissajous(traj)
+        assert result.frequency_x == 3
+        assert result.frequency_y == 2
+        assert result.same_frequency is False
+        assert result.joint_r2 == pytest.approx(1.0, abs=1e-10)
+
+    def test_amplitude_ratio_recovers_kappa(self):
+        # Different amplitudes per axis: amp_y / amp_x = κ
+        period = 31
+        kappa = 2.5
+        traj = _lissajous_pure(period, 5, 5, 1.0, kappa, 0.0, np.pi / 2)
+        result = characterize_lissajous(traj)
+        assert result.amplitude_x == pytest.approx(1.0, abs=1e-10)
+        assert result.amplitude_y == pytest.approx(kappa, abs=1e-10)
+        assert result.amplitude_ratio == pytest.approx(kappa, abs=1e-10)
+
+    def test_phase_offset_recovers_input_shift(self):
+        # phase_y − phase_x should match the input phase difference
+        period = 31
+        phi_x = np.pi / 6
+        phi_y = -np.pi / 4
+        traj = _lissajous_pure(period, 4, 4, 1.0, 1.0, phi_x, phi_y)
+        result = characterize_lissajous(traj)
+        # Recovered phase_offset = phase_y − phase_x = phi_y − phi_x
+        # (signed, wrapped to (−π, π])
+        expected = (phi_y - phi_x + np.pi) % (2 * np.pi) - np.pi
+        assert result.phase_offset == pytest.approx(expected, abs=1e-10)
+
+    def test_natural_amplitude_matches_signal_space(self):
+        # Reconstruction with returned (amp, phase, freq) should match input
+        period = 31
+        amp_in = 3.7
+        phi_in = np.pi / 5
+        traj = _lissajous_pure(period, 4, 6, amp_in, 1.0, phi_in, 0.0)
+        result = characterize_lissajous(traj)
+        t = np.arange(period)
+        recon_x = result.amplitude_x * np.cos(
+            2 * np.pi * result.frequency_x * t / period - result.phase_x
+        )
+        np.testing.assert_allclose(recon_x, traj[:, 0], atol=1e-10)
+
+    def test_low_joint_r2_with_noisy_axis(self):
+        # Clean cosine on x, broadband noise on y → r2_y small, joint_r2 < 1
+        period = 113
+        rng = np.random.default_rng(0)
+        t = np.arange(period)
+        x = np.cos(2 * np.pi * 5 * t / period)
+        y = rng.normal(size=period)
+        traj = np.column_stack([x, y])
+        result = characterize_lissajous(traj)
+        assert result.r2_x == pytest.approx(1.0, abs=1e-10)
+        assert result.r2_y < 0.3  # broadband noise spreads power across freqs
+        assert result.joint_r2 < 0.7
+
+    def test_period_axis_one(self):
+        # Same trajectory transposed, period_axis=1 → same result
+        period = 31
+        traj = _lissajous_pure(period, 3, 2, 1.0, 1.5, 0.0, np.pi / 4)
+        traj_T = traj.T  # shape (2, period)
+        a = characterize_lissajous(traj)
+        b = characterize_lissajous(traj_T, period_axis=1)
+        assert a.frequency_x == b.frequency_x
+        assert a.frequency_y == b.frequency_y
+        assert a.amplitude_ratio == pytest.approx(b.amplitude_ratio, abs=1e-12)
+        assert a.phase_offset == pytest.approx(b.phase_offset, abs=1e-12)
+        assert a.joint_r2 == pytest.approx(b.joint_r2, abs=1e-12)
+
+    def test_rejects_non_2d_input(self):
+        with pytest.raises(ValueError, match="2D input"):
+            characterize_lissajous(np.zeros(31))
+
+    def test_rejects_wrong_n_axes(self):
+        with pytest.raises(ValueError, match="two axes"):
+            characterize_lissajous(np.zeros((31, 3)))
+
+    def test_rejects_invalid_period_axis(self):
+        with pytest.raises(ValueError, match="period_axis must be 0 or 1"):
+            characterize_lissajous(np.zeros((31, 2)), period_axis=2)

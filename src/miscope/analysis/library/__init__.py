@@ -43,10 +43,12 @@ from miscope.analysis.library.fourier_basis import (
 from miscope.analysis.library.geometry import find_circularity_crossovers
 from miscope.analysis.library.landscape import compute_landscape_flatness
 from miscope.analysis.library.shape import (
+    LissajousParameters,
     SurfaceParameters,
     characterize_circularity,
     characterize_fourier_alignment,
     characterize_jerk,
+    characterize_lissajous,
     characterize_surface,
     compute_arc_length,
     compute_curvature_profile,
@@ -98,6 +100,8 @@ __all__ = [
     "characterize_fourier_alignment",
     "characterize_surface",
     "SurfaceParameters",
+    "characterize_lissajous",
+    "LissajousParameters",
     # Curve-shape helpers
     "compute_arc_length",
     "detect_self_intersection",
