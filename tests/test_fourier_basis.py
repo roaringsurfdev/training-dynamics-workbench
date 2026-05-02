@@ -284,7 +284,7 @@ class TestComputeSpecialization:
         fp = np.array(
             [
                 [0.0, 0.95, 0.05, 0.0, 0.0],  # specialized at bin 1
-                [0.4, 0.4, 0.2, 0.0, 0.0],    # dominant at bin 0 (or 1; argmax → 0), not specialized
+                [0.4, 0.4, 0.2, 0.0, 0.0],  # dominant at bin 0 (or 1; argmax → 0), not specialized
             ]
         )
         metrics = compute_specialization(fp, threshold=0.9)
