@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import torch
-from tqdm import tqdm
 from safetensors.torch import load_file, save_file
+from tqdm import tqdm
 
 from miscope.families.types import VariantState
 
