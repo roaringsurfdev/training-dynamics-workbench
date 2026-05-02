@@ -351,8 +351,9 @@ class TestCharacterizeSaddle:
 # ── Periodic 2D trajectory: characterize_lissajous ─────────────────────
 
 
-def _lissajous_pure(period: int, kx: int, ky: int, amp_x: float, amp_y: float,
-                    phase_x: float, phase_y: float) -> np.ndarray:
+def _lissajous_pure(
+    period: int, kx: int, ky: int, amp_x: float, amp_y: float, phase_x: float, phase_y: float
+) -> np.ndarray:
     """Pure-mode Lissajous trajectory: shape (period, 2)."""
     t = np.arange(period)
     angle = 2 * np.pi * t / period
@@ -481,8 +482,9 @@ class TestCharacterizeLissajous:
 # ── 1D series: characterize_sigmoidality ───────────────────────────────
 
 
-def _logistic_signal(t: np.ndarray, amplitude: float, midpoint: float,
-                     slope: float, baseline: float) -> np.ndarray:
+def _logistic_signal(
+    t: np.ndarray, amplitude: float, midpoint: float, slope: float, baseline: float
+) -> np.ndarray:
     """Reference logistic for test signal generation."""
     return baseline + amplitude / (1.0 + np.exp(-(t - midpoint) / slope))
 

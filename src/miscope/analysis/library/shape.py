@@ -417,7 +417,9 @@ class SigmoidalityParameters(NamedTuple):
     sigmoid_converged: bool
 
 
-def _logistic(t: np.ndarray, amplitude: float, midpoint: float, slope: float, baseline: float) -> np.ndarray:
+def _logistic(
+    t: np.ndarray, amplitude: float, midpoint: float, slope: float, baseline: float
+) -> np.ndarray:
     """Four-parameter logistic. ``slope`` is floored at 1e-6 for stability."""
     return baseline + amplitude / (1.0 + np.exp(-(t - midpoint) / max(slope, 1e-6)))
 
@@ -450,9 +452,7 @@ def characterize_sigmoidality(
     """
     values = np.asarray(values, dtype=np.float64)
     if values.ndim != 1:
-        raise ValueError(
-            f"characterize_sigmoidality expects 1D values, got shape {values.shape}"
-        )
+        raise ValueError(f"characterize_sigmoidality expects 1D values, got shape {values.shape}")
     n = values.shape[0]
     if n < 6:
         raise ValueError(
@@ -464,9 +464,7 @@ def characterize_sigmoidality(
     else:
         t = np.asarray(time_axis, dtype=np.float64)
         if t.ndim != 1 or t.shape[0] != n:
-            raise ValueError(
-                f"time_axis must be 1D with length {n}; got shape {t.shape}"
-            )
+            raise ValueError(f"time_axis must be 1D with length {n}; got shape {t.shape}")
 
     t_min = float(t.min())
     t_range = float(t.max() - t_min)
@@ -636,9 +634,7 @@ def characterize_lissajous(
         :class:`LissajousParameters`.
     """
     if trajectory.ndim != 2:
-        raise ValueError(
-            f"characterize_lissajous expects 2D input, got shape {trajectory.shape}"
-        )
+        raise ValueError(f"characterize_lissajous expects 2D input, got shape {trajectory.shape}")
     if period_axis == 1:
         trajectory = trajectory.T
     elif period_axis != 0:
