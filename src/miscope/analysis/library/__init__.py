@@ -36,6 +36,10 @@ from miscope.analysis.library.fourier import (
     get_fourier_basis,
     project_onto_fourier_basis,
 )
+from miscope.analysis.library.fourier_basis import (
+    SpecializationMetrics,
+    compute_specialization,
+)
 from miscope.analysis.library.geometry import find_circularity_crossovers
 from miscope.analysis.library.landscape import compute_landscape_flatness
 from miscope.analysis.library.shape import (
@@ -72,6 +76,9 @@ __all__ = [
     "compute_frequency_variance_fractions",
     "compute_neuron_coarseness",
     "extract_frequency_pairs",
+    # Fourier specialization summary
+    "compute_specialization",
+    "SpecializationMetrics",
     # Activation functions
     "extract_attention_patterns",
     "extract_mlp_activations",

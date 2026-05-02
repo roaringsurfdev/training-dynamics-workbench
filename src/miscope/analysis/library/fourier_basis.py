@@ -5,7 +5,9 @@ PCA pattern: ``get_fourier_basis(period)`` returns a typed
 :class:`PeriodicFourierBasis` (precomputed, reusable across many projections);
 ``project_onto_fourier_basis(X, basis)`` returns a typed
 :class:`FourierResult` carrying coefficients, magnitudes, phases, power,
-fractional power, and dominant frequency.
+fractional power, and dominant frequency. ``compute_specialization`` reduces
+a fractional-power array to :class:`SpecializationMetrics` — task-agnostic
+summary stats (specialized counts, mean/median max fractional power).
 
 Per the REQ_106 layering rule, the caller is responsible for composing the
 right matrix to project (e.g. extracting ``W_E`` rows along the token axis,
@@ -50,6 +52,50 @@ class PeriodicFourierBasis:
     cos_basis: np.ndarray
     sin_basis: np.ndarray
     frequencies: np.ndarray
+
+
+@dataclass(frozen=True)
+class SpecializationMetrics:
+    """Summary metrics over per-unit fractional Fourier power.
+
+    Computed from a ``fractional_power`` array (same convention as
+    :attr:`FourierResult.fractional_power` — per-unit power normalized
+    across frequencies). The frequency axis is reduced; counts are
+    aggregated across all other axes.
+
+    Attributes:
+        threshold: Specialization threshold applied. A unit is "specialized"
+            when its max fractional power on any frequency meets or exceeds
+            this value (e.g. 0.9 = 90% of the unit's power on a single bin).
+        n_frequencies: Length of the frequency axis on the input.
+        max_fractional_power: Per-unit max fractional power. Shape is
+            the input's shape with ``frequency_axis`` removed.
+        dominant_frequency_idx: Per-unit argmax along the frequency axis.
+            Same shape as ``max_fractional_power``. Note: this is the
+            integer bin index, not a frequency label — pair with
+            ``basis.frequencies`` if labels are needed.
+        specialized_mask: Boolean per-unit mask, True where
+            ``max_fractional_power >= threshold``.
+        specialized_count_total: Total specialized unit count, summed
+            across all non-frequency axes.
+        specialized_count_per_frequency: ``(n_frequencies,)`` count of
+            specialized units whose dominant frequency bin is ``f``,
+            summed across all non-frequency axes.
+        mean_max_fractional_power: Mean of ``max_fractional_power`` over
+            all non-frequency axes.
+        median_max_fractional_power: Median of ``max_fractional_power``
+            over all non-frequency axes.
+    """
+
+    threshold: float
+    n_frequencies: int
+    max_fractional_power: np.ndarray
+    dominant_frequency_idx: np.ndarray
+    specialized_mask: np.ndarray
+    specialized_count_total: int
+    specialized_count_per_frequency: np.ndarray
+    mean_max_fractional_power: float
+    median_max_fractional_power: float
 
 
 @dataclass(frozen=True)
@@ -192,4 +238,59 @@ def project_onto_fourier_basis(
         fractional_power=fractional_power,
         dominant_frequency=dominant_frequency,
         period_axis=period_axis,
+    )
+
+
+def compute_specialization(
+    fractional_power: np.ndarray,
+    threshold: float = 0.9,
+    frequency_axis: int = -1,
+) -> SpecializationMetrics:
+    """Summarize per-unit Fourier specialization.
+
+    A "unit" is anything that has its own fractional-power vector — a
+    neuron, an attention head, a centroid. The frequency axis is
+    reduced; aggregate counts are summed across all other axes.
+
+    Mirrors the existing ``neuron_freq_clusters`` analyzer's summary
+    semantics, lifted into the primitive layer so any analyzer that
+    produces a fractional-power array can reuse it. Domain-specific
+    bucketing (e.g. low/mid/high frequency thirds for modular addition)
+    stays in the analyzer — this primitive returns only task-agnostic
+    metrics.
+
+    Args:
+        fractional_power: Array of fractional power values along
+            ``frequency_axis``. Each unit's frequency-axis slice should
+            sum to 1 (or 0 for units with zero total power).
+        threshold: Specialization threshold (default 0.9). A unit is
+            specialized when its max fractional power meets or exceeds
+            this value.
+        frequency_axis: Axis along which frequencies live (default -1).
+
+    Returns:
+        :class:`SpecializationMetrics`.
+    """
+    fractional_power = np.asarray(fractional_power)
+    n_frequencies = fractional_power.shape[frequency_axis]
+
+    max_fractional_power = np.max(fractional_power, axis=frequency_axis)
+    dominant_frequency_idx = np.argmax(fractional_power, axis=frequency_axis)
+    specialized_mask = max_fractional_power >= threshold
+
+    specialized_count_per_frequency = np.bincount(
+        dominant_frequency_idx[specialized_mask].ravel(),
+        minlength=n_frequencies,
+    )
+
+    return SpecializationMetrics(
+        threshold=float(threshold),
+        n_frequencies=int(n_frequencies),
+        max_fractional_power=max_fractional_power,
+        dominant_frequency_idx=dominant_frequency_idx,
+        specialized_mask=specialized_mask,
+        specialized_count_total=int(np.sum(specialized_mask)),
+        specialized_count_per_frequency=specialized_count_per_frequency,
+        mean_max_fractional_power=float(np.mean(max_fractional_power)),
+        median_max_fractional_power=float(np.median(max_fractional_power)),
     )

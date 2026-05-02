@@ -6,6 +6,8 @@ import pytest
 from miscope.analysis.library.fourier_basis import (
     FourierResult,
     PeriodicFourierBasis,
+    SpecializationMetrics,
+    compute_specialization,
     get_fourier_basis,
     project_onto_fourier_basis,
 )
@@ -223,3 +225,122 @@ class TestProjectMultiUnit:
         result = project_onto_fourier_basis(X, basis, period_axis=-1)
         per_unit_sum = result.fractional_power.sum(axis=-1)
         np.testing.assert_allclose(per_unit_sum, 1.0, atol=1e-10)
+
+
+# ── Specialization summary metrics ───────────────────────────────────
+
+
+class TestComputeSpecialization:
+    def test_returns_typed_result(self):
+        # 3 units across 5 frequencies, no specialization
+        fp = np.full((3, 5), 0.2)
+        metrics = compute_specialization(fp)
+        assert isinstance(metrics, SpecializationMetrics)
+
+    def test_records_threshold_and_n_frequencies(self):
+        fp = np.full((4, 7), 1 / 7)
+        metrics = compute_specialization(fp, threshold=0.85)
+        assert metrics.threshold == 0.85
+        assert metrics.n_frequencies == 7
+
+    def test_per_unit_max_and_dominant(self):
+        # Three units, each fully specialized to a known bin
+        fp = np.zeros((3, 5))
+        fp[0, 1] = 1.0
+        fp[1, 4] = 1.0
+        fp[2, 0] = 1.0
+        metrics = compute_specialization(fp, threshold=0.9)
+        np.testing.assert_array_equal(metrics.max_fractional_power, [1.0, 1.0, 1.0])
+        np.testing.assert_array_equal(metrics.dominant_frequency_idx, [1, 4, 0])
+        np.testing.assert_array_equal(metrics.specialized_mask, [True, True, True])
+
+    def test_threshold_filters_specialized_units(self):
+        # Two specialized (max=1.0), one not specialized (max=0.5)
+        fp = np.array(
+            [
+                [1.0, 0.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0, 0.0],
+                [0.5, 0.5, 0.0, 0.0, 0.0],
+            ]
+        )
+        metrics = compute_specialization(fp, threshold=0.9)
+        assert metrics.specialized_count_total == 2
+        np.testing.assert_array_equal(metrics.specialized_mask, [True, True, False])
+
+    def test_specialized_count_per_frequency(self):
+        # Five units; dominants on bins [0, 0, 2, 2, 4], all above threshold
+        fp = np.zeros((5, 5))
+        fp[0, 0] = 1.0
+        fp[1, 0] = 1.0
+        fp[2, 2] = 1.0
+        fp[3, 2] = 1.0
+        fp[4, 4] = 1.0
+        metrics = compute_specialization(fp, threshold=0.9)
+        np.testing.assert_array_equal(metrics.specialized_count_per_frequency, [2, 0, 2, 0, 1])
+        assert metrics.specialized_count_total == 5
+
+    def test_unspecialized_units_excluded_from_per_frequency_count(self):
+        # Two units have dominant bin 1 but only one passes threshold
+        fp = np.array(
+            [
+                [0.0, 0.95, 0.05, 0.0, 0.0],  # specialized at bin 1
+                [0.4, 0.4, 0.2, 0.0, 0.0],    # dominant at bin 0 (or 1; argmax → 0), not specialized
+            ]
+        )
+        metrics = compute_specialization(fp, threshold=0.9)
+        np.testing.assert_array_equal(metrics.specialized_count_per_frequency, [0, 1, 0, 0, 0])
+        assert metrics.specialized_count_total == 1
+
+    def test_mean_and_median_max(self):
+        fp = np.array(
+            [
+                [0.1, 0.9, 0.0, 0.0],
+                [0.0, 0.0, 0.5, 0.5],
+                [0.7, 0.1, 0.1, 0.1],
+            ]
+        )
+        metrics = compute_specialization(fp, threshold=0.9)
+        # max per unit: [0.9, 0.5, 0.7] -> mean=0.7, median=0.7
+        assert metrics.mean_max_fractional_power == pytest.approx(0.7, abs=1e-10)
+        assert metrics.median_max_fractional_power == pytest.approx(0.7, abs=1e-10)
+
+    def test_frequency_axis_first(self):
+        # Shape (n_freq=5, n_units=3). frequency_axis=0.
+        fp = np.zeros((5, 3))
+        fp[1, 0] = 1.0
+        fp[4, 1] = 1.0
+        fp[2, 2] = 1.0
+        metrics = compute_specialization(fp, threshold=0.9, frequency_axis=0)
+        # Per-unit shapes drop the frequency axis: shape (3,)
+        assert metrics.max_fractional_power.shape == (3,)
+        np.testing.assert_array_equal(metrics.dominant_frequency_idx, [1, 4, 2])
+        np.testing.assert_array_equal(metrics.specialized_count_per_frequency, [0, 1, 1, 0, 1])
+
+    def test_no_specialized_units_returns_zero_counts(self):
+        # All units distribute power evenly — none crosses threshold
+        fp = np.full((4, 5), 0.2)
+        metrics = compute_specialization(fp, threshold=0.9)
+        assert metrics.specialized_count_total == 0
+        np.testing.assert_array_equal(
+            metrics.specialized_count_per_frequency, np.zeros(5, dtype=int)
+        )
+
+    def test_composes_with_project_onto_fourier_basis(self):
+        # End-to-end: pure-frequency signals → project → specialization
+        period = 31
+        basis = get_fourier_basis(period)
+        t = np.arange(period)
+        X = np.stack(
+            [
+                np.cos(2 * np.pi * 4 * t / period),
+                np.cos(2 * np.pi * 4 * t / period),
+                np.sin(2 * np.pi * 9 * t / period),
+            ]
+        )
+        result = project_onto_fourier_basis(X, basis, period_axis=-1)
+        metrics = compute_specialization(result.fractional_power, threshold=0.9)
+        # Pure-frequency signals concentrate all power on one bin → all specialized
+        assert metrics.specialized_count_total == 3
+        # Two units land on bin 3 (freq 4), one lands on bin 8 (freq 9)
+        assert metrics.specialized_count_per_frequency[3] == 2
+        assert metrics.specialized_count_per_frequency[8] == 1
