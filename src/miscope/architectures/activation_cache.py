@@ -17,8 +17,7 @@ library. The grep quarantine test (REQ_112) depends on this.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, KeysView, ValuesView, ItemsView
-from typing import Mapping
+from collections.abc import ItemsView, Iterator, KeysView, Mapping, ValuesView
 
 import torch
 
