@@ -69,10 +69,10 @@ class StubHookedModel(HookedModel):
 # ---------------------------------------------------------------------------
 
 
-def test_construction_populates_hook_points():
+def test_construction_publishes_hook():
     model = StubHookedModel()
-    assert CANARY_HOOK in model.hook_points
-    assert isinstance(model.hook_points[CANARY_HOOK], HookPoint)
+    assert CANARY_HOOK in model.hook_names()
+    assert isinstance(model._hook_points[CANARY_HOOK], HookPoint)
 
 
 def test_hook_names_returns_published_list():
@@ -141,7 +141,7 @@ def test_run_with_cache_cleans_up_capture_hooks():
     # The capture hooks registered via register_forward_hook live on the
     # nn.Module's _forward_hooks dict; they must be removed after the
     # call so subsequent forwards don't accumulate captures.
-    point = model.hook_points[CANARY_HOOK]
+    point = model._hook_points[CANARY_HOOK]
     assert len(point._forward_hooks) == 0
 
 
@@ -189,7 +189,7 @@ def test_run_with_hooks_cleans_up_after_call():
         torch.randn(1, 4),
         [(CANARY_HOOK, lambda t, *, hook: None)],
     )
-    point = model.hook_points[CANARY_HOOK]
+    point = model._hook_points[CANARY_HOOK]
     assert len(point._forward_hooks) == 0
 
 

@@ -1,10 +1,13 @@
 """Protocol definitions for analysis modules."""
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import numpy as np
 import torch
+
+if TYPE_CHECKING:
+    from miscope.architectures import ActivationCache, HookedModel
 
 
 @runtime_checkable
@@ -58,21 +61,36 @@ class ActivationBundle(Protocol):
 class ActivationContext:
     """Single-checkpoint analysis context passed to every primary analyzer.
 
-    Bundles the three objects previously passed as separate analyze() arguments:
+    Bundles the objects previously passed as separate analyze() arguments:
     the activation bundle, the probe tensor, and the family-provided domain
     parameters. Constructed by the pipeline in _run_single_epoch(); families
     are not responsible for building it.
+
+    During the REQ_112 / REQ_114 transition, ``model`` and ``cache`` are
+    populated alongside the legacy ``bundle``. Migrated analyzers consume
+    the canonical-name surface via ``cache[canonical_name]`` and
+    ``model.get_weight(canonical_name)``. Legacy analyzers continue to
+    use ``bundle.*`` until they migrate. After REQ_114, ``bundle`` goes
+    away.
 
     Attributes:
         bundle: Architecture-agnostic wrapper over model activations and weights.
         probe: The full analysis dataset tensor (e.g., all p² (a, b) pairs).
         analysis_params: Family-provided domain context — 'params', 'fourier_basis',
             'loss_fn', 'labels', and any other family-specific precomputed values.
+        model: Concrete HookedModel for canonical-name weight access. None for
+            architectures that have not yet migrated to HookedModel (REQ_113 in
+            progress).
+        cache: Canonical-name-keyed activation cache from the same forward
+            pass that produced ``bundle``. None for architectures that have
+            not yet migrated.
     """
 
     bundle: ActivationBundle
     probe: torch.Tensor
     analysis_params: dict[str, Any]
+    model: "HookedModel | None" = None
+    cache: "ActivationCache | None" = None
 
 
 @dataclass

@@ -277,25 +277,69 @@ class AnalysisPipeline:
         Saves each result immediately to disk, then cleans up GPU memory.
         If summary_collectors is provided, computes and accumulates summary
         statistics for analyzers that support them.
+
+        Migrated analyzers (those that declare ``required_hooks``) are
+        filtered: an analyzer whose declared canonical hooks are not all
+        published by the current model is skipped with an info-level log
+        entry. Legacy analyzers without ``required_hooks`` continue to
+        run unconditionally and consume the bundle.
         """
+        from miscope.architectures import HookedModel
+
         state_dict = self.variant.load_checkpoint(epoch)
         model = self.variant.family.create_model(self.variant.params, device=self._device)
         model.load_state_dict(state_dict)
 
         bundle = self.variant.family.run_forward_pass(model, probe)
-        ctx = ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
+        # Populate the canonical-name surface (REQ_112) when the family
+        # has migrated to ``HookedModel``. ``ctx.cache`` reuses the same
+        # tensors the bundle holds — zero copies.
+        canonical_model = model if isinstance(model, HookedModel) else None
+        canonical_cache = (
+            getattr(bundle, "_cache", None) if canonical_model is not None else None
+        )
+
+        ctx = ActivationContext(
+            bundle=bundle,
+            probe=probe,
+            analysis_params=context,
+            model=canonical_model,
+            cache=canonical_cache,
+        )
 
         for analyzer, needed_epochs in work_queue:
-            if epoch in needed_epochs:
-                result = analyzer.analyze(ctx)
-                self._save_epoch_artifact(analyzer.name, epoch, result)
+            if epoch not in needed_epochs:
+                continue
 
-                if summary_collectors and analyzer.name in summary_collectors:
-                    summary = analyzer.compute_summary(result, context)  # type: ignore[attr-defined]
-                    collector = summary_collectors[analyzer.name]
-                    collector["epochs"].append(epoch)
-                    for key, value in summary.items():
-                        collector["values"][key].append(value)
+            required = getattr(analyzer, "required_hooks", None)
+            if required:
+                if canonical_model is None:
+                    logger.info(
+                        "Skipping %s on epoch %d: analyzer requires HookedModel "
+                        "interface but family has not migrated.",
+                        analyzer.name,
+                        epoch,
+                    )
+                    continue
+                missing = [h for h in required if h not in canonical_model.hook_names()]
+                if missing:
+                    logger.info(
+                        "Skipping %s on epoch %d: missing canonical hooks %s.",
+                        analyzer.name,
+                        epoch,
+                        missing,
+                    )
+                    continue
+
+            result = analyzer.analyze(ctx)
+            self._save_epoch_artifact(analyzer.name, epoch, result)
+
+            if summary_collectors and analyzer.name in summary_collectors:
+                summary = analyzer.compute_summary(result, context)  # type: ignore[attr-defined]
+                collector = summary_collectors[analyzer.name]
+                collector["epochs"].append(epoch)
+                for key, value in summary.items():
+                    collector["values"][key].append(value)
 
         # Explicit cleanup to prevent GPU memory accumulation
         del model, bundle, state_dict
