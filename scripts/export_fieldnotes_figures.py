@@ -27,7 +27,7 @@ from miscope.config import get_config
 from miscope.families import FamilyRegistry, Variant
 from miscope.visualization.renderers.loss_curves import render_loss_curves_with_indicator
 
-FIGURES_DIR = Path(__file__).parent.parent / "fieldnotes" / "public" / "figures"
+FIGURES_DIR = Path(__file__).parent.parent / "apps" / "fieldnotes" / "public" / "figures"
 
 
 def export_html(fig, name: str) -> None:

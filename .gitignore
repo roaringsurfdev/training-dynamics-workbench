@@ -224,5 +224,5 @@ __marimo__/
 /notebooks/exports
 /articles
 /docs/notes
-/fieldnotes/src/content/drafts/*.mdx
+/apps/fieldnotes/src/content/drafts/*.mdx
 /.claude

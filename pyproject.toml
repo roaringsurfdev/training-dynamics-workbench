@@ -5,8 +5,7 @@ description = "MIScope monorepo workspace root (not published)"
 requires-python = ">=3.11"
 dependencies = [
     "miscope",
-    "dash>=2.18.0",
-    "dash-bootstrap-components>=1.6.0",
+    "dashboard",
     "pytest>=9.0.2",
 ]
 
@@ -20,10 +19,11 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/miscope"]
+members = ["packages/miscope", "apps/dashboard"]
 
 [tool.uv.sources]
 miscope = { workspace = true }
+dashboard = { workspace = true }
 
 [tool.pytest.ini_options]
 markers = [
@@ -41,6 +41,9 @@ extend-exclude = [
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 ignore = ["E501"]  # Line length handled separately
+
+[tool.ruff.lint.isort]
+known-first-party = ["miscope", "dashboard"]
 
 [tool.pyright]
 pythonVersion = "3.11"
