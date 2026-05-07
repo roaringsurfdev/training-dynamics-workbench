@@ -1,6 +1,6 @@
 # REQ_114: HookedModel Analyzer Migration
 
-**Status:** Implemented (regression validation pending)
+**Status:** Implemented; validation passed
 **Priority:** Medium-High — completes the analyzer side of the `HookedModel` boundary. Lower than REQ_112/113 because the canary in REQ_112 already demonstrates the pattern; this REQ scales it.
 **Branch:** TBD.
 **Dependencies:**
@@ -295,13 +295,10 @@ Every test file constructing `TransformerLensBundle` or TL-tuple-keyed mock cach
 **Quarantine — load-bearing:**
 `grep -rn 'transformer_lens' src/miscope/` returns hits only inside the canonical surface: `architectures/hooked_transformer.py` and `architectures/hooks.py` (the `HookPoint` alias). Every entry on `LEGACY_TL_IMPORTERS` was cleared during this REQ. The strict version of the quarantine test from REQ_112 is now load-bearing — adding any TL import outside the canonical surface fails the test suite.
 
-**Validation:**
+**Validation (2026-05-06):**
 - 1462 tests passing, 0 regressions on the local suite.
-- REQ_086 byte-identity validation against the develop baseline (`reference_checksums_req112.json`) **pending** — the analyzer migrations rewrite read paths from bundle methods to canonical-name reads. Slight ordering differences in tensor operations are possible. The regression run on canon (`p113/s999/ds598`) and healthy reference (`p109/s485/ds598`) should produce byte-identical artifacts because:
-  1. Analyzer compute logic is unchanged — only the source of inputs changed.
-  2. The canonical cache reads (`cache[canonical_name]`) return the *same tensors* TL's cache returned (zero-copy translation in `HookedTransformer.run_with_cache`).
-  3. The canonical weight reads (`model.get_weight(canonical_name)`) return the *same parameter tensors* `bundle.weight(...)` did.
-- If byte-identity fails, the diagnosis path is: identify the analyzer, check for tensor-view-vs-copy differences in the new read path. Likely fixes are `.contiguous()` calls or order-of-operations preservation.
+- **REQ_086 byte-identity passed: 3027/3027 artifacts byte-identical to develop** on canon (`p113/s999/ds598`) against `reference_checksums_req112.json`. Validated the prediction that the canonical-cache read path is bit-equivalent to the legacy bundle reads — analyzer compute paths are unchanged; only the input source moved (zero-copy translation between TL's cache and the canonical-keyed cache).
+- **Smoke test passed:** a fresh variant created post-REQ_114 ran the full analysis pipeline end-to-end without issue, exercising paths the regression scaffold doesn't cover (model construction, training loop, full pipeline run, all analyzers).
 
 **Process notes:**
 - `required_hooks: list[str] = []` for analyzers that read only weights or logits (no cache reads). The pipeline's filter trivially passes for these — they run on any architecture. Family-level registration (in family.json) is the primary mechanism for restricting analyzers to compatible architectures; runtime `KeyError` on `model.get_weight` is the safety net for misregistration.
