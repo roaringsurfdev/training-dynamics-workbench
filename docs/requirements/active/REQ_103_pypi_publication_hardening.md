@@ -46,16 +46,20 @@ inconsistencies that erode trust.
 
 ### Public API surface
 
-- [ ] `pyproject.toml` at repo root defines:
+- [ ] `packages/miscope/pyproject.toml` (the publishable project definition,
+  per the REQ_115 monorepo layout) defines:
   - Project metadata (name, version, description, authors, license).
-  - `[tool.setuptools.packages.find] where = ["src"]` — package contents
-    scoped to `src/miscope/` only. Nothing under `dashboard/`, `notebooks/`,
-    `research/`, `fieldnotes/`, or `results/` ships in the wheel.
+  - `[tool.hatch.build.targets.wheel] packages = ["src/miscope"]` —
+    package contents scoped to `packages/miscope/src/miscope/` only.
+    Nothing under `apps/`, `scripts/`, `docs/`, or `results/` ships in
+    the wheel. (The workspace root pyproject is non-publishing —
+    `[tool.uv] package = false` — so it cannot leak into the wheel.)
   - Required dependencies (numpy, torch, transformer-lens, sklearn,
     plotly, pandas, pyarrow, duckdb).
-  - Optional extras: `dev` (test/lint tools), `dashboard` (dash + dashboard
-    deps), `gpu` (cuML / cupy when REQ_098+ adds backend abstraction),
-    `hf` (huggingface_hub — for if/when REQ_100 lands).
+  - Optional extras: `dev` (test/lint tools), `gpu` (cuML / cupy when
+    REQ_098+ adds backend abstraction), `hf` (huggingface_hub — for
+    if/when REQ_100 lands). Dashboard deps live in
+    `apps/dashboard/pyproject.toml` and are not a miscope extra.
 - [ ] `miscope/__init__.py` exports the documented public API:
   - Re-export `miscope.core.*` (vocabulary types, enums).
   - Re-export the variant / family entry points (`load_family`, etc.).
@@ -115,30 +119,32 @@ inconsistencies that erode trust.
 - [ ] **Root README rewritten** to frame the repo for first-time visitors
   arriving from PyPI, fieldnotes, or a paper. Opening paragraph names what
   MIScope is (a dynamics analysis platform), where the installable package
-  lives (`src/miscope/`), and what the surrounding directories are (the
+  lives (`packages/miscope/`), and what the surrounding directories are (the
   research workbench that produced it). Transparent, not apologetic — the
   research workbench is part of the project's value, but a visitor needs
-  to know what they're looking at.
-- [ ] **Research workbench files moved under `research/`.** `notebooks/`,
-  `notes/`, exploratory `requirements/active/` drafts, and `articles/`
-  consolidate into a single clearly-marked directory. A visitor sees the
-  separation between platform (`src/miscope/`) and workbench (`research/`)
-  immediately. Implementation of this restructure is handled directly,
-  outside the formal REQ workflow — it is a tidying pass, not a design
-  decision.
-- [ ] **Root-level directory layout post-restructure** documented in the
-  README so the structure is legible:
+  to know what they're looking at. (The current README has the post-REQ_115
+  layout but not the polished framing paragraph.)
+- [x] **Research workbench / monorepo restructure landed via REQ_115.**
+  Notebooks split into `apps/research/notebooks/` (research notebooks) and
+  `apps/research/sketches/` (exploratory `*.py`); operational scripts
+  consolidated under `scripts/`; documentation (notes, requirements,
+  policies, origins, issues) consolidated under `docs/`. The platform
+  (`packages/miscope/`) and consumers (`apps/dashboard/`, `apps/fieldnotes/`,
+  `apps/research/`) are visibly separated at the repo root.
+- [x] **Root-level directory layout** documented in the README and CLAUDE.md
+  (REQ_115 phase 5):
   ```
-  src/miscope/        # the installable package
-  dashboard/          # local interactive surface (optional install)
-  fieldnotes/         # publication site (Astro → GitHub Pages)
-  research/           # research workbench: notebooks, notes, drafts
-  requirements/       # active design work (in-flight)
+  packages/miscope/   # the installable package
+  apps/dashboard/     # local interactive surface (Dash, optional install)
+  apps/fieldnotes/    # publication site (Astro → GitHub Pages)
+  apps/research/      # research workbench: notebooks, sketches
+  scripts/            # operational scripts
+  docs/               # documentation, requirements, notes, policies
   results/            # gitignored — regenerable internal artifacts
-  tests/              # test suite
+  tests/integration/  # cross-cutting tests (placeholder)
   ```
 - [ ] **PROJECT.md and CLAUDE.md remain at root** as the architectural and
-  collaboration framing documents. Not moved.
+  collaboration framing documents. Not moved. (Confirmed post-REQ_115.)
 
 ### Public-facing surfaces (the three doors)
 

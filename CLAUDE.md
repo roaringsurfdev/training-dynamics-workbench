@@ -217,34 +217,53 @@ At natural milestones — requirement completions, significant findings, moments
 Triggers: visual results that unlock understanding, findings that contradict prior assumptions, patterns that have become clear, moments where a model does something unexpected.
 
 **Figure export path:**
-Python generates figures in `src/miscope/` context; they land in `fieldnotes/public/figures/`. Plotly `write_html()` exports embed as iframes in MDX. Frame sequences go in subdirectories for slider-based animations.
+Python generates figures in `packages/miscope/` context; they land in `apps/fieldnotes/public/figures/`. Plotly `write_html()` exports embed as iframes in MDX. Frame sequences go in subdirectories for slider-based animations.
 
 **Deployment:**
-GitHub Actions builds `fieldnotes/` on push to `main` and deploys to GitHub Pages.
-URL: `https://GITHUB_USERNAME.github.io/MIScope/` — replace `GITHUB_USERNAME` in `fieldnotes/astro.config.mjs` before first deploy.
+GitHub Actions builds `apps/fieldnotes/` on push to `main` and deploys to GitHub Pages.
+URL: `https://GITHUB_USERNAME.github.io/MIScope/` — replace `GITHUB_USERNAME` in `apps/fieldnotes/astro.config.mjs` before first deploy.
 To enable: go to repo Settings → Pages → Source → GitHub Actions.
 
 ## Project Structure
 
+The repo is a uv workspace organized into a publishable package and the apps that consume it.
+
 ```
-src/miscope/           # Installable API package (import miscope.*)
-  analysis/            # Pipeline, analyzers, artifacts, protocols
-  families/            # Family registry, variants, model families
-  visualization/       # Renderers, export
-dashboard/             # Consumer — Dash dashboard
-fieldnotes/            # Research notebook (Astro, published to GitHub Pages)
-tests/                 # Test suite
-notebooks/             # Research notebooks
+packages/
+  miscope/             # Publishable library (import miscope.*)
+    src/miscope/
+      analysis/        # Pipeline, analyzers, artifacts, protocols
+      families/        # Family registry, variants, model families
+      views/           # View catalog API (EpochContext, BoundView)
+      visualization/   # Renderers, export
+    tests/             # Package unit/component tests
+apps/
+  dashboard/           # Local interactive surface (Dash)
+    src/dashboard/
+    tests/             # Dashboard tests
+  fieldnotes/          # Research notebook (Astro → GitHub Pages)
+  research/            # Exploratory frontend
+    notebooks/         # *.ipynb research notebooks
+    sketches/          # Exploratory *.py (POCs, one-off analyses)
+    animations/        # Generated GIFs (gitignored)
+    exports/           # Generated figures (gitignored)
+scripts/               # Operational scripts (run_analysis.py, train_*, etc.)
+tests/
+  integration/         # Cross-cutting tests (placeholder; currently empty)
+docs/                  # Documentation, requirements, notes, policies
+  requirements/        # Project requirements
+    active/            # In-flight
+    staging/           # Complete, awaiting release
+    archive/           # Completed by milestone
+  notes/               # Claude's observations and findings
+  policies/            # Dev policies (debugging, etc.)
+  origins/             # Project origin material
+  issues/              # Issue write-ups
 model_families/        # JSON config + data
-results/               # Generated artifacts
-/policies/             # Development policies and procedures
-  debugging/           # Structured debugging policy
-/requirements/         # Project requirements
-  active/              # Requirements being worked on
-  archive/             # Completed requirements by milestone
-/notes/                # Claude's observations and suggestions
-  thoughts.md          # Unstructured parking lot for ideas
+results/               # Generated artifacts (gitignored)
 ```
+
+Workspace setup: root `pyproject.toml` declares `[tool.uv.workspace]` with members `packages/miscope` and `apps/dashboard`. The package's `pyproject.toml` is the publishable definition; the dashboard's is its own dependency surface (Dash + workspace miscope). `apps/fieldnotes/` is a Node/Astro project, not a uv workspace member.
 
 ---
 
@@ -365,6 +384,6 @@ The goal is not rigid rules but shared understanding that empowers both of us to
 
 ---
 
-**Version:** 0.6
-**Last Updated:** 2026-02-01
-**Status:** Added CI workflow and PR merge process
+**Version:** 0.7
+**Last Updated:** 2026-05-07
+**Status:** Updated for monorepo layout (REQ_115) — packages/, apps/, co-located tests, scripts/
