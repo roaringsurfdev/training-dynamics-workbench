@@ -15,7 +15,6 @@ from miscope.analysis.library.activations import extract_attention_patterns
 from miscope.analysis.protocols import ActivationContext
 from miscope.architectures import ActivationCache
 
-
 # ── Library function tests ──────────────────────────────────────────────
 
 

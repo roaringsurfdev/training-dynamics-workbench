@@ -16,7 +16,6 @@ from miscope.analysis.analyzers.repr_geometry import (
     RepresentationalGeometryAnalyzer,
     _get_summary_keys,
 )
-from miscope.architectures import ActivationCache
 from miscope.analysis.library.clustering import (
     compute_center_spread,
     compute_class_centroids,
@@ -31,6 +30,7 @@ from miscope.analysis.library.shape import (
     characterize_fourier_alignment,
 )
 from miscope.analysis.protocols import ActivationContext
+from miscope.architectures import ActivationCache
 from miscope.visualization.renderers.repr_geometry import render_fisher_heatmap, render_pc_budget
 
 

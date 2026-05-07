@@ -173,7 +173,7 @@ class Variant:
             raise FileNotFoundError(f"No checkpoint found for epoch {epoch} at {checkpoint_path}")
         return load_file(checkpoint_path)
 
-    def load_model_at_checkpoint(self, epoch: int) -> "HookedModel":
+    def load_model_at_checkpoint(self, epoch: int) -> HookedModel:
         """Load a ``HookedModel`` with weights from a specific checkpoint.
 
         Args:

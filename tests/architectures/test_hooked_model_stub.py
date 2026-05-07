@@ -28,7 +28,6 @@ import torch.nn as nn
 from miscope.architectures import ActivationCache, HookedModel, HookPoint
 from miscope.core import architecture as arch_names
 
-
 # ---------------------------------------------------------------------------
 # Stub model
 # ---------------------------------------------------------------------------

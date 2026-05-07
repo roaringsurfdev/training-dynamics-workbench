@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import torch
 
 from miscope.families.types import AnalysisDatasetSpec, ParameterSpec
+
+if TYPE_CHECKING:
+    from miscope.architectures import HookedModel  # noqa: F401
 
 
 @runtime_checkable
@@ -84,7 +87,7 @@ class ModelFamily(Protocol):
         self,
         params: dict[str, Any],
         device: str | torch.device | None = None,
-    ) -> HookedTransformer:
+    ) -> HookedModel:
         """Instantiate a model with the given domain parameters.
 
         Args:
@@ -92,7 +95,7 @@ class ModelFamily(Protocol):
             device: Device to place the model on
 
         Returns:
-            A HookedTransformer configured for this family
+            A ``HookedModel`` configured for this family.
         """
         ...
 

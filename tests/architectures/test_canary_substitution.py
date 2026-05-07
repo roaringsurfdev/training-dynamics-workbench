@@ -22,7 +22,6 @@ This test imports nothing from ``transformer_lens``.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch
 import torch.nn as nn
 
