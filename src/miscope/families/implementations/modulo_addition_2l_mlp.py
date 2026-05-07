@@ -185,30 +185,6 @@ class ModuloAddition2LMLPFamily(BaseModelFamily):
             "training_fraction": training_fraction,
         }
 
-    def run_forward_pass(
-        self,
-        model: HookedOneHotMLP,
-        probe: torch.Tensor,
-    ) -> Any:
-        """Run a forward pass and return an :class:`MLPBundle`.
-
-        Uses ``model.run_with_cache`` (canonical-name keyed) and wraps
-        the result for legacy analyzer compatibility. Migrated analyzers
-        bypass the bundle and read ``ctx.cache`` / ``ctx.model`` directly.
-
-        Args:
-            model: ``HookedOneHotMLP`` instance created by ``create_model()``.
-            probe: One-hot encoded probe tensor of shape (batch, 2p).
-
-        Returns:
-            ``MLPBundle`` wrapping the canonical cache + logits.
-        """
-        from miscope.analysis.mlp_bundle import MLPBundle
-
-        with torch.inference_mode():
-            logits, cache = model.run_with_cache(probe)
-        return MLPBundle(model, cache, logits)
-
     def prepare_analysis_context(
         self,
         params: dict[str, Any],

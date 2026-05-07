@@ -21,7 +21,6 @@ from miscope.analysis.analyzers.input_trace_graduation import (
     InputTraceGraduationAnalyzer,
     _compute_graduation_epochs,
 )
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.protocols import ActivationContext, Analyzer, CrossEpochAnalyzer
 
 # ── Minimal model fixture ─────────────────────────────────────────────
@@ -75,11 +74,17 @@ def _make_full_probe(p: int = SMALL_P) -> torch.Tensor:
     return torch.stack([a, b, eq], dim=1)
 
 
-def _make_bundle(model, probe: torch.Tensor) -> TransformerLensBundle:
-    """Create a TransformerLensBundle from a model and probe via a forward pass."""
+def _make_ctx(model, probe: torch.Tensor, context: dict) -> ActivationContext:
+    """Run forward and build an ActivationContext with canonical surface populated."""
     with torch.no_grad():
         logits, cache = model.run_with_cache(probe)
-    return TransformerLensBundle(model, cache, logits)
+    return ActivationContext(
+        probe=probe,
+        analysis_params=context,
+        model=model,
+        cache=cache,
+        logits=logits,
+    )
 
 
 # ── Protocol conformance ─────────────────────────────────────────────
@@ -109,9 +114,7 @@ class TestInputTraceAnalyzerShapes:
         probe = _make_full_probe(p)
 
         result = InputTraceAnalyzer().analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
 
         assert result["predictions"].shape == (p * p,)
@@ -126,9 +129,7 @@ class TestInputTraceAnalyzerShapes:
         probe = _make_full_probe(p)
 
         result = InputTraceAnalyzer().analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
 
         assert result["predictions"].dtype == np.int16
@@ -143,9 +144,7 @@ class TestInputTraceAnalyzerShapes:
         probe = _make_full_probe(p)
 
         result = InputTraceAnalyzer().analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
 
         assert result["predictions"].min() >= 0
@@ -159,9 +158,7 @@ class TestInputTraceAnalyzerShapes:
         probe = _make_full_probe(p)
 
         result = InputTraceAnalyzer().analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
 
         a = np.arange(p).repeat(p)
@@ -177,9 +174,7 @@ class TestInputTraceAnalyzerShapes:
         probe = _make_full_probe(p)
 
         result = InputTraceAnalyzer().analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
 
         expected_train = int(p * p * training_fraction)
@@ -229,9 +224,7 @@ class TestSummaryStats:
 
         analyzer = InputTraceAnalyzer()
         result = analyzer.analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
         summary = analyzer.compute_summary(result, context)
 
@@ -258,9 +251,7 @@ class TestSummaryStats:
 
         analyzer = InputTraceAnalyzer()
         result = analyzer.analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
         summary = analyzer.compute_summary(result, context)
 
@@ -350,9 +341,7 @@ class TestIntegrationArtifactRoundTrip:
         probe = _make_full_probe(p)
 
         result = InputTraceAnalyzer().analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
 
         epoch_dir = tmp_path / "input_trace"
@@ -380,9 +369,7 @@ class TestIntegrationArtifactRoundTrip:
         epoch_dir.mkdir()
         for epoch in epochs:
             result = analyzer.analyze(
-                ActivationContext(
-                    bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-                )
+                _make_ctx(model, probe, context)
             )  # type: ignore[arg-type]
             np.savez_compressed(str(epoch_dir / f"epoch_{epoch:05d}.npz"), **result)  # pyright: ignore[reportArgumentType]
 
@@ -410,9 +397,7 @@ class TestViewsRender:
         probe = _make_full_probe(p)
 
         epoch_data = InputTraceAnalyzer().analyze(
-            ActivationContext(
-                bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-            )
+            _make_ctx(model, probe, context)
         )  # type: ignore[arg-type]
         fig = render_accuracy_grid({"epoch_data": epoch_data, "prime": p}, epoch=100)
         assert isinstance(fig, go.Figure)
@@ -434,9 +419,7 @@ class TestViewsRender:
         test_acc_list, train_acc_list, test_ov, train_ov = [], [], [], []
         for _ in epochs:
             result = analyzer.analyze(
-                ActivationContext(
-                    bundle=_make_bundle(model, probe), probe=probe, analysis_params=context
-                )
+                _make_ctx(model, probe, context)
             )  # type: ignore[arg-type]
             s = analyzer.compute_summary(result, context)
             test_acc_list.append(s["test_residue_class_accuracy"])

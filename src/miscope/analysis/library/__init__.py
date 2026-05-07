@@ -17,7 +17,6 @@ from miscope.analysis.library.activations import (
     extract_residual_stream,
     get_embedding_weights,
     reshape_to_grid,
-    run_with_cache,
 )
 from miscope.analysis.library.clustering import (
     compute_center_spread,
@@ -94,7 +93,6 @@ __all__ = [
     "extract_residual_stream",
     "reshape_to_grid",
     "get_embedding_weights",
-    "run_with_cache",
     "compute_grid_size_from_dataset",
     # Clustering metrics
     "compute_class_centroids",

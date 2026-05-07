@@ -285,33 +285,6 @@ class ModuloAddition1LayerFamily(BaseModelFamily):
             "training_fraction": training_fraction,
         }
 
-    def run_forward_pass(
-        self,
-        model: Any,
-        probe: torch.Tensor,
-    ) -> Any:
-        """Run a forward pass and return a TransformerLensBundle.
-
-        ``model`` must be a ``miscope.architectures.HookedTransformer``;
-        its ``run_with_cache`` returns a canonical-name-keyed
-        ``ActivationCache``. The bundle is built from those outputs and
-        also exposes the canonical cache directly via ``bundle._cache``
-        for callers that want to populate :class:`ActivationContext`.
-
-        Args:
-            model: HookedTransformer instance created by ``create_model()``.
-            probe: Analysis dataset tensor from ``generate_analysis_dataset()``.
-
-        Returns:
-            ``TransformerLensBundle`` wrapping the model, canonical cache,
-            and logits.
-        """
-        from miscope.analysis.bundle import TransformerLensBundle
-
-        with torch.inference_mode():
-            logits, cache = model.run_with_cache(probe)
-        return TransformerLensBundle(model, cache, logits)
-
     def make_probe(
         self,
         params: dict[str, Any],

@@ -264,7 +264,7 @@ class TestRepresentationalGeometryAnalyzer:
     ) -> ActivationContext:
         cache = self._make_canonical_cache(p, d_model=d_model, d_mlp=d_mlp)
         return ActivationContext(
-            bundle=None,  # type: ignore[arg-type]
+            # type: ignore[arg-type]
             probe=self._make_probe(p),
             analysis_params={"params": {"prime": p}},
             model=None,

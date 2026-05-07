@@ -105,7 +105,7 @@ def test_canary_runs_against_full_stub():
     stub = FullCanaryStub()
     cache = _build_cache_for_full_stub(p, d_model, d_mlp)
     ctx = ActivationContext(
-        bundle=None,  # type: ignore[arg-type]
+        # type: ignore[arg-type]
         probe=_make_probe(p),
         analysis_params={"params": {"prime": p}},
         model=stub,
@@ -133,7 +133,7 @@ def test_canary_skips_when_cache_missing_canonical_hook():
     p = 5
     cache = ActivationCache()  # empty
     ctx = ActivationContext(
-        bundle=None,  # type: ignore[arg-type]
+        # type: ignore[arg-type]
         probe=_make_probe(p),
         analysis_params={"params": {"prime": p}},
         model=FullCanaryStub(),

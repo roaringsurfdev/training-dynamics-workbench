@@ -1,13 +1,37 @@
 """Activation extraction and manipulation utilities.
 
-This module provides functions for extracting and reshaping activations
-from transformer models for analysis purposes.
+Helpers for reading common activation sites from a canonical-name
+:class:`miscope.architectures.ActivationCache`. Architecture-agnostic
+where possible: ``extract_mlp_activations`` works against both
+transformer caches (with a sequence dimension) and MLP caches (without).
+
+This module has no imports from the underlying TransformerLens
+library. The grep quarantine test depends on this.
 """
+
+from __future__ import annotations
+
+import math
+from typing import TYPE_CHECKING
 
 import einops
 import torch
-from transformer_lens import HookedTransformer
-from transformer_lens.ActivationCache import ActivationCache
+
+from miscope.core import architecture as canonical_hooks
+from miscope.core import weights as canonical_weights
+
+if TYPE_CHECKING:
+    from miscope.architectures import ActivationCache, HookedModel
+
+
+# Map legacy residual-stream location names → canonical hook paths.
+# Used by ``extract_residual_stream`` so callers don't need to know the
+# canonical-name vocabulary.
+_RESID_LOCATION_TO_CANONICAL_SUFFIX: dict[str, str] = {
+    "resid_pre": canonical_hooks.HOOK_IN,
+    "resid_post": canonical_hooks.HOOK_OUT,
+    "attn_out": f"{canonical_hooks.ATTN}.{canonical_hooks.HOOK_OUT}",
+}
 
 
 def extract_mlp_activations(
@@ -15,37 +39,50 @@ def extract_mlp_activations(
     layer: int = 0,
     position: int = -1,
 ) -> torch.Tensor:
-    """Extract MLP neuron activations from cache.
+    """Extract MLP post-activation neurons from a canonical cache.
+
+    Returns the activations at ``blocks.{layer}.mlp.hook_out``, sliced
+    to the requested position when the cache tensor carries a sequence
+    dimension. MLP-class architectures (one-hot, embedding) produce
+    seq-less activations; ``position`` is ignored for those.
 
     Args:
-        cache: Activation cache from model.run_with_cache()
-        layer: Which transformer layer to extract from (default: 0)
-        position: Token position to extract (default: -1, last position)
+        cache: Canonical-name-keyed activation cache.
+        layer: Layer index (default 0).
+        position: Token position (default -1, last).
 
     Returns:
-        Tensor of shape (batch, d_mlp) containing neuron activations
+        Tensor of shape ``(batch, d_mlp)``.
     """
-    # Shape: (batch, seq_len, d_mlp)
-    mlp_acts = cache["post", layer, "mlp"]
-    # Extract specified position
-    return mlp_acts[:, position, :]
+    canonical = canonical_hooks.hook(
+        canonical_hooks.BLOCKS, layer, canonical_hooks.MLP, canonical_hooks.HOOK_OUT
+    )
+    acts = cache[canonical]
+    if acts.ndim == 3:
+        return acts[:, position, :]
+    return acts
 
 
 def extract_attention_patterns(
     cache: ActivationCache,
     layer: int = 0,
 ) -> torch.Tensor:
-    """Extract attention patterns from cache.
+    """Extract attention patterns from a canonical cache.
 
     Args:
-        cache: Activation cache from model.run_with_cache()
-        layer: Which transformer layer to extract from (default: 0)
+        cache: Canonical-name-keyed activation cache.
+        layer: Layer index (default 0).
 
     Returns:
-        Tensor of shape (batch, n_heads, seq_to, seq_from)
-        containing attention weights (softmax outputs).
+        Tensor of shape ``(batch, n_heads, seq_to, seq_from)``.
     """
-    return cache["pattern", layer]
+    canonical = canonical_hooks.hook(
+        canonical_hooks.BLOCKS,
+        layer,
+        canonical_hooks.ATTN,
+        canonical_hooks.HOOK_PATTERN,
+    )
+    return cache[canonical]
 
 
 def extract_residual_stream(
@@ -54,18 +91,30 @@ def extract_residual_stream(
     position: int = -1,
     location: str = "resid_post",
 ) -> torch.Tensor:
-    """Extract residual stream activations from cache.
+    """Extract residual-stream activations at a layer site.
 
     Args:
-        cache: Activation cache from model.run_with_cache()
-        layer: Which transformer layer (default: 0)
-        position: Token position to extract (default: -1)
-        location: One of "resid_pre", "resid_post", "attn_out"
+        cache: Canonical-name-keyed activation cache.
+        layer: Layer index (default 0).
+        position: Token position (default -1).
+        location: One of ``"resid_pre"`` (block input),
+            ``"resid_post"`` (block output), ``"attn_out"`` (attention
+            component output).
 
     Returns:
-        Tensor of shape (batch, d_model)
+        Tensor of shape ``(batch, d_model)``.
+
+    Raises:
+        KeyError: If ``location`` is not recognized.
     """
-    acts = cache[location, layer]  # (batch, seq_len, d_model)
+    suffix = _RESID_LOCATION_TO_CANONICAL_SUFFIX.get(location)
+    if suffix is None:
+        raise KeyError(
+            f"Unknown residual-stream location {location!r}. "
+            f"Expected one of {sorted(_RESID_LOCATION_TO_CANONICAL_SUFFIX)}."
+        )
+    canonical = f"{canonical_hooks.BLOCKS}.{layer}.{suffix}"
+    acts = cache[canonical]
     return acts[:, position, :]
 
 
@@ -91,58 +140,43 @@ def reshape_to_grid(activations: torch.Tensor, grid_size: int) -> torch.Tensor:
 
 
 def get_embedding_weights(
-    model: HookedTransformer,
+    model: HookedModel,
     exclude_special_tokens: int = 1,
 ) -> torch.Tensor:
-    """Get embedding weights from model, optionally excluding special tokens.
+    """Get embedding weights, optionally excluding special tokens.
+
+    Reads ``embed.W_E`` via ``model.get_weight``. Architectures that do
+    not publish a shared embedding matrix (e.g.,
+    ``HookedEmbeddingMLP``, which exposes per-input ``embed.embed_a``
+    and ``embed.embed_b``) raise ``KeyError`` from ``get_weight`` —
+    callers expecting a transformer-class shared embedding must handle
+    that case explicitly.
 
     Args:
-        model: HookedTransformer model
-        exclude_special_tokens: Number of tokens to exclude from end
-                               (default: 1, for equals token)
+        model: ``HookedModel`` providing canonical weight access.
+        exclude_special_tokens: Number of trailing rows to exclude
+            (default 1, for the equals token).
 
     Returns:
-        Embedding weight tensor of shape (vocab_size - exclude, d_model)
+        Embedding weight tensor of shape ``(vocab_size - exclude, d_model)``.
     """
-    W_E = model.embed.W_E
+    W_E = model.get_weight(canonical_weights.EMBED_WEIGHT)
     if exclude_special_tokens > 0:
         return W_E[:-exclude_special_tokens]
     return W_E
 
 
-def run_with_cache(
-    model: HookedTransformer,
-    inputs: torch.Tensor,
-) -> tuple[torch.Tensor, ActivationCache]:
-    """Run model forward pass and return logits and activation cache.
-
-    Convenience wrapper around model.run_with_cache() with inference mode.
-
-    Args:
-        model: HookedTransformer model
-        inputs: Input tensor
-
-    Returns:
-        Tuple of (logits, cache)
-    """
-    with torch.inference_mode():
-        logits, cache = model.run_with_cache(inputs)
-    return logits, cache  # type: ignore[return-value]
-
-
 def compute_grid_size_from_dataset(dataset: torch.Tensor) -> int:
     """Infer grid size (p) from dataset shape.
 
-    For modular arithmetic datasets of shape (p^2, 3), returns p.
+    For modular arithmetic datasets of shape (p^2, ...), returns p.
 
     Args:
-        dataset: Dataset tensor of shape (n_samples, seq_len)
+        dataset: Dataset tensor whose first dimension is p^2.
 
     Returns:
         Grid size p where p^2 = n_samples
     """
-    import math
-
     n_samples = dataset.shape[0]
     p = int(math.sqrt(n_samples))
     if p * p != n_samples:

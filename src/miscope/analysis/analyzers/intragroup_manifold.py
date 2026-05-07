@@ -45,7 +45,6 @@ class IntraGroupManifoldAnalyzer:
 
     name = "intragroup_manifold"
     requires = ["neuron_group_pca"]
-    architecture_support = ["transformer", "mlp"]
 
     def analyze_across_epochs(
         self,

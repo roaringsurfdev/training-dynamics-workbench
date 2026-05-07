@@ -11,7 +11,6 @@ import pytest
 
 from miscope.analysis import AnalysisPipeline, Analyzer, ArtifactLoader
 from miscope.analysis.analyzers import ParameterSnapshotAnalyzer
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.library.pca import pca
 from miscope.analysis.library.trajectory import (
     compute_parameter_velocity,
@@ -96,7 +95,7 @@ class TestExtractParameterSnapshot:
     @pytest.fixture
     def model(self):
         """Create a minimal HookedTransformer."""
-        from transformer_lens import HookedTransformer, HookedTransformerConfig
+        from miscope.architectures import HookedTransformer, HookedTransformerConfig
 
         cfg = HookedTransformerConfig(
             d_model=32,
@@ -112,24 +111,24 @@ class TestExtractParameterSnapshot:
 
     def test_returns_dict(self, model):
         """Returns a dict."""
-        snapshot = extract_parameter_snapshot(TransformerLensBundle(model, None, None))  # type: ignore
+        snapshot = extract_parameter_snapshot(model)
         assert isinstance(snapshot, dict)
 
     def test_contains_all_weight_names(self, model):
         """Result contains all expected weight matrix names."""
-        snapshot = extract_parameter_snapshot(TransformerLensBundle(model, None, None))  # type: ignore
+        snapshot = extract_parameter_snapshot(model)
         for name in WEIGHT_MATRIX_NAMES:
             assert name in snapshot, f"Missing weight: {name}"
 
     def test_values_are_numpy(self, model):
         """All values are numpy arrays."""
-        snapshot = extract_parameter_snapshot(TransformerLensBundle(model, None, None))  # type: ignore
+        snapshot = extract_parameter_snapshot(model)
         for name, arr in snapshot.items():
             assert isinstance(arr, np.ndarray), f"{name} is not numpy"
 
     def test_shapes_match_model(self, model):
         """Extracted shapes match model architecture."""
-        snapshot = extract_parameter_snapshot(TransformerLensBundle(model, None, None))  # type: ignore
+        snapshot = extract_parameter_snapshot(model)
         assert snapshot["W_E"].shape == (10, 32)  # (d_vocab, d_model)
         assert snapshot["W_pos"].shape == (3, 32)  # (n_ctx, d_model)
         assert snapshot["W_Q"].shape == (4, 32, 8)  # (n_heads, d_model, d_head)
@@ -571,7 +570,7 @@ class TestParameterSnapshotAnalyzerOutput:
 
     @pytest.fixture
     def model_with_context(self, trained_variant):
-        """Create model, run forward pass, return model, probe, cache, context."""
+        """Create model, run forward pass, return model, probe, cache, logits, context."""
         import torch
 
         device = "cpu"
@@ -588,35 +587,35 @@ class TestParameterSnapshotAnalyzerOutput:
         with torch.inference_mode():
             logits, cache = model.run_with_cache(probe)
 
-        bundle = TransformerLensBundle(model, cache, logits)
-        return bundle, probe, context
+        return model, cache, logits, probe, context
+
+    def _ctx(self, model_with_context) -> ActivationContext:
+        model, cache, logits, probe, context = model_with_context
+        return ActivationContext(
+            probe=probe,
+            analysis_params=context,
+            model=model,
+            cache=cache,
+            logits=logits,
+        )
 
     def test_returns_dict(self, model_with_context):
         """analyze returns a dict."""
-        bundle, probe, context = model_with_context
         analyzer = ParameterSnapshotAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         assert isinstance(result, dict)
 
     def test_returns_all_weight_names(self, model_with_context):
         """Result contains all weight matrix names."""
-        bundle, probe, context = model_with_context
         analyzer = ParameterSnapshotAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         for name in WEIGHT_MATRIX_NAMES:
             assert name in result, f"Missing weight: {name}"
 
     def test_weight_shapes(self, model_with_context):
         """Weight matrices have correct shapes for p=17 model."""
-        bundle, probe, context = model_with_context
         analyzer = ParameterSnapshotAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         # d_model=128, d_mlp=512, n_heads=4, d_head=32
         assert result["W_E"].shape[1] == 128  # d_model
         assert result["W_in"].shape == (128, 512)  # (d_model, d_mlp)

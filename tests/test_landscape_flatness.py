@@ -14,7 +14,6 @@ from transformer_lens import HookedTransformer, HookedTransformerConfig
 from miscope.analysis import AnalysisPipeline, Analyzer, ArtifactLoader
 from miscope.analysis.analyzers import LandscapeFlatnessAnalyzer
 from miscope.analysis.analyzers.landscape_flatness import FLATNESS_SUMMARY_KEYS
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.library.landscape import compute_landscape_flatness
 from miscope.analysis.protocols import ActivationContext
 from miscope.families import FamilyRegistry
@@ -167,7 +166,7 @@ class TestLandscapeFlatnessAnalyzerProtocol:
         with pytest.raises(ValueError, match="loss_fn"):
             analyzer.analyze(
                 ActivationContext(
-                    bundle=TransformerLensBundle(small_model, cache, None),  # type: ignore
+                    model=small_model, cache=cache,  # type: ignore
                     probe=dummy_probe,
                     analysis_params={},
                 )

@@ -33,7 +33,7 @@ class AttentionFreqAnalyzer:
 
     name = "attention_freq"
     description = "Frequency decomposition of attention patterns per head"
-    architecture_support = ["transformer"]
+    required_hooks: list[str] = ["blocks.0.attn.hook_pattern"]
 
     def __init__(
         self,
@@ -60,7 +60,7 @@ class AttentionFreqAnalyzer:
         p = compute_grid_size_from_dataset(ctx.probe)
 
         # Extract attention patterns: (p*p, n_heads, n_pos, n_pos)
-        attn = ctx.bundle.attention_pattern(0)
+        attn = ctx.cache["blocks.0.attn.hook_pattern"]
 
         # Select position pair, e.g. = → a: (p*p, n_heads)
         attn_pair = attn[:, :, self.to_position, self.from_position]

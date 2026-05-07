@@ -32,7 +32,6 @@ class NeuronFourierAnalyzer:
 
     name = "neuron_fourier"
     depends_on = "parameter_snapshot"
-    architecture_support = ["transformer", "mlp"]
 
     def analyze(
         self,

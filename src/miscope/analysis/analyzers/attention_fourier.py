@@ -31,7 +31,9 @@ class AttentionFourierAnalyzer:
 
     name = "attention_fourier"
     description = "Fourier decomposition of QK^T and V per attention head"
-    architecture_support = ["transformer"]
+    # Reads transformer weights only — runs on architectures that publish
+    # embed.W_E and per-head Q/K/V matrices. Family registration filters.
+    required_hooks: list[str] = []
 
     def analyze(
         self,
@@ -40,7 +42,7 @@ class AttentionFourierAnalyzer:
         """Decompose each head's QK^T and V into Fourier frequency fractions.
 
         Args:
-            ctx: Analysis context with bundle and analysis_params.
+            ctx: Analysis context with model and analysis_params.
                  analysis_params must include 'fourier_basis': Tensor (p+1, p).
 
         Returns:
@@ -52,10 +54,10 @@ class AttentionFourierAnalyzer:
         p = fourier_basis.shape[1]
         n_freq = p // 2
 
-        W_E_tok = ctx.bundle.weight("W_E").detach()[:p]  # (p, d_model) — token rows only
-        W_Q = ctx.bundle.weight("W_Q").detach()  # (n_heads, d_model, d_head)
-        W_K = ctx.bundle.weight("W_K").detach()  # (n_heads, d_model, d_head)
-        W_V = ctx.bundle.weight("W_V").detach()  # (n_heads, d_model, d_head)
+        W_E_tok = ctx.model.get_weight("embed.W_E").detach()[:p]  # (p, d_model)
+        W_Q = ctx.model.get_weight("blocks.0.attn.q.W").detach()  # (n_heads, d_model, d_head)
+        W_K = ctx.model.get_weight("blocks.0.attn.k.W").detach()
+        W_V = ctx.model.get_weight("blocks.0.attn.v.W").detach()
 
         n_heads = W_Q.shape[0]
         qk_freq_norms = np.zeros((n_heads, n_freq), dtype=np.float32)

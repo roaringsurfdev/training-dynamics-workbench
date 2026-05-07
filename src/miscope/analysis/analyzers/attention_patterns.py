@@ -28,7 +28,7 @@ class AttentionPatternsAnalyzer:
 
     name = "attention_patterns"
     description = "Captures per-head attention patterns across all position pairs"
-    architecture_support = ["transformer"]
+    required_hooks: list[str] = ["blocks.0.attn.hook_pattern"]
 
     def analyze(
         self,
@@ -38,7 +38,7 @@ class AttentionPatternsAnalyzer:
         Extract attention patterns and reshape to (n_heads, n_pos, n_pos, p, p).
 
         Args:
-            ctx: Analysis context with bundle and probe.
+            ctx: Analysis context with cache and probe.
 
         Returns:
             Dict with 'patterns' array of shape (n_heads, n_pos, n_pos, p, p)
@@ -47,7 +47,7 @@ class AttentionPatternsAnalyzer:
         p = compute_grid_size_from_dataset(ctx.probe)
 
         # Shape: (p*p, n_heads, seq_to, seq_from)
-        attn = ctx.bundle.attention_pattern(0)
+        attn = ctx.cache["blocks.0.attn.hook_pattern"]
 
         # Reshape batch dim to (p, p) grid for each (head, to_pos, from_pos)
         patterns = einops.rearrange(

@@ -62,7 +62,6 @@ class FreqGroupWeightGeometryAnalyzer:
 
     name = "freq_group_weight_geometry"
     requires = ["neuron_freq_norm", "parameter_snapshot"]
-    architecture_support = ["transformer", "mlp"]
 
     def analyze_across_epochs(
         self,

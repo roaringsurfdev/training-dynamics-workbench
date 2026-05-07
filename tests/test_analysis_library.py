@@ -212,7 +212,7 @@ class TestGetEmbeddingWeights:
 
     def test_excludes_special_tokens(self):
         """Test that special tokens are excluded."""
-        from transformer_lens import HookedTransformer, HookedTransformerConfig
+        from miscope.architectures import HookedTransformer, HookedTransformerConfig
 
         cfg = HookedTransformerConfig(
             d_model=32,
@@ -234,7 +234,7 @@ class TestGetEmbeddingWeights:
 
     def test_exclude_zero(self):
         """Test with no tokens excluded."""
-        from transformer_lens import HookedTransformer, HookedTransformerConfig
+        from miscope.architectures import HookedTransformer, HookedTransformerConfig
 
         cfg = HookedTransformerConfig(
             d_model=32,

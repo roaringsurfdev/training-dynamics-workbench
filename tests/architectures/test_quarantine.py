@@ -31,17 +31,10 @@ SRC = PROJECT_ROOT / "src" / "miscope"
 # ``src/miscope/``. The set is verified to match exactly — adding *or*
 # removing a file silently is a regression that must be reflected here.
 LEGACY_TL_IMPORTERS: frozenset[str] = frozenset(
-    {
-        # Owned by REQ_114 (bulk analyzer migration onto HookedModel):
-        "analysis/library/activations.py",
-        "analysis/library/landscape.py",
-        # Owned by REQ_114 (variant + family runtime cleanup):
-        "families/variant.py",
-        "families/protocols.py",
-        # NOTE: ``analysis/bundle.py`` was originally on this list but
-        # cleared during the REQ_112 dual-mode rewire — the bundle now
-        # detects model/cache type at runtime without importing TL.
-    }
+    # REQ_114 cleared every entry on this list. The set is intentionally
+    # empty; new entries imply a regression. Outside the canonical
+    # surface, no module under ``src/miscope/`` should import from
+    # ``transformer_lens``.
 )
 
 # Modules that are *expected* to import from ``transformer_lens`` —

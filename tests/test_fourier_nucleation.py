@@ -11,7 +11,6 @@ from miscope.analysis.analyzers.fourier_nucleation import (
     _sharpen,
     _snapshot,
 )
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.protocols import ActivationContext
 
 # ---------------------------------------------------------------------------
@@ -186,23 +185,19 @@ class TestFourierNucleationAnalyzerOutput:
 
     @pytest.fixture
     def minimal_model(self):
-        """Minimal mock with the attributes the analyzer accesses."""
+        """Minimal mock HookedModel with canonical-name weight access."""
         prime = 11
         d_model = 16
         d_mlp = 8
 
-        class MockMLP:
-            W_in = torch.randn(d_model, d_mlp)  # TransformerLens: (d_model, d_mlp)
-
-        class MockBlock:
-            mlp = MockMLP()
-
-        class MockEmbed:
-            W_E = torch.randn(prime + 1, d_model)  # includes equals token
+        weights = {
+            "blocks.0.mlp.in.W": torch.randn(d_model, d_mlp),
+            "embed.W_E": torch.randn(prime + 1, d_model),
+        }
 
         class MockModel:
-            blocks = [MockBlock()]
-            embed = MockEmbed()
+            def get_weight(self, name: str) -> torch.Tensor:
+                return weights[name]
 
         return MockModel(), prime, d_mlp
 
@@ -211,7 +206,7 @@ class TestFourierNucleationAnalyzerOutput:
         analyzer = FourierNucleationAnalyzer(iterations=3)
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                model=model,  # type: ignore
                 probe=None,  # type: ignore
                 analysis_params={"params": {"prime": prime}},
             )
@@ -233,7 +228,7 @@ class TestFourierNucleationAnalyzerOutput:
         analyzer = FourierNucleationAnalyzer(iterations=n_iters)
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                model=model,  # type: ignore
                 probe=None,  # type: ignore
                 analysis_params={"params": {"prime": prime}},
             )
@@ -247,7 +242,7 @@ class TestFourierNucleationAnalyzerOutput:
         analyzer = FourierNucleationAnalyzer(iterations=n_iters)
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                model=model,  # type: ignore
                 probe=None,  # type: ignore
                 analysis_params={"params": {"prime": prime}},
             )
@@ -259,7 +254,7 @@ class TestFourierNucleationAnalyzerOutput:
         analyzer = FourierNucleationAnalyzer(iterations=2)
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                model=model,  # type: ignore
                 probe=None,  # type: ignore
                 analysis_params={"params": {"prime": prime}},
             )
@@ -272,7 +267,7 @@ class TestFourierNucleationAnalyzerOutput:
         analyzer = FourierNucleationAnalyzer(iterations=4)
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                model=model,  # type: ignore
                 probe=None,  # type: ignore
                 analysis_params={"params": {"prime": prime}},
             )
@@ -287,7 +282,7 @@ class TestFourierNucleationAnalyzerOutput:
         analyzer = FourierNucleationAnalyzer(iterations=8, sharpness=0.8)
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
+                model=model,  # type: ignore
                 probe=None,  # type: ignore
                 analysis_params={"params": {"prime": prime}},
             )

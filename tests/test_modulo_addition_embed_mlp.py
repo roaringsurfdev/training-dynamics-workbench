@@ -1,9 +1,10 @@
 """Tests for ModuloAdditionEmbedMLPFamily and the underlying HookedEmbeddingMLP.
 
-Migrated under REQ_113: standalone ``ModuloAdditionEmbedMLP`` /
-``ModuloAdditionEmbedMLPActivationBundle`` are retired in favor of
-``HookedEmbeddingMLP`` (canonical-name surface) and ``MLPBundle``
-(legacy ActivationBundle adapter).
+Migrated under REQ_113 / REQ_114: standalone ``ModuloAdditionEmbedMLP``
+and per-family ``*ActivationBundle`` classes are retired in favor of
+``HookedEmbeddingMLP`` (canonical-name surface). Bundles and
+``family.run_forward_pass`` are gone — analyzers consume
+``HookedModel.run_with_cache`` directly.
 """
 
 from __future__ import annotations
@@ -11,8 +12,6 @@ from __future__ import annotations
 import pytest
 import torch
 
-from miscope.analysis.mlp_bundle import MLPBundle
-from miscope.analysis.protocols import ActivationBundle
 from miscope.architectures import (
     ActivationCache,
     HookedEmbeddingMLP,
@@ -42,13 +41,6 @@ def probe() -> torch.Tensor:
     a_vals = torch.arange(P).repeat_interleave(P)
     b_vals = torch.arange(P).repeat(P)
     return torch.stack([a_vals, b_vals], dim=1)
-
-
-@pytest.fixture
-def bundle(model: HookedEmbeddingMLP, probe: torch.Tensor) -> MLPBundle:
-    with torch.inference_mode():
-        logits, cache = model.run_with_cache(probe)
-    return MLPBundle(model, cache, logits)
 
 
 @pytest.fixture
@@ -155,59 +147,6 @@ class TestHookedEmbeddingMLP:
             assert canonical in cache, f"missing: {canonical}"
 
 
-# ── MLPBundle (legacy ActivationBundle compatibility) ───────────────────────
-
-
-class TestMLPBundleOnEmbeddingMLP:
-    def test_implements_activation_bundle_protocol(self, bundle):
-        assert isinstance(bundle, ActivationBundle)
-
-    def test_mlp_post_layer0(self, bundle):
-        hidden = bundle.mlp_post(0, -1)
-        assert hidden.shape == (P * P, D_HIDDEN)
-
-    def test_weight_w_in(self, bundle):
-        assert bundle.weight("W_in").shape == (D_HIDDEN, D_EMBED)
-
-    def test_weight_w_out(self, bundle):
-        assert bundle.weight("W_out").shape == (P, D_HIDDEN)
-
-    def test_weight_embed_a(self, bundle):
-        assert bundle.weight("embed_a").shape == (P, D_EMBED)
-
-    def test_weight_embed_b(self, bundle):
-        assert bundle.weight("embed_b").shape == (P, D_EMBED)
-
-    def test_weight_w_e_raises_key_error(self, bundle):
-        """W_E is intentionally not exposed — preserves architecture identity."""
-        with pytest.raises(KeyError):
-            bundle.weight("W_E")
-
-    def test_weight_unsupported_raises_key_error(self, bundle):
-        for name in ("W_pos", "W_Q", "W_K", "W_V", "W_O", "W_U"):
-            with pytest.raises(KeyError):
-                bundle.weight(name)
-
-    def test_attention_pattern_raises_not_implemented(self, bundle):
-        with pytest.raises(NotImplementedError):
-            bundle.attention_pattern(0)
-
-    def test_residual_stream_raises_not_implemented(self, bundle):
-        with pytest.raises(NotImplementedError):
-            bundle.residual_stream(0, -1, "pre")
-
-    def test_logits_shape(self, bundle):
-        assert bundle.logits(-1).shape == (P * P, P)
-
-    def test_logits_position_ignored(self, bundle):
-        assert torch.equal(bundle.logits(0), bundle.logits(-1))
-
-    def test_supports_site_mlp(self, bundle):
-        assert bundle.supports_site("mlp") is True
-        assert bundle.supports_site("resid_pre") is False
-        assert bundle.supports_site("attn") is False
-
-
 # ── ModuloAdditionEmbedMLPFamily ────────────────────────────────────────────
 
 
@@ -254,19 +193,14 @@ class TestModuloAdditionEmbedMLPFamily:
         r2 = family.generate_training_dataset(params)
         assert torch.equal(r1[4], r2[4])  # train_indices
 
-    def test_run_forward_pass_returns_mlp_bundle(self, family, params):
+    def test_create_model_run_with_cache(self, family, params):
         model = family.create_model(params)
         probe = family.generate_analysis_dataset(params)
-        bundle = family.run_forward_pass(model, probe)
-        assert isinstance(bundle, MLPBundle)
-
-    def test_run_forward_pass_bundle_shapes(self, family, params):
-        model = family.create_model(params)
-        probe = family.generate_analysis_dataset(params)
-        bundle = family.run_forward_pass(model, probe)
+        with torch.inference_mode():
+            logits, cache = model.run_with_cache(probe)
         d_hidden = family.architecture.get("d_hidden", 512)
-        assert bundle.mlp_post(0, -1).shape == (P * P, d_hidden)
-        assert bundle.logits(-1).shape == (P * P, P)
+        assert logits.shape == (P * P, P)
+        assert cache["blocks.0.mlp.hook_out"].shape == (P * P, d_hidden)
 
     def test_prepare_analysis_context_keys(self, family, params):
         ctx = family.prepare_analysis_context(params, "cpu")

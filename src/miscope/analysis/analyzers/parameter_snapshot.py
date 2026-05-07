@@ -25,19 +25,20 @@ class ParameterSnapshotAnalyzer:
 
     name = "parameter_snapshot"
     description = "Stores weight matrix snapshots for trajectory analysis"
-    architecture_support = ["transformer", "mlp"]
+    # Reads weights only — runs on any architecture.
+    required_hooks: list[str] = []
 
     def analyze(
         self,
         ctx: ActivationContext,
     ) -> dict[str, np.ndarray]:
-        """Extract all trainable weight matrices from the bundle.
+        """Extract all trainable weight matrices from the model.
 
         Args:
-            ctx: Analysis context with bundle (probe and analysis_params unused).
+            ctx: Analysis context with model (probe and analysis_params unused).
 
         Returns:
             Dict mapping weight matrix names to numpy arrays in
             their original shapes (e.g., W_E, W_Q, W_in, etc.)
         """
-        return extract_parameter_snapshot(ctx.bundle)
+        return extract_parameter_snapshot(ctx.model)

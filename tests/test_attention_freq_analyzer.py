@@ -8,20 +8,18 @@ import pytest
 import torch
 
 from miscope.analysis.analyzers.attention_freq import AttentionFreqAnalyzer
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.library import (
     get_fourier_basis,
 )
 from miscope.analysis.protocols import ActivationContext
+from miscope.architectures import ActivationCache
 
-# ── Mock cache ──────────────────────────────────────────────────────────
 
-
-class MockCache(dict):
-    """Minimal mock for TransformerLens ActivationCache."""
-
-    def __getitem__(self, key):
-        return super().__getitem__(key)
+def _canonical_cache(entries: dict) -> ActivationCache:
+    cache = ActivationCache()
+    for k, v in entries.items():
+        cache[k] = v
+    return cache
 
 
 # ── Analyzer Protocol ───────────────────────────────────────────────────
@@ -85,7 +83,7 @@ class TestAttentionFreqAnalyzerOutput:
         attn = raw / raw.sum(axis=-1, keepdims=True)
         attn_tensor = torch.tensor(attn)
 
-        cache = MockCache({("pattern", 0): attn_tensor})
+        cache = _canonical_cache({"blocks.0.attn.hook_pattern": attn_tensor})
         probe = torch.zeros(batch, 3)
 
         fourier_basis, _ = get_fourier_basis(p)
@@ -93,11 +91,7 @@ class TestAttentionFreqAnalyzerOutput:
 
         analyzer = AttentionFreqAnalyzer()
         return analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
+            ActivationContext(probe=probe, analysis_params=context, cache=cache)
         )
 
     def test_returns_dict(self, analyzer_result):
@@ -236,7 +230,7 @@ class TestAttentionFreqPositionPair:
         attn = raw / raw.sum(axis=-1, keepdims=True)
         attn_tensor = torch.tensor(attn)
 
-        cache = MockCache({("pattern", 0): attn_tensor})
+        cache = _canonical_cache({"blocks.0.attn.hook_pattern": attn_tensor})
         probe = torch.zeros(batch, 3)
         fourier_basis, _ = get_fourier_basis(p)
         context = {"fourier_basis": fourier_basis}
@@ -245,18 +239,10 @@ class TestAttentionFreqPositionPair:
         analyzer_b = AttentionFreqAnalyzer(to_position=2, from_position=1)
 
         result_a = analyzer_a.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
+            ActivationContext(probe=probe, analysis_params=context, cache=cache)
         )
         result_b = analyzer_b.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
+            ActivationContext(probe=probe, analysis_params=context, cache=cache)
         )
 
         assert not np.array_equal(result_a["freq_matrix"], result_b["freq_matrix"])

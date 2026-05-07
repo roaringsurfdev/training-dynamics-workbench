@@ -9,11 +9,9 @@ This package provides:
 
 from miscope.analysis.analyzers import AnalyzerRegistry
 from miscope.analysis.artifact_loader import ArtifactLoader
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.freshness import FreshnessReport, check_freshness
 from miscope.analysis.pipeline import AnalysisPipeline
 from miscope.analysis.protocols import (
-    ActivationBundle,
     AnalysisRunConfig,
     Analyzer,
     CrossEpochAnalyzer,
@@ -21,7 +19,6 @@ from miscope.analysis.protocols import (
 )
 
 __all__ = [
-    "ActivationBundle",
     "Analyzer",
     "AnalyzerRegistry",
     "AnalysisPipeline",
@@ -30,6 +27,5 @@ __all__ = [
     "CrossEpochAnalyzer",
     "FreshnessReport",
     "SecondaryAnalyzer",
-    "TransformerLensBundle",
     "check_freshness",
 ]

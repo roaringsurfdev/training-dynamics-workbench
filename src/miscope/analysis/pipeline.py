@@ -284,27 +284,19 @@ class AnalysisPipeline:
         entry. Legacy analyzers without ``required_hooks`` continue to
         run unconditionally and consume the bundle.
         """
-        from miscope.architectures import HookedModel
-
         state_dict = self.variant.load_checkpoint(epoch)
         model = self.variant.family.create_model(self.variant.params, device=self._device)
         model.load_state_dict(state_dict)
 
-        bundle = self.variant.family.run_forward_pass(model, probe)
-        # Populate the canonical-name surface (REQ_112) when the family
-        # has migrated to ``HookedModel``. ``ctx.cache`` reuses the same
-        # tensors the bundle holds — zero copies.
-        canonical_model = model if isinstance(model, HookedModel) else None
-        canonical_cache = (
-            getattr(bundle, "_cache", None) if canonical_model is not None else None
-        )
+        with torch.inference_mode():
+            logits, cache = model.run_with_cache(probe)
 
         ctx = ActivationContext(
-            bundle=bundle,
             probe=probe,
             analysis_params=context,
-            model=canonical_model,
-            cache=canonical_cache,
+            model=model,
+            cache=cache,
+            logits=logits,
         )
 
         for analyzer, needed_epochs in work_queue:
@@ -313,15 +305,7 @@ class AnalysisPipeline:
 
             required = getattr(analyzer, "required_hooks", None)
             if required:
-                if canonical_model is None:
-                    logger.info(
-                        "Skipping %s on epoch %d: analyzer requires HookedModel "
-                        "interface but family has not migrated.",
-                        analyzer.name,
-                        epoch,
-                    )
-                    continue
-                missing = [h for h in required if h not in canonical_model.hook_names()]
+                missing = [h for h in required if h not in model.hook_names()]
                 if missing:
                     logger.info(
                         "Skipping %s on epoch %d: missing canonical hooks %s.",
@@ -342,7 +326,7 @@ class AnalysisPipeline:
                     collector["values"][key].append(value)
 
         # Explicit cleanup to prevent GPU memory accumulation
-        del model, bundle, state_dict
+        del model, cache, logits, state_dict
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 

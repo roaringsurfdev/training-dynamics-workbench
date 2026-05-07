@@ -39,7 +39,8 @@ class GradientSiteAnalyzer:
     """
 
     name = "gradient_site"
-    architecture_support = ["transformer"]
+    # Reads transformer weights via canonical names (embed.W_E, attn Q/K/V,
+    # mlp.in.W). Family registration filters non-transformer architectures.
     requires: list[str] = []  # loads checkpoints directly; no per-epoch deps
 
     def __init__(self, n_interior: int = 2, full_resolution: bool = False) -> None:
@@ -236,7 +237,9 @@ def _fourier_gradient_by_site(
     frequency = RMS over all output dimensions.
 
     Args:
-        model: HookedTransformer with weights loaded from a checkpoint
+        model: ``HookedModel`` with weights loaded from a checkpoint.
+            Must publish ``embed.W_E``, attention Q/K/V, and MLP in
+            weights — i.e., a transformer-class architecture.
         train_data: Training input tensor, shape (n, seq_len)
         train_labels: Training label tensor, shape (n,)
         prime: Modulus p (number of token positions in frequency projection)
@@ -251,7 +254,8 @@ def _fourier_gradient_by_site(
     loss = torch.nn.functional.cross_entropy(logits, train_labels)
     loss.backward()
 
-    W_E = model.embed.W_E.detach()  # (d_vocab, d_model)
+    W_E_param = model.get_weight("embed.W_E")
+    W_E = W_E_param.detach()  # (d_vocab, d_model)
     F_dev = fourier_basis.to(W_E.device)
 
     def _freq_energy(fourier_projected: torch.Tensor) -> np.ndarray:
@@ -264,14 +268,18 @@ def _fourier_gradient_by_site(
         return energy
 
     # Embedding: grad_W_E[:p] is (p, d_model) — already in token space
-    grad_W_E = model.embed.W_E.grad[:prime]
+    grad_W_E = W_E_param.grad[:prime]
     emb_energy = _freq_energy(F_dev @ grad_W_E)
 
     # Attention: Q, K, V each (n_heads, d_model, d_head); project per head, combine as RMS
     attn_sq = np.zeros(n_freqs)
     n_contributions = 0
-    for w_name in ("W_Q", "W_K", "W_V"):
-        grad_W = getattr(model.blocks[0].attn, w_name).grad  # (n_heads, d_model, d_head)
+    for canonical_w in (
+        "blocks.0.attn.q.W",
+        "blocks.0.attn.k.W",
+        "blocks.0.attn.v.W",
+    ):
+        grad_W = model.get_weight(canonical_w).grad  # (n_heads, d_model, d_head)
         for h in range(grad_W.shape[0]):
             projected = W_E[:prime] @ grad_W[h]  # (p, d_head)
             fg = (F_dev @ projected).detach().cpu().numpy()
@@ -281,7 +289,7 @@ def _fourier_gradient_by_site(
     attn_energy = np.sqrt(attn_sq / n_contributions)
 
     # MLP: W_in is (d_model, d_mlp); project gradient through W_E
-    grad_W_in = model.blocks[0].mlp.W_in.grad
+    grad_W_in = model.get_weight("blocks.0.mlp.in.W").grad
     mlp_energy = _freq_energy(F_dev @ (W_E[:prime] @ grad_W_in))
 
     return {"embedding": emb_energy, "attention": attn_energy, "mlp": mlp_energy}

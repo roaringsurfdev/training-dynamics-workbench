@@ -123,27 +123,6 @@ class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
             test_idx,
         )
 
-    def run_forward_pass(
-        self,
-        model: HookedEmbeddingMLP,
-        probe: torch.Tensor,
-    ) -> Any:
-        """Run a forward pass and return an :class:`MLPBundle`.
-
-        Args:
-            model: ``HookedEmbeddingMLP`` instance.
-            probe: ``(N, 2)`` long tensor of (a, b) index pairs from
-                ``generate_analysis_dataset``.
-
-        Returns:
-            ``MLPBundle`` wrapping the canonical cache + logits.
-        """
-        from miscope.analysis.mlp_bundle import MLPBundle
-
-        with torch.inference_mode():
-            logits, cache = model.run_with_cache(probe)
-        return MLPBundle(model, cache, logits)
-
     def prepare_analysis_context(
         self,
         params: dict[str, Any],

@@ -15,9 +15,8 @@ from tqdm import tqdm
 from miscope.families.types import VariantState
 
 if TYPE_CHECKING:
-    from transformer_lens import ActivationCache, HookedTransformer
-
     from miscope.analysis.artifact_loader import ArtifactLoader
+    from miscope.architectures import ActivationCache, HookedModel
     from miscope.families.intervention_variant import InterventionVariant
     from miscope.families.protocols import ModelFamily
     from miscope.views.catalog import BoundView, EpochContext
@@ -174,14 +173,14 @@ class Variant:
             raise FileNotFoundError(f"No checkpoint found for epoch {epoch} at {checkpoint_path}")
         return load_file(checkpoint_path)
 
-    def load_model_at_checkpoint(self, epoch: int) -> HookedTransformer:
-        """Load a HookedTransformer with weights from a specific checkpoint.
+    def load_model_at_checkpoint(self, epoch: int) -> "HookedModel":
+        """Load a ``HookedModel`` with weights from a specific checkpoint.
 
         Args:
             epoch: The epoch number of the checkpoint to load
 
         Returns:
-            HookedTransformer with checkpoint weights loaded
+            ``HookedModel`` with checkpoint weights loaded
         """
         model = self._family.create_model(self._params)
         state_dict = self.load_checkpoint(epoch)
@@ -264,7 +263,7 @@ class Variant:
             device: Device for the model (default: auto-detect)
 
         Returns:
-            Tuple of (logits, cache) from transformer_lens run_with_cache
+            Tuple of (logits, cache) from ``HookedModel.run_with_cache``
         """
         model = self.load_model_at_checkpoint(epoch)
         if device is not None:
@@ -492,9 +491,9 @@ class Variant:
             progress_callback: Optional callback for progress updates
                               (fraction: float, description: str)
             training_hook: Optional hook factory. Called each epoch with the
-                          current epoch number; returns a list of transformer_lens
+                          current epoch number; returns a list of canonical-name
                           forward hook tuples (name, fn) to apply via
-                          model.run_with_hooks(). Return [] outside the
+                          ``model.run_with_hooks()``. Return [] outside the
                           intervention window for a no-op epoch. When None,
                           the standard model(train_data) forward pass is used.
 

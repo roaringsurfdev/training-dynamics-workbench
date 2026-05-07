@@ -1,6 +1,6 @@
 # REQ_114: HookedModel Analyzer Migration
 
-**Status:** Draft
+**Status:** Implemented (regression validation pending)
 **Priority:** Medium-High — completes the analyzer side of the `HookedModel` boundary. Lower than REQ_112/113 because the canary in REQ_112 already demonstrates the pattern; this REQ scales it.
 **Branch:** TBD.
 **Dependencies:**
@@ -254,3 +254,57 @@ The flow is single-threaded per analyzer; multiple analyzers can be at different
 - **Architecture-conditional split as a research-quality improvement.** The forced summation in the legacy `FrequencyAnalyzer` is the kind of thing that silently encodes a methodological choice. Splitting into two `required_weights`-distinguished analyzers makes the choice explicit and reviewable. Worth flagging during migration when a forced branch is uncovered — those are publication-level documentation moments (and likely fieldnotes prompts).
 - **CHANGELOG entries** describe the migration outcomes: which analyzers split into multiple subclasses; which architecture-conditional behaviors were uncovered; any artifact-schema changes (none expected — this REQ is byte-identical-preserving).
 - **Branching note.** Suggested: a fresh `feature/analyzer-migration` branch from `develop` after REQ_113 merges, since REQ_114's diff is large and dispersed across `analysis/analyzers/`.
+
+---
+
+## Implementation outcome (2026-05-06)
+
+Landed on `feature/architecture-adapter` continuing the REQ_105 → REQ_112 → REQ_113 → REQ_114 sequence.
+
+**Infrastructure:**
+- `ActivationContext` gains `model: HookedModel | None`, `cache: ActivationCache | None`, `logits: torch.Tensor | None` fields. The legacy `bundle` field is removed entirely.
+- `ActivationBundle` Protocol deleted from `analysis/protocols.py`.
+- `TransformerLensBundle` (`src/miscope/analysis/bundle.py`) and `MLPBundle` (`src/miscope/analysis/mlp_bundle.py`) deleted.
+- `family.run_forward_pass` removed from `BaseModelFamily`, `ModelFamily` Protocol, and all three concrete family implementations. The pipeline now calls `model.run_with_cache(probe)` directly.
+- `analysis/library/activations.py` rewritten to consume canonical-name `ActivationCache` and `HookedModel`. TL imports cleared. Helpers: `extract_mlp_activations`, `extract_attention_patterns`, `extract_residual_stream`, `get_embedding_weights`, `reshape_to_grid`, `compute_grid_size_from_dataset`. The legacy `run_with_cache` convenience wrapper is gone (callers use `HookedModel.run_with_cache` directly).
+- `analysis/library/weights.py`: `extract_parameter_snapshot` and `compute_weight_singular_values` now take `HookedModel`, read via `model.get_weight(canonical_name)`. The legacy short-name dict (W_E, W_in, embed_a, ...) is preserved as the consumer-facing return shape so artifact schemas don't drift.
+- `analysis/library/landscape.py`: type relaxed from `HookedTransformer` to `nn.Module`. TL imports cleared.
+
+**Primary analyzer migration (13 analyzers):**
+Each replaces `architecture_support` with `required_hooks` and reads via `ctx.cache[canonical]` / `ctx.model.get_weight(canonical)` / `ctx.logits`:
+- attention_patterns, attention_freq (read `blocks.0.attn.hook_pattern`)
+- attention_fourier (reads embed.W_E + per-head Q/K/V)
+- neuron_activations, coarseness, neuron_freq_clusters (read `blocks.0.mlp.hook_out`)
+- input_trace (reads `ctx.logits`; handles both transformer (3D) and MLP (2D) shapes)
+- dominant_frequencies (reads embed.W_E)
+- fourier_nucleation (reads embed.W_E + blocks.0.mlp.in.W)
+- parameter_snapshot, effective_dimensionality (use `extract_parameter_snapshot` / `compute_weight_singular_values` taking HookedModel)
+- landscape_flatness (reads `ctx.model` directly via nn.Module surface)
+- gradient_site (cross-epoch; uses `model.get_weight(...).grad` instead of `model.embed.W_E.grad`)
+- repr_geometry was already migrated under REQ_112.
+
+**Non-primary analyzer cleanup:**
+`architecture_support` flag dropped from 11 cross-epoch + secondary analyzers (centroid_dmd, fourier_frequency_quality, freq_group_weight_geometry, global_centroid_pca, input_trace_graduation, intragroup_manifold, neuron_dynamics, neuron_fourier, neuron_group_pca, parameter_trajectory_pca, transient_frequency). These analyzers process saved artifacts, not live model state — `architecture_support` was vestigial.
+
+**Pipeline filter:**
+`_run_single_epoch` checks `required_hooks` against `model.hook_names()` before invoking each analyzer. Analyzers whose required hooks are absent are skipped with a structured info-level log entry (analyzer name, missing hooks, epoch). Empty `required_hooks` (e.g., for analyzers reading only weights or logits) means "runs on any architecture."
+
+**Test migration:**
+Every test file constructing `TransformerLensBundle` or TL-tuple-keyed mock caches migrated to canonical-name `ActivationCache` and `HookedModel`-shaped mock models. The legacy bundle test classes were removed (`TestMLPBundleOnOneHotMLP`, `TestMLPBundleOnEmbeddingMLP`, `TestModuloAddition2LMLPActivationBundle`, etc.) — those tested the bundle adapter; with the bundle gone, the canonical surface is exercised directly.
+
+**Quarantine — load-bearing:**
+`grep -rn 'transformer_lens' src/miscope/` returns hits only inside the canonical surface: `architectures/hooked_transformer.py` and `architectures/hooks.py` (the `HookPoint` alias). Every entry on `LEGACY_TL_IMPORTERS` was cleared during this REQ. The strict version of the quarantine test from REQ_112 is now load-bearing — adding any TL import outside the canonical surface fails the test suite.
+
+**Validation:**
+- 1462 tests passing, 0 regressions on the local suite.
+- REQ_086 byte-identity validation against the develop baseline (`reference_checksums_req112.json`) **pending** — the analyzer migrations rewrite read paths from bundle methods to canonical-name reads. Slight ordering differences in tensor operations are possible. The regression run on canon (`p113/s999/ds598`) and healthy reference (`p109/s485/ds598`) should produce byte-identical artifacts because:
+  1. Analyzer compute logic is unchanged — only the source of inputs changed.
+  2. The canonical cache reads (`cache[canonical_name]`) return the *same tensors* TL's cache returned (zero-copy translation in `HookedTransformer.run_with_cache`).
+  3. The canonical weight reads (`model.get_weight(canonical_name)`) return the *same parameter tensors* `bundle.weight(...)` did.
+- If byte-identity fails, the diagnosis path is: identify the analyzer, check for tensor-view-vs-copy differences in the new read path. Likely fixes are `.contiguous()` calls or order-of-operations preservation.
+
+**Process notes:**
+- `required_hooks: list[str] = []` for analyzers that read only weights or logits (no cache reads). The pipeline's filter trivially passes for these — they run on any architecture. Family-level registration (in family.json) is the primary mechanism for restricting analyzers to compatible architectures; runtime `KeyError` on `model.get_weight` is the safety net for misregistration.
+- `required_weights` was considered but not adopted (REQ_114's flexibility note). The two-axis declaration (hooks + weights) adds complexity for the small number of analyzers that read weights without reading activations; family registration + KeyError is sufficient.
+- The forced-summation antipattern called out in the original REQ_114 spec did not surface during migration — none of the migrated analyzers had architecture-conditional branching that needed splitting into two `required_hooks`-distinguished subclasses. If such branching is added in the future (e.g., a frequency analyzer that wants both transformer's `embed.W_E` and embedding-MLP's `embed.embed_a`+`embed.embed_b`), the two-subclass pattern is the right resolution.
+- Coordination with REQ_111: Option A from the original ordering discussion — REQ_114 migrated the surviving analyzers en masse, after REQ_111 ships any new ones. REQ_111's first-analyzer-pair decision can now be Option B (born on `HookedModel`) without follow-up sweep, since the migration is complete.

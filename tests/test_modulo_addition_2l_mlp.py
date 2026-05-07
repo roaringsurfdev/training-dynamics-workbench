@@ -1,9 +1,10 @@
 """Tests for ModuloAddition2LMLPFamily and the underlying HookedOneHotMLP.
 
-Migrated under REQ_113: standalone ``ModuloAddition2LMLP`` /
-``ModuloAddition2LMLPActivationBundle`` are retired in favor of
-``HookedOneHotMLP`` (canonical-name surface) and ``MLPBundle`` (legacy
-ActivationBundle adapter).
+Migrated under REQ_113 / REQ_114: standalone ``ModuloAddition2LMLP``
+and per-family ``*ActivationBundle`` classes are retired in favor of
+``HookedOneHotMLP`` (canonical-name surface). Bundles and
+``family.run_forward_pass`` are gone — analyzers consume
+``HookedModel.run_with_cache`` directly.
 """
 
 from __future__ import annotations
@@ -11,8 +12,6 @@ from __future__ import annotations
 import pytest
 import torch
 
-from miscope.analysis.mlp_bundle import MLPBundle
-from miscope.analysis.protocols import ActivationBundle
 from miscope.architectures import (
     ActivationCache,
     HookedModel,
@@ -42,13 +41,6 @@ def probe() -> torch.Tensor:
     one_hot_a.scatter_(1, a_vals.unsqueeze(1), 1.0)
     one_hot_b.scatter_(1, b_vals.unsqueeze(1), 1.0)
     return torch.cat([one_hot_a, one_hot_b], dim=1)
-
-
-@pytest.fixture
-def bundle(model: HookedOneHotMLP, probe: torch.Tensor) -> MLPBundle:
-    with torch.inference_mode():
-        logits, cache = model.run_with_cache(probe)
-    return MLPBundle(model, cache, logits)
 
 
 @pytest.fixture
@@ -111,59 +103,6 @@ class TestHookedOneHotMLP:
         assert torch.equal(cache["unembed.hook_out"], logits)
 
 
-# ── MLPBundle (legacy ActivationBundle compatibility) ───────────────────────
-
-
-class TestMLPBundleOnOneHotMLP:
-    def test_implements_activation_bundle_protocol(self, bundle):
-        assert isinstance(bundle, ActivationBundle)
-
-    def test_mlp_post_layer0(self, bundle):
-        hidden = bundle.mlp_post(0, -1)
-        assert hidden.shape == (P * P, 64)
-
-    def test_weight_w_in(self, bundle):
-        w = bundle.weight("W_in")
-        assert w.shape == (64, 2 * P)
-
-    def test_weight_w_out(self, bundle):
-        w = bundle.weight("W_out")
-        assert w.shape == (P, 64)
-
-    def test_weight_transformer_names_raise_key_error(self, bundle):
-        for name in ("W_E", "W_pos", "W_Q", "W_K", "W_V", "W_O", "W_U"):
-            with pytest.raises(KeyError):
-                bundle.weight(name)
-
-    def test_weight_embedding_names_raise_key_error(self, bundle):
-        # One-hot architecture publishes neither embed_a nor embed_b
-        for name in ("embed_a", "embed_b"):
-            with pytest.raises(KeyError):
-                bundle.weight(name)
-
-    def test_attention_pattern_raises_not_implemented(self, bundle):
-        with pytest.raises(NotImplementedError):
-            bundle.attention_pattern(0)
-
-    def test_residual_stream_raises_not_implemented(self, bundle):
-        with pytest.raises(NotImplementedError):
-            bundle.residual_stream(0, -1, "pre")
-
-    def test_logits_shape(self, bundle):
-        logits = bundle.logits(-1)
-        assert logits.shape == (P * P, P)
-
-    def test_logits_position_ignored(self, bundle):
-        """logits() should return the same tensor regardless of position arg."""
-        assert torch.equal(bundle.logits(0), bundle.logits(-1))
-        assert torch.equal(bundle.logits(0), bundle.logits(99))
-
-    def test_supports_site(self, bundle):
-        assert bundle.supports_site("mlp")
-        assert not bundle.supports_site("residual")
-        assert not bundle.supports_site("attention")
-
-
 # ── ModuloAddition2LMLPFamily ────────────────────────────────────────────────
 
 
@@ -201,18 +140,14 @@ class TestModuloAddition2LMLPFamily:
         r2 = family.generate_training_dataset(params)
         assert torch.equal(r1[4], r2[4])  # train_indices
 
-    def test_run_forward_pass_returns_mlp_bundle(self, family, params):
+    def test_create_model_run_with_cache(self, family, params):
         model = family.create_model(params)
         probe = family.generate_analysis_dataset(params)
-        bundle = family.run_forward_pass(model, probe)
-        assert isinstance(bundle, MLPBundle)
-
-    def test_run_forward_pass_bundle_shapes(self, family, params):
-        model = family.create_model(params)
-        probe = family.generate_analysis_dataset(params)
-        bundle = family.run_forward_pass(model, probe)
-        assert bundle.mlp_post(0, -1).shape == (P * P, 512)
-        assert bundle.logits(-1).shape == (P * P, P)
+        with torch.inference_mode():
+            logits, cache = model.run_with_cache(probe)
+        # MLP forward returns (batch, vocab_size); no sequence dim.
+        assert logits.shape == (P * P, P)
+        assert cache["blocks.0.mlp.hook_out"].shape == (P * P, 512)
 
     def test_prepare_analysis_context_has_fourier_basis(self, family, params):
         ctx = family.prepare_analysis_context(params, "cpu")
