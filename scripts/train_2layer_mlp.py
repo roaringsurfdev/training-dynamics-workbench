@@ -20,9 +20,9 @@ import torch
 import tqdm.auto as tqdm
 from safetensors.torch import save_file
 
-# Ensure project root is on the path when run as a script
+# Ensure miscope is on the path when run as a script outside `uv run`
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / "src"))
+sys.path.insert(0, str(project_root / "packages" / "miscope" / "src"))
 
 from miscope.config import get_config  # noqa: E402
 from miscope.families.implementations.modulo_addition_2l_mlp import (  # noqa: E402

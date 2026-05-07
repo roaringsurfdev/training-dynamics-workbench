@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.distance import pdist
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "miscope" / "src"))
 
 OUTPUT_PATH = Path("model_families/modulo_addition_1layer/ideal_frequency_sets.json")
 

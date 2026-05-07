@@ -21,7 +21,7 @@ import tqdm.auto as tqdm
 from safetensors.torch import save_file
 
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / "src"))
+sys.path.insert(0, str(project_root / "packages" / "miscope" / "src"))
 
 from miscope.config import get_config  # noqa: E402
 from miscope.families.implementations.modulo_addition_embed_mlp import (  # noqa: E402

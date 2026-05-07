@@ -22,7 +22,7 @@ import subprocess
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SRC = PROJECT_ROOT / "src" / "miscope"
+SRC = PROJECT_ROOT / "packages" / "miscope" / "src" / "miscope"
 
 # Modules that are allowed to import from ``transformer_lens`` through
 # the end of REQ_112. Each entry has an owning REQ that retires it.

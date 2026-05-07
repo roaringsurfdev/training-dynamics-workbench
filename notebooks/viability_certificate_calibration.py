@@ -32,7 +32,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "packages" / "miscope" / "src"))
 from miscope import load_family
 
 # %% Configuration
