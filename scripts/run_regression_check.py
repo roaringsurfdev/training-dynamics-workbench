@@ -48,13 +48,13 @@ def run_pipeline(variant, force: bool) -> None:
         DominantFrequenciesAnalyzer,
         EffectiveDimensionalityAnalyzer,
         FourierFrequencyQualityAnalyzer,
-        #FourierNucleationAnalyzer,
+        # FourierNucleationAnalyzer,
         FreqGroupWeightGeometryAnalyzer,
         GlobalCentroidPCA,
         InputTraceAnalyzer,
         InputTraceGraduationAnalyzer,
         IntraGroupManifoldAnalyzer,
-        #LandscapeFlatnessAnalyzer,
+        # LandscapeFlatnessAnalyzer,
         NeuronActivationsAnalyzer,
         NeuronDynamicsAnalyzer,
         NeuronFourierAnalyzer,
@@ -76,10 +76,10 @@ def run_pipeline(variant, force: bool) -> None:
     pipeline.register(ParameterSnapshotAnalyzer())
     pipeline.register(EffectiveDimensionalityAnalyzer())
     # LandscapeFlatnessAnalyzer excluded: stochastic by design, not regression-testable
-    #pipeline.register(LandscapeFlatnessAnalyzer())
+    # pipeline.register(LandscapeFlatnessAnalyzer())
     pipeline.register(RepresentationalGeometryAnalyzer())
     pipeline.register(AttentionFourierAnalyzer())
-    #pipeline.register(FourierNucleationAnalyzer())
+    # pipeline.register(FourierNucleationAnalyzer())
     pipeline.register_secondary(FourierFrequencyQualityAnalyzer())
     pipeline.register_secondary(NeuronFourierAnalyzer())
     pipeline.register_cross_epoch(InputTraceGraduationAnalyzer())
