@@ -38,7 +38,13 @@ def sha256_file(path: Path) -> str:
 
 
 def run_pipeline(variant, force: bool) -> None:
-    """Run the full analysis pipeline for a variant."""
+    """Run the analysis pipeline for a variant.
+
+    Analyzer set matches notebooks/run_analysis_regression.py — the
+    script the user runs on develop to refresh REQ_112 reference
+    checksums. Keep these in sync; byte-identity comparison requires
+    the same set.
+    """
     from miscope.analysis import AnalysisPipeline
     from miscope.analysis.analyzers import (
         AttentionFourierAnalyzer,
@@ -48,11 +54,11 @@ def run_pipeline(variant, force: bool) -> None:
         DominantFrequenciesAnalyzer,
         EffectiveDimensionalityAnalyzer,
         FourierFrequencyQualityAnalyzer,
-        FourierNucleationAnalyzer,
+        FreqGroupWeightGeometryAnalyzer,
         GlobalCentroidPCA,
-        GradientSiteAnalyzer,
         InputTraceAnalyzer,
         InputTraceGraduationAnalyzer,
+        IntraGroupManifoldAnalyzer,
         NeuronActivationsAnalyzer,
         NeuronDynamicsAnalyzer,
         NeuronFourierAnalyzer,
@@ -74,9 +80,9 @@ def run_pipeline(variant, force: bool) -> None:
     pipeline.register(ParameterSnapshotAnalyzer())
     pipeline.register(EffectiveDimensionalityAnalyzer())
     # LandscapeFlatnessAnalyzer excluded: stochastic by design, not regression-testable
+    # FourierNucleationAnalyzer excluded to match develop-side regen scope
     pipeline.register(RepresentationalGeometryAnalyzer())
     pipeline.register(AttentionFourierAnalyzer())
-    pipeline.register(FourierNucleationAnalyzer())
     pipeline.register_secondary(FourierFrequencyQualityAnalyzer())
     pipeline.register_secondary(NeuronFourierAnalyzer())
     pipeline.register_cross_epoch(InputTraceGraduationAnalyzer())
@@ -86,7 +92,8 @@ def run_pipeline(variant, force: bool) -> None:
     pipeline.register_cross_epoch(GlobalCentroidPCA())
     pipeline.register_cross_epoch(CentroidDMD())
     pipeline.register_cross_epoch(TransientFrequencyAnalyzer())
-    pipeline.register_cross_epoch(GradientSiteAnalyzer())
+    pipeline.register_cross_epoch(FreqGroupWeightGeometryAnalyzer())
+    pipeline.register_cross_epoch(IntraGroupManifoldAnalyzer())
     pipeline.run(force=force)
 
 

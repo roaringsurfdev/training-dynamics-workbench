@@ -1,6 +1,6 @@
 # REQ_112: HookedTransformer Implementation (1-Layer Family + End-to-End Canary)
 
-**Status:** Draft
+**Status:** Implemented; validation passed
 **Priority:** High — first concrete proof that the `HookedModel` boundary survives contact with a real architecture and a real analyzer end-to-end.
 **Branch:** TBD (likely a continuation of `feature/architecture-adapter` after REQ_105 lands).
 **Dependencies:**
@@ -177,3 +177,16 @@ REQ_113 brings the two MLP families through the same boundary. REQ_114 finishes 
 - **TL version question is decoupled.** This REQ assumes TL 2.x as the runtime (the version in the dep tree today). If the TL 4.x decision arrives during REQ_112's implementation, the scope question is whether the subclass keeps working under the new TL — answer comes from running the test suite. The decision to *migrate* TL versions is REQ_103's territory, not this REQ's.
 - **Canary analyzer artifact compatibility.** The canary analyzer must produce per-epoch artifacts at the same path and with the same schema as before (`artifacts/{analyzer_name}/epoch_{NNNNN}.npz`). REQ_086's regression scaffold validates this by file content, not just by analyzer return value.
 - **Branching note.** Suggested branch name: `feature/hooked-transformer` if forking from `develop`, or continue on `feature/architecture-adapter` if REQ_105 is merging through that branch. Naming choice driven by git-history continuity rather than process.
+
+---
+
+## Validation outcome (2026-05-06)
+
+**REQ_086 byte-identity passed: 6054/6054 artifacts byte-identical to develop** across both reference variants (`p113/s999/ds598` canon, `p109/s485/ds598` healthy reference). 0 mismatches, 0 missing, 0 extras.
+
+The canary `repr_geometry` is byte-identical despite migrating from `bundle.mlp_post(0, -1)` / `bundle.residual_stream(0, -1, location)` to `cache[canonical_name][:, -1, :]`. The earlier f64-noise concern was an artifact of comparing against a stale checksums file (predating REQ_109's `_pca_var_pc{1,2,3}` schema additions). Against a fresh develop-side baseline produced from the same analyzer set, the canonical-cache slice path produces bit-exact results.
+
+**Process notes for future migrations:**
+- The reference checksums must be regenerated whenever the analyzer set or output schema changes — the comparison is sha256-of-file, so any schema drift between baseline and current produces noise in the comparison.
+- The user's `notebooks/run_analysis_regression.py` is the canonical refresh script; `scripts/run_regression_check.py` is updated under this REQ to register the same analyzer set so byte-identity comparisons are apples-to-apples.
+- Bundle dual-mode (REQ_112 introduction): the legacy `TransformerLensBundle` path produces byte-identical output to the pre-REQ_112 codebase for all non-migrated analyzers. The dual-mode rewire is invisible to legacy consumers.
