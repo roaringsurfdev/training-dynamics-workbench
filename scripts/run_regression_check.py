@@ -48,11 +48,13 @@ def run_pipeline(variant, force: bool) -> None:
         DominantFrequenciesAnalyzer,
         EffectiveDimensionalityAnalyzer,
         FourierFrequencyQualityAnalyzer,
-        FourierNucleationAnalyzer,
+        #FourierNucleationAnalyzer,
+        FreqGroupWeightGeometryAnalyzer,
         GlobalCentroidPCA,
-        GradientSiteAnalyzer,
         InputTraceAnalyzer,
         InputTraceGraduationAnalyzer,
+        IntraGroupManifoldAnalyzer,
+        #LandscapeFlatnessAnalyzer,
         NeuronActivationsAnalyzer,
         NeuronDynamicsAnalyzer,
         NeuronFourierAnalyzer,
@@ -74,9 +76,10 @@ def run_pipeline(variant, force: bool) -> None:
     pipeline.register(ParameterSnapshotAnalyzer())
     pipeline.register(EffectiveDimensionalityAnalyzer())
     # LandscapeFlatnessAnalyzer excluded: stochastic by design, not regression-testable
+    #pipeline.register(LandscapeFlatnessAnalyzer())
     pipeline.register(RepresentationalGeometryAnalyzer())
     pipeline.register(AttentionFourierAnalyzer())
-    pipeline.register(FourierNucleationAnalyzer())
+    #pipeline.register(FourierNucleationAnalyzer())
     pipeline.register_secondary(FourierFrequencyQualityAnalyzer())
     pipeline.register_secondary(NeuronFourierAnalyzer())
     pipeline.register_cross_epoch(InputTraceGraduationAnalyzer())
@@ -86,12 +89,15 @@ def run_pipeline(variant, force: bool) -> None:
     pipeline.register_cross_epoch(GlobalCentroidPCA())
     pipeline.register_cross_epoch(CentroidDMD())
     pipeline.register_cross_epoch(TransientFrequencyAnalyzer())
-    pipeline.register_cross_epoch(GradientSiteAnalyzer())
+    pipeline.register_cross_epoch(FreqGroupWeightGeometryAnalyzer())
+    pipeline.register_cross_epoch(IntraGroupManifoldAnalyzer())
+
     pipeline.run(force=force)
 
 
 # Analyzers excluded from regression: stochastic output, not byte-comparable.
-EXCLUDED_ANALYZERS = {"landscape_flatness", "coarseness"}
+# Also includes deprecated or long-running analyzers that are not helpful for regression
+EXCLUDED_ANALYZERS = {"landscape_flatness", "coarseness", "gradient_site", "fourier_nucleation"}
 
 
 def compare_variant(
