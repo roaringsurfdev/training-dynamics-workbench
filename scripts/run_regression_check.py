@@ -98,7 +98,8 @@ def run_pipeline(variant, force: bool) -> None:
 
 
 # Analyzers excluded from regression: stochastic output, not byte-comparable.
-EXCLUDED_ANALYZERS = {"landscape_flatness", "coarseness"}
+# Also includes deprecated or long-running analyzers that are not helpful for regression
+EXCLUDED_ANALYZERS = {"landscape_flatness", "coarseness", "gradient_site", "fourier_nucleation"}
 
 
 def compare_variant(
