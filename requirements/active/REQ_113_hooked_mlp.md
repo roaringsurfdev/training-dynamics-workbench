@@ -1,6 +1,6 @@
 # REQ_113: HookedMLP Implementations (One-Hot and Embedding 2L MLP)
 
-**Status:** Draft
+**Status:** Implemented
 **Priority:** High — second concrete proof of the `HookedModel` boundary; exercises the abstraction with no TL involvement and a structurally different shape (no attention, optionally no embedding).
 **Branch:** TBD (suggested: continuation of the architecture-adapter branch sequence after REQ_112).
 **Dependencies:**
@@ -178,3 +178,28 @@ The two embedding matrices are accessible via `get_weight("embed.embed_a")` and 
 - **Out of scope: a fourth architecture.** If a future requirement introduces a new architecture (e.g., a tied-embedding MLP, an attention-only model, an external researcher's architecture), its `HookedModel` subclass lands under that requirement.
 - **Notebook migration triage.** During implementation, list any `notebooks/` files that import the retired bundles in this REQ's Notes section. Active-use ones get migrated as part of this REQ; research-artifact ones are flagged for later cleanup (likely under REQ_103's repo-presentation work).
 - **Branching note.** Suggested: continue on the architecture-adapter branch sequence after REQ_112 merges, or fork from `develop` at REQ_112's merge commit.
+
+---
+
+## Implementation outcome (2026-05-06)
+
+Landed on `feature/architecture-adapter`. All three trained architectures now sit behind the `HookedModel` boundary.
+
+**Components:**
+- `src/miscope/architectures/hooked_one_hot_mlp.py` — `HookedOneHotMLP` + `HookedOneHotMLPConfig`. No TL involvement. Publishes `blocks.0.{hook_in,hook_out,mlp.hook_pre,mlp.hook_out}`, `unembed.{hook_in,hook_out}`. Weights: `blocks.0.mlp.{in,out}.W` only.
+- `src/miscope/architectures/hooked_embedding_mlp.py` — `HookedEmbeddingMLP` + `HookedEmbeddingMLPConfig`. No TL. Adds `embed.hook_out` (post-sum representation). Weights: `embed.embed_a`, `embed.embed_b`, `blocks.0.mlp.{in,out}.W`. **`embed.W_E` raises `KeyError` — load-bearing for the embedding-identity invariant.**
+- `src/miscope/analysis/mlp_bundle.py` — shared `MLPBundle` adapter exposing the legacy `ActivationBundle` protocol over a `HookedModel` + canonical `ActivationCache`. Used by both family `run_forward_pass` methods so non-migrated analyzers keep working until REQ_114.
+- `src/miscope/families/implementations/modulo_addition_2l_mlp.py` and `modulo_addition_embed_mlp.py` rewritten to: (a) `create_model` returns the new `HookedModel` subclass, (b) `run_forward_pass` wraps the canonical cache in `MLPBundle`. Standalone `nn.Module` classes (`ModuloAddition2LMLP`, `ModuloAdditionEmbedMLP`) and per-family `*ActivationBundle` classes are deleted.
+- Test files migrated: `tests/test_modulo_addition_2l_mlp.py` and `tests/test_modulo_addition_embed_mlp.py` now exercise `HookedOneHotMLP`/`HookedEmbeddingMLP` and `MLPBundle` directly. Embedding-identity invariant test added (`test_embedding_identity_invariant_W_E_raises`).
+- State-dict compatibility preserved: submodule names (`W_in`, `W_out`, `embed_a`, `embed_b`) match the retired classes, so existing checkpoints load unchanged.
+
+**Validation:**
+- 1487 tests passing (was 1478 before REQ_113; +9 net new tests on the architecture surface).
+- 0 regressions on non-MLP tests.
+- Quarantine smoke test still passes — neither MLP subclass imports TransformerLens.
+- **Byte-identity regression skipped per user direction:** the families are slated for analytical-surface rework, so faithful reproduction of pre-REQ_113 outputs is not required.
+
+**Process notes:**
+- The user pre-pruned `regression/reference_checksums_req112.json` to canon + healthy-reference variants only; the MLP families have no reference artifacts in that file. If/when MLP regression baselines are needed, they get generated separately under the rework work.
+- `MLPBundle` is intentionally architecture-agnostic-within-MLP-class (works for both one-hot and embedding-MLP). After REQ_114 retires bundles entirely, this file goes away.
+- The `forward(inputs: Tensor)` signature on `HookedEmbeddingMLP` differs from the retired `ModuloAdditionEmbedMLP.forward(a, b)` — the new model takes a single `(batch, 2)` tensor and unbinds internally. This matches the rest of the platform's single-input convention and aligns with `HookedModel.run_with_cache(inputs)`.

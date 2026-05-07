@@ -16,13 +16,25 @@ Concrete subclasses (``HookedTransformer``, ``HookedOneHotMLP``,
 """
 
 from miscope.architectures.activation_cache import ActivationCache
+from miscope.architectures.hooked_embedding_mlp import (
+    HookedEmbeddingMLP,
+    HookedEmbeddingMLPConfig,
+)
 from miscope.architectures.hooked_model import HookedModel
+from miscope.architectures.hooked_one_hot_mlp import (
+    HookedOneHotMLP,
+    HookedOneHotMLPConfig,
+)
 from miscope.architectures.hooked_transformer import HookedTransformer, HookedTransformerConfig
 from miscope.architectures.hooks import HookPoint
 
 __all__ = [
     "ActivationCache",
+    "HookedEmbeddingMLP",
+    "HookedEmbeddingMLPConfig",
     "HookedModel",
+    "HookedOneHotMLP",
+    "HookedOneHotMLPConfig",
     "HookedTransformer",
     "HookedTransformerConfig",
     "HookPoint",

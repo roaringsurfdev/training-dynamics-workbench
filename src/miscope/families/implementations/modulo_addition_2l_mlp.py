@@ -6,6 +6,17 @@ attention, no positional embedding, and no residual stream.
 
 Input encoding: one-hot concatenation of (a, b) — two vectors of size p,
 concatenated to 2p. No equals token.
+
+REQ_113 migration
+-----------------
+The standalone ``ModuloAddition2LMLP`` ``nn.Module`` and its
+``ModuloAddition2LMLPActivationBundle`` are retired. The model is now
+:class:`miscope.architectures.HookedOneHotMLP`; activations and weights
+are reachable through canonical-name accessors on the
+:class:`HookedModel` interface. For analyzers that still consume the
+legacy ``ActivationBundle`` protocol, ``run_forward_pass`` returns an
+:class:`miscope.analysis.mlp_bundle.MLPBundle` view over the canonical
+cache.
 """
 
 from __future__ import annotations
@@ -14,131 +25,10 @@ from pathlib import Path
 from typing import Any
 
 import torch
-import torch.nn as nn
 
 from miscope.analysis.library import get_fourier_basis
+from miscope.architectures import HookedOneHotMLP, HookedOneHotMLPConfig
 from miscope.families.base_model_family import BaseModelFamily
-
-
-class ModuloAddition2LMLP(nn.Module):
-    """Two-layer MLP for modular addition.
-
-    Architecture: Linear(2p, d_hidden) → ReLU → Linear(d_hidden, p) → logits
-
-    Input is a flat one-hot encoding of (a, b) concatenated: size 2p.
-    Output is logits over the p residue classes (0 to p-1).
-    """
-
-    def __init__(
-        self,
-        vocab_size: int,
-        d_hidden: int,
-        seed: int | None = None,
-    ) -> None:
-        super().__init__()
-        if seed is not None:
-            torch.manual_seed(seed)
-
-        self.vocab_size = vocab_size
-        self.d_hidden = d_hidden
-
-        self.W_in = nn.Linear(2 * vocab_size, d_hidden, bias=False)
-        self.relu = nn.ReLU()
-        self.W_out = nn.Linear(d_hidden, vocab_size, bias=False)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass.
-
-        Args:
-            x: One-hot encoded input of shape (batch, 2 * vocab_size)
-
-        Returns:
-            Logits of shape (batch, vocab_size)
-        """
-        hidden = self.relu(self.W_in(x))
-        return self.W_out(hidden)
-
-
-class ModuloAddition2LMLPActivationBundle:
-    """ActivationBundle implementation for ModuloAddition2LMLP.
-
-    Captures hidden activations via a forward hook registered during
-    run_forward_pass(). Exposes them via the ActivationBundle protocol.
-    """
-
-    _WEIGHT_LOOKUP = {
-        "W_in": lambda m: m.W_in.weight,
-        "W_out": lambda m: m.W_out.weight,
-    }
-
-    def __init__(
-        self,
-        model: ModuloAddition2LMLP,
-        hidden_acts: torch.Tensor,
-        logits: torch.Tensor,
-    ) -> None:
-        self._model = model
-        self._hidden_acts = hidden_acts
-        self._logits = logits
-
-    def mlp_post(self, layer: int, position: int) -> torch.Tensor:
-        """Return post-ReLU hidden activations.
-
-        Args:
-            layer: Must be 0 (the only hidden layer).
-            position: Ignored — MLP has no sequence dimension.
-
-        Returns:
-            Tensor of shape (batch, d_hidden).
-
-        Raises:
-            ValueError: If layer != 0.
-        """
-        if layer != 0:
-            raise ValueError(
-                f"ModuloAddition2LMLPActivationBundle has one hidden layer (layer 0), got layer={layer}"
-            )
-        return self._hidden_acts
-
-    def weight(self, name: str) -> torch.Tensor:
-        """Return a named weight matrix.
-
-        Supported: W_in (first layer), W_out (second layer).
-        Raises KeyError for transformer-specific weight names.
-
-        Args:
-            name: Weight matrix name.
-
-        Returns:
-            Weight tensor.
-
-        Raises:
-            KeyError: If name is not available for this architecture.
-        """
-        if name not in self._WEIGHT_LOOKUP:
-            raise KeyError(f"Weight '{name}' not available in ModuloAddition2LMLPActivationBundle")
-        return self._WEIGHT_LOOKUP[name](self._model)
-
-    def attention_pattern(self, layer: int) -> torch.Tensor:
-        raise NotImplementedError("ModuloAddition2LMLPActivationBundle has no attention patterns")
-
-    def residual_stream(self, layer: int, position: int, location: str) -> torch.Tensor:
-        raise NotImplementedError("ModuloAddition2LMLPActivationBundle has no residual stream")
-
-    def logits(self, position: int) -> torch.Tensor:
-        """Return output logits.
-
-        Args:
-            position: Ignored — MLP has no sequence dimension.
-
-        Returns:
-            Tensor of shape (batch, vocab_size).
-        """
-        return self._logits
-
-    def supports_site(self, extractor: str) -> bool:
-        """MLP bundles only support 'mlp' extraction; no residual stream or attention."""
-        return extractor == "mlp"
 
 
 class ModuloAddition2LMLPFamily(BaseModelFamily):
@@ -157,21 +47,23 @@ class ModuloAddition2LMLPFamily(BaseModelFamily):
         self,
         params: dict[str, Any],
         device: str | torch.device | None = None,
-    ) -> ModuloAddition2LMLP:
-        """Create a ModuloAddition2LMLP for modular addition.
+    ) -> HookedOneHotMLP:
+        """Create a ``HookedOneHotMLP`` for modular addition.
 
         Args:
             params: Domain parameters containing 'prime', 'seed'
             device: Device to place the model on
 
         Returns:
-            ModuloAddition2LMLP configured for this prime
+            ``HookedOneHotMLP`` configured for this prime
         """
         p = params["prime"]
         seed = params.get("seed", self.get_default_params().get("seed", 999))
         d_hidden = self.architecture.get("d_hidden", 512)
 
-        model = ModuloAddition2LMLP(vocab_size=p, d_hidden=d_hidden, seed=seed)
+        model = HookedOneHotMLP(
+            HookedOneHotMLPConfig(vocab_size=p, d_hidden=d_hidden, seed=seed)
+        )
 
         if device is not None:
             model = model.to(device)
@@ -263,7 +155,7 @@ class ModuloAddition2LMLPFamily(BaseModelFamily):
         """Cross-entropy loss on MLP logits (batch, vocab_size).
 
         Args:
-            logits: Shape (batch, vocab_size) from ModuloAddition2LMLP.
+            logits: Shape (batch, vocab_size) from the model.
             labels: Target class indices of shape (batch,).
 
         Returns:
@@ -276,12 +168,12 @@ class ModuloAddition2LMLPFamily(BaseModelFamily):
 
     def build_config_dict(
         self,
-        model: ModuloAddition2LMLP,
+        model: HookedOneHotMLP,
         params: dict[str, Any],
         data_seed: int,
         training_fraction: float,
     ) -> dict[str, Any]:
-        """Build config.json dict for a ModuloAddition2LMLP."""
+        """Build config.json dict for the model."""
         return {
             "architecture": "two_layer_mlp",
             "vocab_size": model.vocab_size,
@@ -295,34 +187,27 @@ class ModuloAddition2LMLPFamily(BaseModelFamily):
 
     def run_forward_pass(
         self,
-        model: ModuloAddition2LMLP,
+        model: HookedOneHotMLP,
         probe: torch.Tensor,
-    ) -> ModuloAddition2LMLPActivationBundle:
-        """Run a forward pass and return a ModuloAddition2LMLPActivationBundle.
+    ) -> Any:
+        """Run a forward pass and return an :class:`MLPBundle`.
 
-        Registers a forward hook on the ReLU to capture hidden activations,
-        then runs the probe through the model.
+        Uses ``model.run_with_cache`` (canonical-name keyed) and wraps
+        the result for legacy analyzer compatibility. Migrated analyzers
+        bypass the bundle and read ``ctx.cache`` / ``ctx.model`` directly.
 
         Args:
-            model: ModuloAddition2LMLP instance created by create_model()
-            probe: One-hot encoded probe tensor of shape (batch, 2p)
+            model: ``HookedOneHotMLP`` instance created by ``create_model()``.
+            probe: One-hot encoded probe tensor of shape (batch, 2p).
 
         Returns:
-            ModuloAddition2LMLPActivationBundle with hidden activations and logits
+            ``MLPBundle`` wrapping the canonical cache + logits.
         """
-        captured: dict[str, torch.Tensor] = {}
+        from miscope.analysis.mlp_bundle import MLPBundle
 
-        def _hook(module: nn.Module, inp: Any, output: torch.Tensor) -> None:
-            captured["hidden"] = output
-
-        hook = model.relu.register_forward_hook(_hook)
-        try:
-            with torch.inference_mode():
-                logits = model(probe)
-        finally:
-            hook.remove()
-
-        return ModuloAddition2LMLPActivationBundle(model, captured["hidden"], logits)
+        with torch.inference_mode():
+            logits, cache = model.run_with_cache(probe)
+        return MLPBundle(model, cache, logits)
 
     def prepare_analysis_context(
         self,
@@ -344,7 +229,7 @@ class ModuloAddition2LMLPFamily(BaseModelFamily):
         p = params["prime"]
         fourier_basis, _ = get_fourier_basis(p, device)
 
-        def loss_fn(model: ModuloAddition2LMLP, probe: torch.Tensor) -> float:
+        def loss_fn(model: HookedOneHotMLP, probe: torch.Tensor) -> float:
             """Cross-entropy loss on one-hot modular addition probe."""
             a_vals = probe[:, :p].argmax(dim=1)
             b_vals = probe[:, p:].argmax(dim=1)

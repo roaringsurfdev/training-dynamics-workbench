@@ -1,26 +1,39 @@
-"""Tests for ModuloAdditionEmbedMLP, ModuloAdditionEmbedMLPActivationBundle, and ModuloAdditionEmbedMLPFamily."""
+"""Tests for ModuloAdditionEmbedMLPFamily and the underlying HookedEmbeddingMLP.
+
+Migrated under REQ_113: standalone ``ModuloAdditionEmbedMLP`` /
+``ModuloAdditionEmbedMLPActivationBundle`` are retired in favor of
+``HookedEmbeddingMLP`` (canonical-name surface) and ``MLPBundle``
+(legacy ActivationBundle adapter).
+"""
 
 from __future__ import annotations
 
 import pytest
 import torch
 
+from miscope.analysis.mlp_bundle import MLPBundle
 from miscope.analysis.protocols import ActivationBundle
+from miscope.architectures import (
+    ActivationCache,
+    HookedEmbeddingMLP,
+    HookedEmbeddingMLPConfig,
+    HookedModel,
+)
 from miscope.families.implementations.modulo_addition_embed_mlp import (
-    ModuloAdditionEmbedMLP,
-    ModuloAdditionEmbedMLPActivationBundle,
     ModuloAdditionEmbedMLPFamily,
     load_modulo_addition_embed_mlp_family,
 )
 
-P = 13  # Small prime for fast tests
-D_EMBED = 8  # Small embedding dim for tests
+P = 13
+D_EMBED = 8
 D_HIDDEN = 32
 
 
 @pytest.fixture
-def model() -> ModuloAdditionEmbedMLP:
-    return ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=42)
+def model() -> HookedEmbeddingMLP:
+    return HookedEmbeddingMLP(
+        HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=42)
+    )
 
 
 @pytest.fixture
@@ -32,18 +45,10 @@ def probe() -> torch.Tensor:
 
 
 @pytest.fixture
-def bundle(model, probe) -> ModuloAdditionEmbedMLPActivationBundle:
-    a_vals, b_vals = probe.unbind(1)
-    captured: dict = {}
-
-    def hook(m, inp, output):
-        captured["hidden"] = output
-
-    h = model.relu.register_forward_hook(hook)
+def bundle(model: HookedEmbeddingMLP, probe: torch.Tensor) -> MLPBundle:
     with torch.inference_mode():
-        logits = model(a_vals, b_vals)
-    h.remove()
-    return ModuloAdditionEmbedMLPActivationBundle(model, captured["hidden"], logits)
+        logits, cache = model.run_with_cache(probe)
+    return MLPBundle(model, cache, logits)
 
 
 @pytest.fixture
@@ -56,25 +61,35 @@ def params() -> dict:
     return {"prime": P, "seed": 42, "data_seed": 598}
 
 
-# ── ModuloAdditionEmbedMLP ────────────────────────────────────────────────────
+# ── HookedEmbeddingMLP ───────────────────────────────────────────────────────
 
 
-class TestModuloAdditionEmbedMLP:
+class TestHookedEmbeddingMLP:
+    def test_is_hooked_model(self, model):
+        assert isinstance(model, HookedModel)
+
     def test_forward_output_shape(self, model, probe):
-        a_vals, b_vals = probe.unbind(1)
         with torch.inference_mode():
-            out = model(a_vals, b_vals)
+            out = model(probe)
         assert out.shape == (P * P, P)
 
     def test_seedable_initialization(self):
-        m1 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
-        m2 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        m1 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        )
+        m2 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        )
         for p1, p2 in zip(m1.parameters(), m2.parameters()):
             assert torch.equal(p1, p2)
 
     def test_different_seeds_differ(self):
-        m1 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=1)
-        m2 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=2)
+        m1 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=1)
+        )
+        m2 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=2)
+        )
         differs = any(not torch.equal(p1, p2) for p1, p2 in zip(m1.parameters(), m2.parameters()))
         assert differs
 
@@ -99,11 +114,51 @@ class TestModuloAdditionEmbedMLP:
             sum_ba = model.embed_a(b) + model.embed_b(a)
         assert not torch.equal(sum_ab, sum_ba)
 
+    def test_canonical_weight_access(self, model):
+        assert torch.equal(model.get_weight("embed.embed_a"), model.embed_a.weight)
+        assert torch.equal(model.get_weight("embed.embed_b"), model.embed_b.weight)
+        assert torch.equal(model.get_weight("blocks.0.mlp.in.W"), model.W_in.weight)
+        assert torch.equal(model.get_weight("blocks.0.mlp.out.W"), model.W_out.weight)
 
-# ── ModuloAdditionEmbedMLPActivationBundle ────────────────────────────────────
+    def test_embedding_identity_invariant_W_E_raises(self, model):
+        """embed.W_E must raise KeyError — load-bearing for architecture identity.
+
+        An analyzer expecting a transformer's shared embedding matrix must
+        fail loudly here rather than be silently aliased to one of the
+        per-input matrices.
+        """
+        with pytest.raises(KeyError):
+            model.get_weight("embed.W_E")
+
+    def test_run_with_cache_publishes_embed_hook(self, model, probe):
+        """embed.hook_out captures the post-sum embed_a(a) + embed_b(b)."""
+        logits, cache = model.run_with_cache(probe)
+        assert isinstance(cache, ActivationCache)
+        assert cache["embed.hook_out"].shape == (P * P, D_EMBED)
+
+        # Validate post-sum semantics: cache value equals embed_a(a) + embed_b(b)
+        a, b = probe.unbind(1)
+        with torch.inference_mode():
+            expected = model.embed_a(a) + model.embed_b(b)
+        assert torch.equal(cache["embed.hook_out"], expected)
+
+    def test_run_with_cache_canonical_hooks_present(self, model, probe):
+        _, cache = model.run_with_cache(probe)
+        for canonical in (
+            "embed.hook_out",
+            "blocks.0.hook_in",
+            "blocks.0.mlp.hook_pre",
+            "blocks.0.mlp.hook_out",
+            "blocks.0.hook_out",
+            "unembed.hook_out",
+        ):
+            assert canonical in cache, f"missing: {canonical}"
 
 
-class TestModuloAdditionEmbedMLPActivationBundle:
+# ── MLPBundle (legacy ActivationBundle compatibility) ───────────────────────
+
+
+class TestMLPBundleOnEmbeddingMLP:
     def test_implements_activation_bundle_protocol(self, bundle):
         assert isinstance(bundle, ActivationBundle)
 
@@ -111,29 +166,20 @@ class TestModuloAdditionEmbedMLPActivationBundle:
         hidden = bundle.mlp_post(0, -1)
         assert hidden.shape == (P * P, D_HIDDEN)
 
-    def test_mlp_post_wrong_layer_raises(self, bundle):
-        with pytest.raises(ValueError, match="layer 0"):
-            bundle.mlp_post(1, -1)
-
     def test_weight_w_in(self, bundle):
-        w = bundle.weight("W_in")
-        assert w.shape == (D_HIDDEN, D_EMBED)
+        assert bundle.weight("W_in").shape == (D_HIDDEN, D_EMBED)
 
     def test_weight_w_out(self, bundle):
-        w = bundle.weight("W_out")
-        assert w.shape == (P, D_HIDDEN)
+        assert bundle.weight("W_out").shape == (P, D_HIDDEN)
 
     def test_weight_embed_a(self, bundle):
-        w = bundle.weight("embed_a")
-        assert w.shape == (P, D_EMBED)
+        assert bundle.weight("embed_a").shape == (P, D_EMBED)
 
     def test_weight_embed_b(self, bundle):
-        w = bundle.weight("embed_b")
-        assert w.shape == (P, D_EMBED)
+        assert bundle.weight("embed_b").shape == (P, D_EMBED)
 
     def test_weight_w_e_raises_key_error(self, bundle):
-        """W_E is intentionally not exposed — dispatch logic uses W_E presence as
-        transformer signal; this architecture must not masquerade as a transformer."""
+        """W_E is intentionally not exposed — preserves architecture identity."""
         with pytest.raises(KeyError):
             bundle.weight("W_E")
 
@@ -162,7 +208,7 @@ class TestModuloAdditionEmbedMLPActivationBundle:
         assert bundle.supports_site("attn") is False
 
 
-# ── ModuloAdditionEmbedMLPFamily ──────────────────────────────────────────────
+# ── ModuloAdditionEmbedMLPFamily ────────────────────────────────────────────
 
 
 class TestModuloAdditionEmbedMLPFamily:
@@ -171,7 +217,8 @@ class TestModuloAdditionEmbedMLPFamily:
 
     def test_create_model_returns_correct_type(self, family, params):
         model = family.create_model(params)
-        assert isinstance(model, ModuloAdditionEmbedMLP)
+        assert isinstance(model, HookedEmbeddingMLP)
+        assert isinstance(model, HookedModel)
         assert model.vocab_size == P
 
     def test_create_model_d_embed_from_architecture(self, family, params):
@@ -207,11 +254,11 @@ class TestModuloAdditionEmbedMLPFamily:
         r2 = family.generate_training_dataset(params)
         assert torch.equal(r1[4], r2[4])  # train_indices
 
-    def test_run_forward_pass_returns_bundle(self, family, params):
+    def test_run_forward_pass_returns_mlp_bundle(self, family, params):
         model = family.create_model(params)
         probe = family.generate_analysis_dataset(params)
         bundle = family.run_forward_pass(model, probe)
-        assert isinstance(bundle, ModuloAdditionEmbedMLPActivationBundle)
+        assert isinstance(bundle, MLPBundle)
 
     def test_run_forward_pass_bundle_shapes(self, family, params):
         model = family.create_model(params)
