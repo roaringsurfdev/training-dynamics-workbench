@@ -43,12 +43,8 @@ class HookedOneHotMLPConfig:
 # Canonical hook paths this architecture publishes. Module-level constants
 # keep the names auditable and let analyzer ``required_hooks`` declarations
 # reference them programmatically.
-HOOK_BLOCK_IN = canonical_hooks.hook(
-    canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_IN
-)
-HOOK_BLOCK_OUT = canonical_hooks.hook(
-    canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_OUT
-)
+HOOK_BLOCK_IN = canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_IN)
+HOOK_BLOCK_OUT = canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_OUT)
 HOOK_MLP_PRE = canonical_hooks.hook(
     canonical_hooks.BLOCKS, 0, canonical_hooks.MLP, canonical_hooks.HOOK_PRE
 )
@@ -119,8 +115,7 @@ class HookedOneHotMLP(HookedModel):
         if canonical_name == WEIGHT_MLP_OUT:
             return self.W_out.weight
         raise KeyError(
-            f"Unknown canonical weight name {canonical_name!r}. "
-            f"Available: {self.weight_names()}"
+            f"Unknown canonical weight name {canonical_name!r}. Available: {self.weight_names()}"
         )
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:

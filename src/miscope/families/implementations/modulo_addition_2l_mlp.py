@@ -61,9 +61,7 @@ class ModuloAddition2LMLPFamily(BaseModelFamily):
         seed = params.get("seed", self.get_default_params().get("seed", 999))
         d_hidden = self.architecture.get("d_hidden", 512)
 
-        model = HookedOneHotMLP(
-            HookedOneHotMLPConfig(vocab_size=p, d_hidden=d_hidden, seed=seed)
-        )
+        model = HookedOneHotMLP(HookedOneHotMLPConfig(vocab_size=p, d_hidden=d_hidden, seed=seed))
 
         if device is not None:
             model = model.to(device)

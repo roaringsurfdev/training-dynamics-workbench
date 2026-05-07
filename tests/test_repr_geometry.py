@@ -237,9 +237,7 @@ class TestComputeFisherDiscriminant:
 
 
 class TestRepresentationalGeometryAnalyzer:
-    def _make_canonical_cache(
-        self, p: int, d_model: int = 8, d_mlp: int = 16
-    ) -> ActivationCache:
+    def _make_canonical_cache(self, p: int, d_model: int = 8, d_mlp: int = 16) -> ActivationCache:
         """Build a canonical-name-keyed cache populated for repr_geometry sites."""
         n_samples = p * p
         seq_len = 3
@@ -259,9 +257,7 @@ class TestRepresentationalGeometryAnalyzer:
             )
         return cache
 
-    def _activation_context(
-        self, p: int, d_model: int = 8, d_mlp: int = 16
-    ) -> ActivationContext:
+    def _activation_context(self, p: int, d_model: int = 8, d_mlp: int = 16) -> ActivationContext:
         cache = self._make_canonical_cache(p, d_model=d_model, d_mlp=d_mlp)
         return ActivationContext(
             # type: ignore[arg-type]

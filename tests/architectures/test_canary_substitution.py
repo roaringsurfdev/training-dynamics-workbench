@@ -161,9 +161,7 @@ def test_canary_does_not_import_transformer_lens():
     import importlib
     import inspect
 
-    module = importlib.import_module(
-        "miscope.analysis.analyzers.repr_geometry"
-    )
+    module = importlib.import_module("miscope.analysis.analyzers.repr_geometry")
     source = inspect.getsource(module)
     assert "transformer_lens" not in source, (
         "repr_geometry imports transformer_lens after REQ_112 migration."

@@ -48,18 +48,14 @@ from miscope.core import architecture as canonical_hooks
 # artifact key prefix for byte-identity validation) to the canonical
 # hook name where the analyzer reads activations from the cache.
 _SITES: dict[str, str] = {
-    "resid_pre": canonical_hooks.hook(
-        canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_IN
-    ),
+    "resid_pre": canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_IN),
     "attn_out": canonical_hooks.hook(
         canonical_hooks.BLOCKS, 0, canonical_hooks.ATTN, canonical_hooks.HOOK_OUT
     ),
     "mlp_out": canonical_hooks.hook(
         canonical_hooks.BLOCKS, 0, canonical_hooks.MLP, canonical_hooks.HOOK_OUT
     ),
-    "resid_post": canonical_hooks.hook(
-        canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_OUT
-    ),
+    "resid_post": canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_OUT),
 }
 
 # Summary keys: 11 scalar measures per site

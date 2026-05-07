@@ -277,36 +277,28 @@ class TestCoarsenessAnalyzerOutput:
         """analyze returns a dict."""
         ctx, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(
-            ctx
-        )
+        result = analyzer.analyze(ctx)
         assert isinstance(result, dict)
 
     def test_returns_coarseness_key(self, model_with_context):
         """Result contains 'coarseness' key."""
         ctx, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(
-            ctx
-        )
+        result = analyzer.analyze(ctx)
         assert "coarseness" in result
 
     def test_coarseness_is_numpy_array(self, model_with_context):
         """Coarseness is a numpy array."""
         ctx, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(
-            ctx
-        )
+        result = analyzer.analyze(ctx)
         assert isinstance(result["coarseness"], np.ndarray)
 
     def test_coarseness_shape(self, model_with_context):
         """Coarseness has shape (d_mlp,)."""
         ctx, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(
-            ctx
-        )
+        result = analyzer.analyze(ctx)
         # d_mlp = 512 from architecture
         assert result["coarseness"].shape == (512,)
 
@@ -314,9 +306,7 @@ class TestCoarsenessAnalyzerOutput:
         """Coarseness values are in [0, 1]."""
         ctx, probe, context = model_with_context
         analyzer = CoarsenessAnalyzer()
-        result = analyzer.analyze(
-            ctx
-        )
+        result = analyzer.analyze(ctx)
         assert np.all(result["coarseness"] >= 0.0)
         assert np.all(result["coarseness"] <= 1.0)
 

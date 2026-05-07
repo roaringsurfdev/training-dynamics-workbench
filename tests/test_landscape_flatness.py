@@ -166,7 +166,8 @@ class TestLandscapeFlatnessAnalyzerProtocol:
         with pytest.raises(ValueError, match="loss_fn"):
             analyzer.analyze(
                 ActivationContext(
-                    model=small_model, cache=cache,  # type: ignore
+                    model=small_model,
+                    cache=cache,  # type: ignore
                     probe=dummy_probe,
                     analysis_params={},
                 )

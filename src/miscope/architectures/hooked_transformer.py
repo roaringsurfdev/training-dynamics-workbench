@@ -98,9 +98,7 @@ def _canonical_to_tl_hook_table(cfg: TLHookedTransformerConfig) -> dict[str, str
             )
             # Attention pattern + raw scores
             table[f"{attn}.{canonical_hooks.HOOK_PATTERN}"] = f"{block}.attn.hook_pattern"
-            table[f"{attn}.{canonical_hooks.HOOK_ATTN_SCORES}"] = (
-                f"{block}.attn.hook_attn_scores"
-            )
+            table[f"{attn}.{canonical_hooks.HOOK_ATTN_SCORES}"] = f"{block}.attn.hook_attn_scores"
 
         # MLP component
         if not cfg.attn_only:
@@ -282,9 +280,7 @@ class HookedTransformer(HookedModel, TLHookedTransformer):
         translated to TL names for delegation.
         """
         if fwd_hooks:
-            tl_fwd_hooks = [
-                (self._canonical_to_tl_hook[name], fn) for name, fn in fwd_hooks
-            ]
+            tl_fwd_hooks = [(self._canonical_to_tl_hook[name], fn) for name, fn in fwd_hooks]
             logits, tl_cache = TLHookedTransformer.run_with_cache(
                 self, inputs, fwd_hooks=tl_fwd_hooks
             )
@@ -308,7 +304,5 @@ class HookedTransformer(HookedModel, TLHookedTransformer):
         TL's ``run_with_hooks``. The translation is the only point where
         the caller's canonical-name spelling meets TL's legacy spelling.
         """
-        tl_fwd_hooks = [
-            (self._canonical_to_tl_hook[name], fn) for name, fn in fwd_hooks
-        ]
+        tl_fwd_hooks = [(self._canonical_to_tl_hook[name], fn) for name, fn in fwd_hooks]
         return TLHookedTransformer.run_with_hooks(self, inputs, fwd_hooks=tl_fwd_hooks)

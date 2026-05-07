@@ -58,8 +58,7 @@ class StubHookedModel(HookedModel):
         if canonical_name == CANARY_WEIGHT:
             return self.linear.weight
         raise KeyError(
-            f"Unknown canonical weight name {canonical_name!r}. "
-            f"Available: {self.weight_names()}"
+            f"Unknown canonical weight name {canonical_name!r}. Available: {self.weight_names()}"
         )
 
 
@@ -199,7 +198,9 @@ def test_run_with_hooks_cleans_up_after_call():
 
 def architecture_agnostic_consumer(model: HookedModel) -> torch.Tensor:
     """A toy 'analyzer' that reads by canonical name only."""
-    inputs = torch.randn(3, model.linear.in_features) if hasattr(model, "linear") else torch.randn(3, 4)
+    inputs = (
+        torch.randn(3, model.linear.in_features) if hasattr(model, "linear") else torch.randn(3, 4)
+    )
     _, cache = model.run_with_cache(inputs)
     return cache[CANARY_HOOK]
 

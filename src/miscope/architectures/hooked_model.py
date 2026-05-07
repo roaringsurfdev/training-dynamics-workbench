@@ -136,10 +136,7 @@ class HookedModel(nn.Module, ABC):
         through ``self._hook_points[name]``.
         """
         cache = ActivationCache()
-        handles = [
-            _register_capture(hp, name, cache)
-            for name, hp in self._hook_points.items()
-        ]
+        handles = [_register_capture(hp, name, cache) for name, hp in self._hook_points.items()]
         if fwd_hooks:
             handles.extend(self._register_user_hooks(fwd_hooks))
         try:
@@ -181,9 +178,7 @@ class HookedModel(nn.Module, ABC):
         for the subclass to wire into its forward path.
         """
         if canonical_name in self._hook_points:
-            raise ValueError(
-                f"Hook point {canonical_name!r} is already registered."
-            )
+            raise ValueError(f"Hook point {canonical_name!r} is already registered.")
         point = HookPoint()
         point.name = canonical_name
         self._hook_points[canonical_name] = point

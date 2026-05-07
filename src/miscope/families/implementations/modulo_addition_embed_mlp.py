@@ -61,9 +61,7 @@ class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
         d_hidden = self.architecture.get("d_hidden", 512)
 
         model = HookedEmbeddingMLP(
-            HookedEmbeddingMLPConfig(
-                vocab_size=p, d_embed=d_embed, d_hidden=d_hidden, seed=seed
-            )
+            HookedEmbeddingMLPConfig(vocab_size=p, d_embed=d_embed, d_hidden=d_hidden, seed=seed)
         )
         if device is not None:
             model = model.to(device)

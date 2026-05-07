@@ -55,12 +55,8 @@ class HookedEmbeddingMLPConfig:
 
 # Canonical hook paths.
 HOOK_EMBED_OUT = f"{canonical_hooks.EMBED}.{canonical_hooks.HOOK_OUT}"
-HOOK_BLOCK_IN = canonical_hooks.hook(
-    canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_IN
-)
-HOOK_BLOCK_OUT = canonical_hooks.hook(
-    canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_OUT
-)
+HOOK_BLOCK_IN = canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_IN)
+HOOK_BLOCK_OUT = canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_OUT)
 HOOK_MLP_PRE = canonical_hooks.hook(
     canonical_hooks.BLOCKS, 0, canonical_hooks.MLP, canonical_hooks.HOOK_PRE
 )
