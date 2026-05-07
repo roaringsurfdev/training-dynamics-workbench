@@ -115,6 +115,7 @@ class RepresentationalGeometryAnalyzer:
             Dict with site-prefixed keys for centroids, radii,
             dimensionality, and global scalar measures.
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         if ctx.cache is None:
             raise RuntimeError(
                 "repr_geometry requires the HookedModel cache (ctx.cache); "

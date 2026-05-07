@@ -43,6 +43,7 @@ class NeuronActivationsAnalyzer:
         Returns:
             Dict with 'activations' array of shape (d_mlp, p, p)
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         p = compute_grid_size_from_dataset(ctx.probe)
         neuron_acts = extract_mlp_activations(ctx.cache)
         activations = reshape_to_grid(neuron_acts, p)

@@ -44,6 +44,7 @@ class AttentionPatternsAnalyzer:
             Dict with 'patterns' array of shape (n_heads, n_pos, n_pos, p, p)
             where values are attention weights in [0, 1].
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         p = compute_grid_size_from_dataset(ctx.probe)
 
         # Shape: (p*p, n_heads, seq_to, seq_from)

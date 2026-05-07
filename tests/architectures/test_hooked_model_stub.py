@@ -198,9 +198,11 @@ def test_run_with_hooks_cleans_up_after_call():
 
 def architecture_agnostic_consumer(model: HookedModel) -> torch.Tensor:
     """A toy 'analyzer' that reads by canonical name only."""
-    inputs = (
-        torch.randn(3, model.linear.in_features) if hasattr(model, "linear") else torch.randn(3, 4)
-    )
+    in_features = 4
+    if hasattr(model, "linear"):
+        linear: nn.Linear = model.linear  # type: ignore[attr-defined,assignment]
+        in_features = linear.in_features
+    inputs = torch.randn(3, in_features)
     _, cache = model.run_with_cache(inputs)
     return cache[CANARY_HOOK]
 

@@ -61,6 +61,7 @@ class CoarsenessAnalyzer:
         Returns:
             Dict with 'coarseness' array of shape (d_mlp,)
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]
         p = compute_grid_size_from_dataset(ctx.probe)
 

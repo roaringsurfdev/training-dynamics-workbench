@@ -75,6 +75,7 @@ class LandscapeFlatnessAnalyzer:
         Raises:
             ValueError: If 'loss_fn' not found in analysis_params.
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         if "loss_fn" not in ctx.analysis_params:
             raise ValueError(
                 "LandscapeFlatnessAnalyzer requires 'loss_fn' in analysis "

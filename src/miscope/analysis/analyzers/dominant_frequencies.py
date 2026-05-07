@@ -44,6 +44,7 @@ class DominantFrequenciesAnalyzer:
         Returns:
             Dict with 'coefficients' array of shape (n_fourier_components,)
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]
 
         # Get embedding weights, excluding the equals token

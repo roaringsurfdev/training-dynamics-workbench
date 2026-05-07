@@ -56,6 +56,7 @@ class AttentionFreqAnalyzer:
         Returns:
             Dict with 'freq_matrix' array of shape (n_freq, n_heads)
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]
         p = compute_grid_size_from_dataset(ctx.probe)
 

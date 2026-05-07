@@ -49,6 +49,7 @@ class EffectiveDimensionalityAnalyzer:
         Returns:
             Dict mapping sv_{name} to singular value arrays.
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         return compute_weight_singular_values(ctx.model)
 
     def get_summary_keys(self) -> list[str]:

@@ -172,6 +172,7 @@ class FourierNucleationAnalyzer:
             Dict with keys: aggregate_energy, neuron_peak_freq, neuron_committed_count,
             frequencies, prime, iterations, sharpness
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         prime = int(ctx.analysis_params["params"]["prime"])
 
         # (d_model, d_mlp) in TransformerLens convention

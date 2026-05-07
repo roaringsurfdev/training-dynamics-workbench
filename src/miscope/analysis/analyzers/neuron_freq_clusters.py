@@ -51,6 +51,7 @@ class NeuronFreqClustersAnalyzer:
             Dict with 'norm_matrix' array of shape (n_frequencies, d_mlp)
             where n_frequencies = p // 2
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]
         p = compute_grid_size_from_dataset(ctx.probe)
 

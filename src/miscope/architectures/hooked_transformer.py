@@ -33,7 +33,7 @@ outside these tables is canonical.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import torch
 from transformer_lens import HookedTransformer as TLHookedTransformer
@@ -180,7 +180,7 @@ class HookedTransformer(HookedModel, TLHookedTransformer):
         cfg: TLHookedTransformerConfig,
         tokenizer: Any | None = None,
         move_to_device: bool = True,
-        default_padding_side: str = "right",
+        default_padding_side: Literal["left", "right"] = "right",
     ) -> None:
         # Non-cooperative init: MiHookedModel takes no args, TL takes cfg —
         # they cannot share a super() chain. Run TL's init explicitly,
@@ -282,7 +282,9 @@ class HookedTransformer(HookedModel, TLHookedTransformer):
         if fwd_hooks:
             tl_fwd_hooks = [(self._canonical_to_tl_hook[name], fn) for name, fn in fwd_hooks]
             logits, tl_cache = TLHookedTransformer.run_with_cache(
-                self, inputs, fwd_hooks=tl_fwd_hooks
+                self,
+                inputs,
+                fwd_hooks=tl_fwd_hooks,  # type: ignore[arg-type]
             )
         else:
             logits, tl_cache = TLHookedTransformer.run_with_cache(self, inputs)
@@ -291,7 +293,7 @@ class HookedTransformer(HookedModel, TLHookedTransformer):
         for canonical, tl_name in self._canonical_to_tl_hook.items():
             if tl_name in tl_cache:
                 canonical_cache[canonical] = tl_cache[tl_name]
-        return logits, canonical_cache
+        return logits, canonical_cache  # type: ignore[return-value]
 
     def run_with_hooks(  # type: ignore[override]
         self,
@@ -305,4 +307,8 @@ class HookedTransformer(HookedModel, TLHookedTransformer):
         the caller's canonical-name spelling meets TL's legacy spelling.
         """
         tl_fwd_hooks = [(self._canonical_to_tl_hook[name], fn) for name, fn in fwd_hooks]
-        return TLHookedTransformer.run_with_hooks(self, inputs, fwd_hooks=tl_fwd_hooks)
+        return TLHookedTransformer.run_with_hooks(
+            self,
+            inputs,
+            fwd_hooks=tl_fwd_hooks,  # type: ignore[arg-type]
+        )

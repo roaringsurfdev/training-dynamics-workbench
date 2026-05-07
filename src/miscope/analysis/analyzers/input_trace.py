@@ -55,6 +55,7 @@ class InputTraceAnalyzer:
         Returns:
             Dict with 'predictions', 'correct', 'confidence', 'split'
         """
+        assert ctx.logits is not None  # type-narrowing for pyright
         params = ctx.analysis_params["params"]
         p = int(params["prime"])
         data_seed = int(params.get("data_seed", 598))

@@ -41,4 +41,5 @@ class ParameterSnapshotAnalyzer:
             Dict mapping weight matrix names to numpy arrays in
             their original shapes (e.g., W_E, W_Q, W_in, etc.)
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         return extract_parameter_snapshot(ctx.model)

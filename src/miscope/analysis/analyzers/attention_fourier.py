@@ -50,6 +50,7 @@ class AttentionFourierAnalyzer:
             - qk_freq_norms: (n_heads, n_freq) — fraction of QK^T energy per frequency.
             - v_freq_norms: (n_heads, n_freq) — fraction of V energy per frequency.
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]  # (p+1, p)
         p = fourier_basis.shape[1]
         n_freq = p // 2
