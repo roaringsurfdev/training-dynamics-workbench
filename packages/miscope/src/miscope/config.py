@@ -76,18 +76,31 @@ def _resolve_project_root() -> Path:
     Strategy:
     1. MISCOPE_PROJECT_ROOT environment variable (explicit override)
     2. TDW_PROJECT_ROOT environment variable (legacy alias)
-    3. Walk up from this file looking for pyproject.toml
-    4. Fall back to current working directory
+    3. Walk up from this file looking for the uv workspace root
+       (a pyproject.toml containing [tool.uv.workspace]). The package's own
+       pyproject.toml is skipped; we want the repo root, where results/ and
+       model_families/ live.
+    4. Fall back to the outermost pyproject.toml (non-workspace layouts).
+    5. Fall back to current working directory.
     """
     env_root = os.environ.get("MISCOPE_PROJECT_ROOT") or os.environ.get("TDW_PROJECT_ROOT")
     if env_root:
         return Path(env_root).resolve()
 
-    # Walk up from src/miscope/config.py to find pyproject.toml
-    current = Path(__file__).resolve().parent.parent.parent
-    for ancestor in [current, *current.parents]:
-        if (ancestor / "pyproject.toml").exists():
-            return ancestor
+    here = Path(__file__).resolve()
+    outermost: Path | None = None
+    for ancestor in here.parents:
+        pyproject = ancestor / "pyproject.toml"
+        if not pyproject.exists():
+            continue
+        outermost = ancestor
+        try:
+            if "[tool.uv.workspace]" in pyproject.read_text():
+                return ancestor
+        except OSError:
+            continue
 
-    # Fallback: current working directory
+    if outermost is not None:
+        return outermost
+
     return Path.cwd()

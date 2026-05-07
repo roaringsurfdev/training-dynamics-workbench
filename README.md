@@ -69,31 +69,45 @@ Define Family → Train Variants → Analyze Checkpoints → Explore Visualizati
 
 ## Project Structure
 
+The repo is a uv workspace organized into a publishable package and the apps that consume it.
+
 ```
 /
-├── src/miscope/                  # Installable analysis package (import miscope.*)
-│   ├── analysis/                 # Pipeline, analyzers, artifacts, protocols
-│   ├── families/                 # Family registry, Variant, implementations
-│   ├── views/                    # View catalog API (EpochContext, BoundView)
-│   └── visualization/            # Renderers and export
-├── dashboard/                    # Dash web dashboard
-│   ├── pages/                    # Per-page layout and callbacks
-│   ├── app.py                    # Application entry point
-│   └── state.py                  # Dashboard state management
-├── fieldnotes/                   # Research notebook (Astro, published to GitHub Pages)
+├── packages/
+│   └── miscope/                  # Publishable analysis library (import miscope.*)
+│       ├── src/miscope/
+│       │   ├── analysis/         # Pipeline, analyzers, artifacts, protocols
+│       │   ├── families/         # Family registry, Variant, implementations
+│       │   ├── views/            # View catalog API (EpochContext, BoundView)
+│       │   └── visualization/    # Renderers and export
+│       ├── tests/                # Package unit/component tests
+│       └── pyproject.toml        # Publishable project definition
+├── apps/
+│   ├── dashboard/                # Dash web dashboard
+│   │   ├── src/dashboard/
+│   │   │   ├── pages/            # Per-page layout and callbacks
+│   │   │   ├── app.py            # Application entry point
+│   │   │   └── state.py          # Dashboard state management
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   ├── fieldnotes/               # Research notebook (Astro → GitHub Pages)
+│   └── research/                 # Exploratory work
+│       ├── notebooks/            # *.ipynb research notebooks
+│       └── sketches/             # Exploratory *.py (POCs, one-off analyses)
+├── scripts/                      # Operational scripts (run_analysis.py, train_*, etc.)
+├── tests/
+│   └── integration/              # Cross-cutting tests (placeholder)
+├── docs/                         # Documentation, requirements, notes, policies
 ├── model_families/               # Family definitions (family.json files)
 │   └── modulo_addition_1layer/
-├── results/                      # Training outputs (not in repo)
-│   └── {family}/
-│       └── {variant}/
-│           ├── checkpoints/      # Model checkpoints (.safetensors)
-│           ├── artifacts/        # Per-epoch analysis artifacts
-│           │   └── {analyzer}/   # epoch_00000.npz, epoch_00100.npz, ...
-│           ├── metadata.json     # Training metrics
-│           └── config.json       # Variant configuration
-├── tests/                        # Test suite
-├── notebooks/                    # Research and demo notebooks
-└── requirements/                 # Structured requirements
+└── results/                      # Training outputs (gitignored)
+    └── {family}/
+        └── {variant}/
+            ├── checkpoints/      # Model checkpoints (.safetensors)
+            ├── artifacts/        # Per-epoch analysis artifacts
+            │   └── {analyzer}/   # epoch_00000.npz, epoch_00100.npz, ...
+            ├── metadata.json     # Training metrics
+            └── config.json       # Variant configuration
 ```
 
 ## Getting Started

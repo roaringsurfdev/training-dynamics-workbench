@@ -7,7 +7,7 @@ All computation is purely analytical — no model weights required.
 The only empirical input is the observed W_E participation ratio at the
 effective-dimensionality crossover epoch.
 
-Calibrated thresholds (from notebooks/viability_certificate_calibration.py):
+Calibrated thresholds (from scripts/viability_certificate_calibration.py):
   max_alias > 0.80  →  aliasing failure risk
   gap_pct   > 30%   →  coverage concern
   2|F| > W_E_PR     →  compression constraint is binding (rare in corpus)
@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import json as _json
 from itertools import combinations
-from pathlib import Path as _Path
 from typing import Any
 
 import numpy as np
+
+from miscope.config import get_config as _get_config
 
 # ---------------------------------------------------------------------------
 # Module-level ideal-set cache (per prime × size)
@@ -28,8 +29,8 @@ import numpy as np
 # search for any (prime, size) pair not in the file.
 # ---------------------------------------------------------------------------
 
-_IDEAL_SETS_PATH = _Path(__file__).parent.parent.parent.parent / (
-    "model_families/modulo_addition_1layer/ideal_frequency_sets.json"
+_IDEAL_SETS_PATH = (
+    _get_config().model_families_dir / "modulo_addition_1layer/ideal_frequency_sets.json"
 )
 
 _ideal_cache: dict[tuple[int, int], tuple[list[int], float]] = {}
