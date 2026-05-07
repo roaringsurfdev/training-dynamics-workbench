@@ -223,6 +223,6 @@ __marimo__/
 /notebooks/animations
 /notebooks/exports
 /articles
-/notes
+/docs/notes
 /fieldnotes/src/content/drafts/*.mdx
 /.claude
