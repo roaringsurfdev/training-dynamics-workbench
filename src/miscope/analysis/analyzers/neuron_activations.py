@@ -11,6 +11,7 @@ import numpy as np
 
 from miscope.analysis.library import (
     compute_grid_size_from_dataset,
+    extract_mlp_activations,
     reshape_to_grid,
 )
 
@@ -27,7 +28,7 @@ class NeuronActivationsAnalyzer:
 
     name = "neuron_activations"
     description = "Computes neuron activation heatmaps for (a, b) inputs"
-    architecture_support = ["transformer", "mlp"]
+    required_hooks: list[str] = ["blocks.0.mlp.hook_out"]
 
     def analyze(
         self,
@@ -37,18 +38,13 @@ class NeuronActivationsAnalyzer:
         Extract neuron activations and reshape to (d_mlp, p, p).
 
         Args:
-            ctx: Analysis context with bundle and probe.
+            ctx: Analysis context with cache and probe.
 
         Returns:
             Dict with 'activations' array of shape (d_mlp, p, p)
         """
-        # Get grid size from probe
+        assert ctx.cache is not None  # type-narrowing for pyright
         p = compute_grid_size_from_dataset(ctx.probe)
-
-        # Extract neuron activations at last token position
-        neuron_acts = ctx.bundle.mlp_post(0, -1)
-
-        # Reshape to (d_mlp, p, p)
+        neuron_acts = extract_mlp_activations(ctx.cache)
         activations = reshape_to_grid(neuron_acts, p)
-
         return {"activations": activations.detach().cpu().numpy()}

@@ -9,9 +9,7 @@ import torch
 from miscope.families.types import AnalysisDatasetSpec, ParameterSpec
 
 if TYPE_CHECKING:
-    from transformer_lens import HookedTransformer
-
-    from miscope.analysis.protocols import ActivationBundle  # noqa: F401
+    from miscope.architectures import HookedModel  # noqa: F401
 
 
 @runtime_checkable
@@ -89,7 +87,7 @@ class ModelFamily(Protocol):
         self,
         params: dict[str, Any],
         device: str | torch.device | None = None,
-    ) -> HookedTransformer:
+    ) -> HookedModel:
         """Instantiate a model with the given domain parameters.
 
         Args:
@@ -97,7 +95,7 @@ class ModelFamily(Protocol):
             device: Device to place the model on
 
         Returns:
-            A HookedTransformer configured for this family
+            A ``HookedModel`` configured for this family.
         """
         ...
 
@@ -173,26 +171,6 @@ class ModelFamily(Protocol):
 
         Returns:
             Probe tensor ready for model.run_with_cache()
-        """
-        ...
-
-    def run_forward_pass(
-        self,
-        model: Any,
-        probe: torch.Tensor,
-    ) -> Any:
-        """Run a forward pass and return an ActivationBundle.
-
-        This is the pipeline's single entry point for getting activations.
-        TransformerLens families wrap model.run_with_cache(); MLP families
-        use PyTorch forward hooks to capture hidden activations.
-
-        Args:
-            model: Model instance created by create_model()
-            probe: Analysis dataset tensor from generate_analysis_dataset()
-
-        Returns:
-            ActivationBundle wrapping the model and its activations.
         """
         ...
 

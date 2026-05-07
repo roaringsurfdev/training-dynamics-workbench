@@ -13,7 +13,6 @@ from miscope.analysis.analyzers.attention_fourier import (
     _qk_block_norms,
     _v_band_norms,
 )
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.protocols import ActivationContext
 from miscope.visualization.renderers.attention_fourier import (
     render_head_alignment_trajectory,
@@ -51,23 +50,29 @@ def _make_model(
     *,
     seed: int = 42,
 ) -> MagicMock:
-    """Build a mock HookedTransformer with random weight tensors."""
+    """Build a mock HookedModel with random weight tensors keyed by canonical names."""
     rng = torch.Generator()
     rng.manual_seed(seed)
 
-    W_E = torch.randn(p + 1, d_model, generator=rng)
-    W_Q = torch.randn(n_heads, d_model, d_head, generator=rng)
-    W_K = torch.randn(n_heads, d_model, d_head, generator=rng)
-    W_V = torch.randn(n_heads, d_model, d_head, generator=rng)
+    weights = {
+        "embed.W_E": torch.randn(p + 1, d_model, generator=rng),
+        "blocks.0.attn.q.W": torch.randn(n_heads, d_model, d_head, generator=rng),
+        "blocks.0.attn.k.W": torch.randn(n_heads, d_model, d_head, generator=rng),
+        "blocks.0.attn.v.W": torch.randn(n_heads, d_model, d_head, generator=rng),
+    }
 
     model = MagicMock()
-    model.embed.W_E = W_E
-    block = MagicMock()
-    block.attn.W_Q = W_Q
-    block.attn.W_K = W_K
-    block.attn.W_V = W_V
-    model.blocks = [block]
+    model.get_weight.side_effect = lambda name: weights[name]
     return model
+
+
+def _ctx(model, context) -> ActivationContext:
+    """Build an ActivationContext with model populated and bundle absent."""
+    return ActivationContext(
+        probe=None,  # type: ignore[arg-type]
+        analysis_params=context,
+        model=model,
+    )
 
 
 def _make_context(p: int = P) -> dict:
@@ -106,13 +111,7 @@ class TestAttentionFourierAnalyzer:
         model = _make_model()
         context = _make_context()
         analyzer = AttentionFourierAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
-                probe=None,  # type: ignore
-                analysis_params=context,
-            )
-        )  # type: ignore[arg-type]
+        result = analyzer.analyze(_ctx(model, context))  # type: ignore[arg-type]
         assert "qk_freq_norms" in result
         assert "v_freq_norms" in result
 
@@ -120,13 +119,7 @@ class TestAttentionFourierAnalyzer:
         model = _make_model()
         context = _make_context()
         analyzer = AttentionFourierAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
-                probe=None,  # type: ignore
-                analysis_params=context,
-            )
-        )  # type: ignore[arg-type]
+        result = analyzer.analyze(_ctx(model, context))  # type: ignore[arg-type]
         assert result["qk_freq_norms"].shape == (N_HEADS, N_FREQ)
         assert result["v_freq_norms"].shape == (N_HEADS, N_FREQ)
 
@@ -134,13 +127,7 @@ class TestAttentionFourierAnalyzer:
         model = _make_model()
         context = _make_context()
         analyzer = AttentionFourierAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
-                probe=None,  # type: ignore
-                analysis_params=context,
-            )
-        )  # type: ignore[arg-type]
+        result = analyzer.analyze(_ctx(model, context))  # type: ignore[arg-type]
         qk_sums = result["qk_freq_norms"].sum(axis=1)
         v_sums = result["v_freq_norms"].sum(axis=1)
         np.testing.assert_allclose(qk_sums, np.ones(N_HEADS), atol=1e-5)
@@ -150,13 +137,7 @@ class TestAttentionFourierAnalyzer:
         model = _make_model()
         context = _make_context()
         analyzer = AttentionFourierAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
-                probe=None,  # type: ignore
-                analysis_params=context,
-            )
-        )  # type: ignore[arg-type]
+        result = analyzer.analyze(_ctx(model, context))  # type: ignore[arg-type]
         assert (result["qk_freq_norms"] >= 0).all()
         assert (result["v_freq_norms"] >= 0).all()
 
@@ -164,13 +145,7 @@ class TestAttentionFourierAnalyzer:
         model = _make_model()
         context = _make_context()
         analyzer = AttentionFourierAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
-                probe=None,  # type: ignore
-                analysis_params=context,
-            )
-        )  # type: ignore[arg-type]
+        result = analyzer.analyze(_ctx(model, context))  # type: ignore[arg-type]
         assert result["qk_freq_norms"].dtype == np.float32
         assert result["v_freq_norms"].dtype == np.float32
 
@@ -195,23 +170,18 @@ class TestAttentionFourierAnalyzer:
         W_Q_h[:, 1] = cos_k
         W_K_h[:, 1] = cos_k
 
+        weights = {
+            "embed.W_E": W_E,
+            "blocks.0.attn.q.W": W_Q_h.unsqueeze(0),  # (1, d_model, d_head)
+            "blocks.0.attn.k.W": W_K_h.unsqueeze(0),
+            "blocks.0.attn.v.W": torch.zeros(1, d_model, d_head),
+        }
         model = MagicMock()
-        model.embed.W_E = W_E
-        block = MagicMock()
-        block.attn.W_Q = W_Q_h.unsqueeze(0)  # (1, d_model, d_head)
-        block.attn.W_K = W_K_h.unsqueeze(0)
-        block.attn.W_V = torch.zeros(1, d_model, d_head)
-        model.blocks = [block]
+        model.get_weight.side_effect = lambda name: weights[name]
 
         context = {"fourier_basis": F}
         analyzer = AttentionFourierAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(model, None, None),  # type: ignore
-                probe=None,  # type: ignore
-                analysis_params=context,
-            )
-        )  # type: ignore[arg-type]
+        result = analyzer.analyze(_ctx(model, context))  # type: ignore[arg-type]
         # Dominant frequency for head 0 should be k (1-indexed → index k-1)
         dominant = int(result["qk_freq_norms"][0].argmax()) + 1
         assert dominant == k, f"Expected dominant freq {k}, got {dominant}"

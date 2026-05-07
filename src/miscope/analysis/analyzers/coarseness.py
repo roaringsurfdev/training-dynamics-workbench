@@ -15,6 +15,7 @@ from miscope.analysis.library import (
     compute_frequency_variance_fractions,
     compute_grid_size_from_dataset,
     compute_neuron_coarseness,
+    extract_mlp_activations,
     reshape_to_grid,
 )
 
@@ -37,7 +38,7 @@ class CoarsenessAnalyzer:
 
     name = "coarseness"
     description = "Computes per-neuron coarseness (low-frequency energy ratio)"
-    architecture_support = ["transformer", "mlp"]
+    required_hooks: list[str] = ["blocks.0.mlp.hook_out"]
 
     def __init__(
         self,
@@ -54,16 +55,17 @@ class CoarsenessAnalyzer:
         """Compute per-neuron coarseness values.
 
         Args:
-            ctx: Analysis context with bundle, probe, and analysis_params.
+            ctx: Analysis context with cache, probe, and analysis_params.
                  analysis_params must contain 'fourier_basis'.
 
         Returns:
             Dict with 'coarseness' array of shape (d_mlp,)
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]
         p = compute_grid_size_from_dataset(ctx.probe)
 
-        neuron_acts = ctx.bundle.mlp_post(0, -1)
+        neuron_acts = extract_mlp_activations(ctx.cache)
         reshaped = reshape_to_grid(neuron_acts, p)
         fourier_neuron_acts = compute_2d_fourier_transform(reshaped, fourier_basis)
         freq_fractions = compute_frequency_variance_fractions(fourier_neuron_acts, p)

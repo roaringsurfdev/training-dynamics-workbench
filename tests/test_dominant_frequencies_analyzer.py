@@ -11,7 +11,6 @@ import torch
 
 from miscope.analysis import AnalysisPipeline, Analyzer
 from miscope.analysis.analyzers import DominantFrequenciesAnalyzer
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.protocols import ActivationContext
 from miscope.families import FamilyRegistry
 
@@ -108,61 +107,56 @@ class TestDominantFrequenciesAnalyzerOutput:
 
     @pytest.fixture
     def model_with_context(self, trained_variant):
-        """Create model, run forward pass, return model, probe, cache, and context."""
-        device = "cpu"  # Force CPU for consistent testing
+        """Create model, run forward pass, return model, cache, logits, probe, context."""
+        device = "cpu"
         family = trained_variant.family
         params = trained_variant.params
 
-        # Generate probe and context on same device
         probe = family.generate_analysis_dataset(params, device=device)
         context = family.prepare_analysis_context(params, device)
 
-        # Create model on the same device and load checkpoint weights
         model = family.create_model(params, device=device)
         state_dict = trained_variant.load_checkpoint(49)
         model.load_state_dict(state_dict)
 
-        # Run forward pass
         with torch.inference_mode():
             logits, cache = model.run_with_cache(probe)
 
-        bundle = TransformerLensBundle(model, cache, logits)
-        return bundle, probe, context
+        return model, cache, logits, probe, context
+
+    def _ctx(self, model_with_context) -> ActivationContext:
+        model, cache, logits, probe, context = model_with_context
+        return ActivationContext(
+            probe=probe,
+            analysis_params=context,
+            model=model,
+            cache=cache,
+            logits=logits,
+        )
 
     def test_returns_dict(self, model_with_context):
         """analyze returns a dict."""
-        bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         assert isinstance(result, dict)
 
     def test_returns_coefficients_key(self, model_with_context):
         """Result contains 'coefficients' key."""
-        bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         assert "coefficients" in result
 
     def test_coefficients_is_numpy_array(self, model_with_context):
         """Coefficients is a numpy array."""
-        bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         assert isinstance(result["coefficients"], np.ndarray)
 
     def test_coefficients_shape(self, model_with_context):
         """Coefficients has correct shape (n_fourier_components,)."""
-        bundle, probe, context = model_with_context
+        _, _, _, _, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
 
         fourier_basis = context["fourier_basis"]
         n_components = fourier_basis.shape[0]
@@ -170,20 +164,14 @@ class TestDominantFrequenciesAnalyzerOutput:
 
     def test_coefficients_are_non_negative(self, model_with_context):
         """Coefficient values are non-negative (they are norms)."""
-        bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         assert np.all(result["coefficients"] >= 0)
 
     def test_coefficients_on_cpu(self, model_with_context):
         """Coefficients are on CPU (numpy array, not tensor)."""
-        bundle, probe, context = model_with_context
         analyzer = DominantFrequenciesAnalyzer()
-        result = analyzer.analyze(
-            ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
-        )
+        result = analyzer.analyze(self._ctx(model_with_context))
         assert not isinstance(result["coefficients"], torch.Tensor)
 
 

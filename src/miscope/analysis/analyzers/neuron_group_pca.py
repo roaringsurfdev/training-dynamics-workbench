@@ -41,7 +41,6 @@ class NeuronGroupPCAAnalyzer:
 
     name = "neuron_group_pca"
     requires = ["neuron_freq_norm", "parameter_snapshot"]
-    architecture_support = ["transformer", "mlp"]
 
     def analyze_across_epochs(
         self,

@@ -150,7 +150,9 @@ class FourierNucleationAnalyzer:
 
     name = "fourier_nucleation"
     description = "Iterative Fourier projection of MLP neuron response profiles"
-    architecture_support = ["transformer"]
+    # Reads transformer weights only (embed.W_E and blocks.0.mlp.in.W).
+    # Family registration filters; KeyError on missing weights is the safety net.
+    required_hooks: list[str] = []
 
     def __init__(self, iterations: int = 12, sharpness: float = 0.7):
         self.iterations = iterations
@@ -170,10 +172,12 @@ class FourierNucleationAnalyzer:
             Dict with keys: aggregate_energy, neuron_peak_freq, neuron_committed_count,
             frequencies, prime, iterations, sharpness
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         prime = int(ctx.analysis_params["params"]["prime"])
 
-        W_in = ctx.bundle.weight("W_in").detach().cpu().numpy()  # (d_model, d_mlp)
-        W_E = ctx.bundle.weight("W_E").detach().cpu().numpy()  # (vocab_size, d_model)
+        # (d_model, d_mlp) in TransformerLens convention
+        W_in = ctx.model.get_weight("blocks.0.mlp.in.W").detach().cpu().numpy()
+        W_E = ctx.model.get_weight("embed.W_E").detach().cpu().numpy()  # (vocab_size, d_model)
 
         # W_in is (d_model, d_mlp) in TransformerLens convention.
         # Neuron response to each token: (W_E[:prime] @ W_in).T = (d_mlp, prime)

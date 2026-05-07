@@ -1,26 +1,38 @@
-"""Tests for ModuloAdditionEmbedMLP, ModuloAdditionEmbedMLPActivationBundle, and ModuloAdditionEmbedMLPFamily."""
+"""Tests for ModuloAdditionEmbedMLPFamily and the underlying HookedEmbeddingMLP.
+
+Migrated under REQ_113 / REQ_114: standalone ``ModuloAdditionEmbedMLP``
+and per-family ``*ActivationBundle`` classes are retired in favor of
+``HookedEmbeddingMLP`` (canonical-name surface). Bundles and
+``family.run_forward_pass`` are gone — analyzers consume
+``HookedModel.run_with_cache`` directly.
+"""
 
 from __future__ import annotations
 
 import pytest
 import torch
 
-from miscope.analysis.protocols import ActivationBundle
+from miscope.architectures import (
+    ActivationCache,
+    HookedEmbeddingMLP,
+    HookedEmbeddingMLPConfig,
+    HookedModel,
+)
 from miscope.families.implementations.modulo_addition_embed_mlp import (
-    ModuloAdditionEmbedMLP,
-    ModuloAdditionEmbedMLPActivationBundle,
     ModuloAdditionEmbedMLPFamily,
     load_modulo_addition_embed_mlp_family,
 )
 
-P = 13  # Small prime for fast tests
-D_EMBED = 8  # Small embedding dim for tests
+P = 13
+D_EMBED = 8
 D_HIDDEN = 32
 
 
 @pytest.fixture
-def model() -> ModuloAdditionEmbedMLP:
-    return ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=42)
+def model() -> HookedEmbeddingMLP:
+    return HookedEmbeddingMLP(
+        HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=42)
+    )
 
 
 @pytest.fixture
@@ -29,21 +41,6 @@ def probe() -> torch.Tensor:
     a_vals = torch.arange(P).repeat_interleave(P)
     b_vals = torch.arange(P).repeat(P)
     return torch.stack([a_vals, b_vals], dim=1)
-
-
-@pytest.fixture
-def bundle(model, probe) -> ModuloAdditionEmbedMLPActivationBundle:
-    a_vals, b_vals = probe.unbind(1)
-    captured: dict = {}
-
-    def hook(m, inp, output):
-        captured["hidden"] = output
-
-    h = model.relu.register_forward_hook(hook)
-    with torch.inference_mode():
-        logits = model(a_vals, b_vals)
-    h.remove()
-    return ModuloAdditionEmbedMLPActivationBundle(model, captured["hidden"], logits)
 
 
 @pytest.fixture
@@ -56,25 +53,35 @@ def params() -> dict:
     return {"prime": P, "seed": 42, "data_seed": 598}
 
 
-# ── ModuloAdditionEmbedMLP ────────────────────────────────────────────────────
+# ── HookedEmbeddingMLP ───────────────────────────────────────────────────────
 
 
-class TestModuloAdditionEmbedMLP:
+class TestHookedEmbeddingMLP:
+    def test_is_hooked_model(self, model):
+        assert isinstance(model, HookedModel)
+
     def test_forward_output_shape(self, model, probe):
-        a_vals, b_vals = probe.unbind(1)
         with torch.inference_mode():
-            out = model(a_vals, b_vals)
+            out = model(probe)
         assert out.shape == (P * P, P)
 
     def test_seedable_initialization(self):
-        m1 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
-        m2 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        m1 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        )
+        m2 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=7)
+        )
         for p1, p2 in zip(m1.parameters(), m2.parameters()):
             assert torch.equal(p1, p2)
 
     def test_different_seeds_differ(self):
-        m1 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=1)
-        m2 = ModuloAdditionEmbedMLP(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=2)
+        m1 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=1)
+        )
+        m2 = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=P, d_embed=D_EMBED, d_hidden=D_HIDDEN, seed=2)
+        )
         differs = any(not torch.equal(p1, p2) for p1, p2 in zip(m1.parameters(), m2.parameters()))
         assert differs
 
@@ -99,70 +106,48 @@ class TestModuloAdditionEmbedMLP:
             sum_ba = model.embed_a(b) + model.embed_b(a)
         assert not torch.equal(sum_ab, sum_ba)
 
+    def test_canonical_weight_access(self, model):
+        assert torch.equal(model.get_weight("embed.embed_a"), model.embed_a.weight)
+        assert torch.equal(model.get_weight("embed.embed_b"), model.embed_b.weight)
+        assert torch.equal(model.get_weight("blocks.0.mlp.in.W"), model.W_in.weight)
+        assert torch.equal(model.get_weight("blocks.0.mlp.out.W"), model.W_out.weight)
 
-# ── ModuloAdditionEmbedMLPActivationBundle ────────────────────────────────────
+    def test_embedding_identity_invariant_W_E_raises(self, model):
+        """embed.W_E must raise KeyError — load-bearing for architecture identity.
 
-
-class TestModuloAdditionEmbedMLPActivationBundle:
-    def test_implements_activation_bundle_protocol(self, bundle):
-        assert isinstance(bundle, ActivationBundle)
-
-    def test_mlp_post_layer0(self, bundle):
-        hidden = bundle.mlp_post(0, -1)
-        assert hidden.shape == (P * P, D_HIDDEN)
-
-    def test_mlp_post_wrong_layer_raises(self, bundle):
-        with pytest.raises(ValueError, match="layer 0"):
-            bundle.mlp_post(1, -1)
-
-    def test_weight_w_in(self, bundle):
-        w = bundle.weight("W_in")
-        assert w.shape == (D_HIDDEN, D_EMBED)
-
-    def test_weight_w_out(self, bundle):
-        w = bundle.weight("W_out")
-        assert w.shape == (P, D_HIDDEN)
-
-    def test_weight_embed_a(self, bundle):
-        w = bundle.weight("embed_a")
-        assert w.shape == (P, D_EMBED)
-
-    def test_weight_embed_b(self, bundle):
-        w = bundle.weight("embed_b")
-        assert w.shape == (P, D_EMBED)
-
-    def test_weight_w_e_raises_key_error(self, bundle):
-        """W_E is intentionally not exposed — dispatch logic uses W_E presence as
-        transformer signal; this architecture must not masquerade as a transformer."""
+        An analyzer expecting a transformer's shared embedding matrix must
+        fail loudly here rather than be silently aliased to one of the
+        per-input matrices.
+        """
         with pytest.raises(KeyError):
-            bundle.weight("W_E")
+            model.get_weight("embed.W_E")
 
-    def test_weight_unsupported_raises_key_error(self, bundle):
-        for name in ("W_pos", "W_Q", "W_K", "W_V", "W_O", "W_U"):
-            with pytest.raises(KeyError):
-                bundle.weight(name)
+    def test_run_with_cache_publishes_embed_hook(self, model, probe):
+        """embed.hook_out captures the post-sum embed_a(a) + embed_b(b)."""
+        logits, cache = model.run_with_cache(probe)
+        assert isinstance(cache, ActivationCache)
+        assert cache["embed.hook_out"].shape == (P * P, D_EMBED)
 
-    def test_attention_pattern_raises_not_implemented(self, bundle):
-        with pytest.raises(NotImplementedError):
-            bundle.attention_pattern(0)
+        # Validate post-sum semantics: cache value equals embed_a(a) + embed_b(b)
+        a, b = probe.unbind(1)
+        with torch.inference_mode():
+            expected = model.embed_a(a) + model.embed_b(b)
+        assert torch.equal(cache["embed.hook_out"], expected)
 
-    def test_residual_stream_raises_not_implemented(self, bundle):
-        with pytest.raises(NotImplementedError):
-            bundle.residual_stream(0, -1, "pre")
-
-    def test_logits_shape(self, bundle):
-        assert bundle.logits(-1).shape == (P * P, P)
-
-    def test_logits_position_ignored(self, bundle):
-        assert torch.equal(bundle.logits(0), bundle.logits(-1))
-
-    def test_supports_site_mlp(self, bundle):
-        assert bundle.supports_site("mlp") is True
-        assert bundle.supports_site("resid_pre") is False
-        assert bundle.supports_site("attn") is False
+    def test_run_with_cache_canonical_hooks_present(self, model, probe):
+        _, cache = model.run_with_cache(probe)
+        for canonical in (
+            "embed.hook_out",
+            "blocks.0.hook_in",
+            "blocks.0.mlp.hook_pre",
+            "blocks.0.mlp.hook_out",
+            "blocks.0.hook_out",
+            "unembed.hook_out",
+        ):
+            assert canonical in cache, f"missing: {canonical}"
 
 
-# ── ModuloAdditionEmbedMLPFamily ──────────────────────────────────────────────
+# ── ModuloAdditionEmbedMLPFamily ────────────────────────────────────────────
 
 
 class TestModuloAdditionEmbedMLPFamily:
@@ -171,7 +156,8 @@ class TestModuloAdditionEmbedMLPFamily:
 
     def test_create_model_returns_correct_type(self, family, params):
         model = family.create_model(params)
-        assert isinstance(model, ModuloAdditionEmbedMLP)
+        assert isinstance(model, HookedEmbeddingMLP)
+        assert isinstance(model, HookedModel)
         assert model.vocab_size == P
 
     def test_create_model_d_embed_from_architecture(self, family, params):
@@ -207,19 +193,14 @@ class TestModuloAdditionEmbedMLPFamily:
         r2 = family.generate_training_dataset(params)
         assert torch.equal(r1[4], r2[4])  # train_indices
 
-    def test_run_forward_pass_returns_bundle(self, family, params):
+    def test_create_model_run_with_cache(self, family, params):
         model = family.create_model(params)
         probe = family.generate_analysis_dataset(params)
-        bundle = family.run_forward_pass(model, probe)
-        assert isinstance(bundle, ModuloAdditionEmbedMLPActivationBundle)
-
-    def test_run_forward_pass_bundle_shapes(self, family, params):
-        model = family.create_model(params)
-        probe = family.generate_analysis_dataset(params)
-        bundle = family.run_forward_pass(model, probe)
+        with torch.inference_mode():
+            logits, cache = model.run_with_cache(probe)
         d_hidden = family.architecture.get("d_hidden", 512)
-        assert bundle.mlp_post(0, -1).shape == (P * P, d_hidden)
-        assert bundle.logits(-1).shape == (P * P, P)
+        assert logits.shape == (P * P, P)
+        assert cache["blocks.0.mlp.hook_out"].shape == (P * P, d_hidden)
 
     def test_prepare_analysis_context_keys(self, family, params):
         ctx = family.prepare_analysis_context(params, "cpu")

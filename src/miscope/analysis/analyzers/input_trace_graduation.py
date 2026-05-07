@@ -31,7 +31,6 @@ class InputTraceGraduationAnalyzer:
 
     name = "input_trace_graduation"
     requires = ["input_trace"]
-    architecture_support = ["transformer", "mlp"]
 
     def analyze_across_epochs(
         self,

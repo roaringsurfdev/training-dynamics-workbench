@@ -60,7 +60,6 @@ class GlobalCentroidPCA:
 
     name = "global_centroid_pca"
     requires = ["repr_geometry"]
-    architecture_support = ["transformer", "mlp"]
 
     def analyze_across_epochs(
         self,

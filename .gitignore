@@ -217,8 +217,7 @@ __marimo__/
 
 # Project-specific
 /results
-/results_regression
-/results_regression_fresh
+/results_regression*
 *.pth
 /temp_artifacts
 /notebooks/animations

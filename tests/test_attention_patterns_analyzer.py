@@ -1,25 +1,21 @@
-"""Tests for REQ_025: Attention Patterns Analyzer."""
+"""Tests for REQ_025: Attention Patterns Analyzer.
+
+Migrated under REQ_114 to consume the canonical-name ``ActivationCache``
+that ``HookedModel.run_with_cache`` produces.
+"""
 
 # pyright: reportArgumentType=false
-# pyright: reportAttributeAccessIssue=false
 
 import numpy as np
 import pytest
 import torch
 
 from miscope.analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.library.activations import extract_attention_patterns
 from miscope.analysis.protocols import ActivationContext
+from miscope.architectures import ActivationCache
 
 # ── Library function tests ──────────────────────────────────────────────
-
-
-class MockCache(dict):
-    """Minimal mock for TransformerLens ActivationCache."""
-
-    def __getitem__(self, key):
-        return super().__getitem__(key)
 
 
 class TestExtractAttentionPatterns:
@@ -29,7 +25,8 @@ class TestExtractAttentionPatterns:
         """Returns tensor of shape (batch, n_heads, seq_to, seq_from)."""
         batch, n_heads, seq_len = 49, 4, 3
         patterns = torch.rand(batch, n_heads, seq_len, seq_len)
-        cache = MockCache({("pattern", 0): patterns})
+        cache = ActivationCache()
+        cache["blocks.0.attn.hook_pattern"] = patterns
 
         result = extract_attention_patterns(cache, layer=0)
 
@@ -39,7 +36,9 @@ class TestExtractAttentionPatterns:
         """Layer parameter selects the correct layer."""
         patterns_0 = torch.zeros(9, 2, 3, 3)
         patterns_1 = torch.ones(9, 2, 3, 3)
-        cache = MockCache({("pattern", 0): patterns_0, ("pattern", 1): patterns_1})
+        cache = ActivationCache()
+        cache["blocks.0.attn.hook_pattern"] = patterns_0
+        cache["blocks.1.attn.hook_pattern"] = patterns_1
 
         result = extract_attention_patterns(cache, layer=1)
 
@@ -48,7 +47,8 @@ class TestExtractAttentionPatterns:
     def test_default_layer_is_zero(self):
         """Default layer is 0."""
         patterns = torch.rand(9, 4, 3, 3)
-        cache = MockCache({("pattern", 0): patterns})
+        cache = ActivationCache()
+        cache["blocks.0.attn.hook_pattern"] = patterns
 
         result = extract_attention_patterns(cache)
 
@@ -73,22 +73,31 @@ class TestAttentionPatternsAnalyzer:
         seq_len = 3
         batch = p * p
 
-        # Probe: (p^2, 3) — standard modular arithmetic format
         probe = torch.zeros(batch, seq_len, dtype=torch.long)
 
         # Attention patterns: (batch, n_heads, seq_to, seq_from)
-        # Values should be valid softmax outputs (rows sum to 1)
         raw = torch.rand(batch, n_heads, seq_len, seq_len)
         patterns = raw / raw.sum(dim=-1, keepdim=True)
 
-        cache = MockCache({("pattern", 0): patterns})
+        cache = ActivationCache()
+        cache["blocks.0.attn.hook_pattern"] = patterns
         context = {"params": {"prime": p}}
 
         return probe, cache, context, p, n_heads, seq_len
 
+    def _ctx(self, probe, cache, params):
+        return ActivationContext(
+            probe=probe,
+            analysis_params=params,
+            cache=cache,
+        )
+
     def test_has_name(self, analyzer):
         """Analyzer has correct name attribute."""
         assert analyzer.name == "attention_patterns"
+
+    def test_required_hooks_declared(self, analyzer):
+        assert "blocks.0.attn.hook_pattern" in analyzer.required_hooks
 
     def test_has_description(self, analyzer):
         """Analyzer has description attribute."""
@@ -98,37 +107,19 @@ class TestAttentionPatternsAnalyzer:
     def test_analyze_returns_dict(self, analyzer, mock_inputs):
         """analyze() returns a dict."""
         probe, cache, context, *_ = mock_inputs
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
-        )
+        result = analyzer.analyze(self._ctx(probe, cache, context))
         assert isinstance(result, dict)
 
     def test_analyze_produces_patterns_key(self, analyzer, mock_inputs):
         """analyze() result contains 'patterns' key."""
         probe, cache, context, *_ = mock_inputs
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
-        )
+        result = analyzer.analyze(self._ctx(probe, cache, context))
         assert "patterns" in result
 
     def test_output_shape(self, analyzer, mock_inputs):
         """Output shape is (n_heads, n_pos, n_pos, p, p)."""
         probe, cache, context, p, n_heads, seq_len = mock_inputs
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
-        )
+        result = analyzer.analyze(self._ctx(probe, cache, context))
         patterns = result["patterns"]
 
         assert patterns.shape == (n_heads, seq_len, seq_len, p, p)
@@ -136,25 +127,13 @@ class TestAttentionPatternsAnalyzer:
     def test_output_is_numpy(self, analyzer, mock_inputs):
         """Output is numpy array, not torch tensor."""
         probe, cache, context, *_ = mock_inputs
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
-        )
+        result = analyzer.analyze(self._ctx(probe, cache, context))
         assert isinstance(result["patterns"], np.ndarray)
 
     def test_values_in_valid_range(self, analyzer, mock_inputs):
         """Attention values are in [0, 1] (softmax outputs)."""
         probe, cache, context, *_ = mock_inputs
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
-        )
+        result = analyzer.analyze(self._ctx(probe, cache, context))
         patterns = result["patterns"]
 
         assert patterns.min() >= 0.0
@@ -173,27 +152,19 @@ class TestAttentionPatternsAnalyzer:
 
         probe = torch.zeros(batch, seq_len, dtype=torch.long)
 
-        # Create a pattern where attention is a function of input index
         patterns = torch.zeros(batch, n_heads, seq_len, seq_len)
         for a in range(p):
             for b in range(p):
                 idx = a * p + b
-                # Set a distinguishable value
                 patterns[idx, 0, 2, 0] = float(a + b) / (2 * p)
 
-        cache = MockCache({("pattern", 0): patterns})
+        cache = ActivationCache()
+        cache["blocks.0.attn.hook_pattern"] = patterns
         context = {"params": {"prime": p}}
 
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(None, cache, None),
-                probe=probe,
-                analysis_params=context,
-            )
-        )
+        result = analyzer.analyze(self._ctx(probe, cache, context))
         reshaped = result["patterns"]
 
-        # Check that reshaped[head=0, to=2, from=0, a, b] == (a + b) / (2 * p)
         for a in range(p):
             for b in range(p):
                 expected = float(a + b) / (2 * p)

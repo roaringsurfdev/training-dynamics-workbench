@@ -3,19 +3,24 @@
 Provides functions for measuring local loss landscape flatness via
 random perturbation of model parameters. Used by
 LandscapeFlatnessAnalyzer (REQ_031).
+
+The compute function takes any ``nn.Module`` — only ``state_dict``,
+``parameters``, and ``load_state_dict`` are used, all of which are
+generic PyTorch surface. Works against ``HookedTransformer``,
+``HookedOneHotMLP``, or ``HookedEmbeddingMLP`` uniformly.
 """
 
 from collections.abc import Callable
 
 import numpy as np
 import torch
-from transformer_lens import HookedTransformer
+import torch.nn as nn
 
 
 def compute_landscape_flatness(
-    model: HookedTransformer,
+    model: nn.Module,
     probe: torch.Tensor,
-    loss_fn: Callable[[HookedTransformer, torch.Tensor], float],
+    loss_fn: Callable[[nn.Module, torch.Tensor], float],
     n_directions: int = 50,
     epsilon: float = 0.1,
     seed: int | None = None,

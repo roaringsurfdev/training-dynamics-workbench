@@ -1,78 +1,42 @@
 """Protocol definitions for analysis modules."""
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import numpy as np
 import torch
 
-
-@runtime_checkable
-class ActivationBundle(Protocol):
-    """Architecture-agnostic interface to a model's activations and weights.
-
-    Wraps a (model, cache, logits) tuple for a single forward pass. Analyzers
-    call bundle methods instead of accessing TL objects directly, so the same
-    analyzer code works against any architecture that provides a bundle.
-
-    Implementations:
-        TransformerLensBundle — wraps HookedTransformer + ActivationCache
-        (future) MLPBundle    — wraps a plain PyTorch MLP with forward hooks
-    """
-
-    def mlp_post(self, layer: int, position: int) -> torch.Tensor:
-        """Post-activation MLP neuron values. Returns (batch, d_mlp)."""
-        ...
-
-    def residual_stream(self, layer: int, position: int, location: str) -> torch.Tensor:
-        """Residual stream at a given site. location: 'resid_pre', 'resid_post', 'attn_out'.
-        Returns (batch, d_model)."""
-        ...
-
-    def attention_pattern(self, layer: int) -> torch.Tensor:
-        """Attention weights (post-softmax). Returns (batch, n_heads, seq_to, seq_from).
-        Raises NotImplementedError for non-transformer architectures."""
-        ...
-
-    def weight(self, name: str) -> torch.Tensor:
-        """Named weight matrix. Supported names: W_E, W_pos, W_Q, W_K, W_V, W_O,
-        W_in, W_out, W_U. Raises NotImplementedError for absent weights."""
-        ...
-
-    def logits(self, position: int) -> torch.Tensor:
-        """Logits at a token position. Returns (batch, vocab_size)."""
-        ...
-
-    def supports_site(self, extractor: str) -> bool:
-        """Return True if this bundle supports the given extraction type.
-
-        extractor values: 'mlp', 'residual', 'attention'
-
-        Analyzers should call this before attempting extraction to gracefully
-        skip sites that the architecture does not provide.
-        """
-        ...
+if TYPE_CHECKING:
+    from miscope.architectures import ActivationCache, HookedModel
 
 
 @dataclass
 class ActivationContext:
     """Single-checkpoint analysis context passed to every primary analyzer.
 
-    Bundles the three objects previously passed as separate analyze() arguments:
-    the activation bundle, the probe tensor, and the family-provided domain
-    parameters. Constructed by the pipeline in _run_single_epoch(); families
-    are not responsible for building it.
+    Constructed by the pipeline in ``_run_single_epoch``; families are not
+    responsible for building it.
 
     Attributes:
-        bundle: Architecture-agnostic wrapper over model activations and weights.
         probe: The full analysis dataset tensor (e.g., all p² (a, b) pairs).
-        analysis_params: Family-provided domain context — 'params', 'fourier_basis',
-            'loss_fn', 'labels', and any other family-specific precomputed values.
+        analysis_params: Family-provided domain context — ``'params'``,
+            ``'fourier_basis'``, ``'loss_fn'``, ``'labels'``, and any
+            other family-specific precomputed values.
+        model: Concrete ``HookedModel`` providing canonical-name weight
+            access via ``model.get_weight(canonical_name)``.
+        cache: Canonical-name-keyed activation cache from the same
+            forward pass. Activations are read as
+            ``cache[canonical_name]``.
+        logits: Output logits from the same forward pass. Shape is
+            architecture-dependent: ``(batch, seq_len, vocab_size)`` for
+            transformers, ``(batch, vocab_size)`` for MLPs.
     """
 
-    bundle: ActivationBundle
     probe: torch.Tensor
     analysis_params: dict[str, Any]
+    model: "HookedModel | None" = None
+    cache: "ActivationCache | None" = None
+    logits: torch.Tensor | None = None
 
 
 @dataclass

@@ -13,6 +13,7 @@ from miscope.analysis.library import (
     compute_2d_fourier_transform,
     compute_frequency_variance_fractions,
     compute_grid_size_from_dataset,
+    extract_mlp_activations,
     reshape_to_grid,
 )
 
@@ -30,7 +31,7 @@ class NeuronFreqClustersAnalyzer:
 
     name = "neuron_freq_norm"
     description = "Computes neuron-frequency specialization for clustering"
-    architecture_support = ["transformer", "mlp"]
+    required_hooks: list[str] = ["blocks.0.mlp.hook_out"]
 
     def __init__(self, specialization_threshold: float = 0.9):
         self.specialization_threshold = specialization_threshold
@@ -43,22 +44,18 @@ class NeuronFreqClustersAnalyzer:
         Compute fraction of variance explained by each frequency for each neuron.
 
         Args:
-            ctx: Analysis context with bundle, probe, and analysis_params.
+            ctx: Analysis context with cache, probe, and analysis_params.
                  analysis_params must contain 'fourier_basis'.
 
         Returns:
             Dict with 'norm_matrix' array of shape (n_frequencies, d_mlp)
             where n_frequencies = p // 2
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]
-
-        # Get grid size from probe
         p = compute_grid_size_from_dataset(ctx.probe)
 
-        # Extract neuron activations at last token position
-        neuron_acts = ctx.bundle.mlp_post(0, -1)
-
-        # Reshape to (d_mlp, p, p)
+        neuron_acts = extract_mlp_activations(ctx.cache)
         reshaped = reshape_to_grid(neuron_acts, p)
 
         # Compute 2D Fourier transform

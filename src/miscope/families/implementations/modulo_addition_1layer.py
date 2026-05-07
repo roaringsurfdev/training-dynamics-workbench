@@ -11,9 +11,9 @@ from typing import Any
 
 import einops
 import torch
-from transformer_lens import HookedTransformer, HookedTransformerConfig
 
 from miscope.analysis.library import get_fourier_basis
+from miscope.architectures import HookedTransformer, HookedTransformerConfig
 from miscope.families.base_model_family import BaseModelFamily
 
 
@@ -38,14 +38,19 @@ class ModuloAddition1LayerFamily(BaseModelFamily):
         params: dict[str, Any],
         device: str | torch.device | None = None,
     ) -> HookedTransformer:
-        """Create a HookedTransformer for modular addition.
+        """Create a miscope ``HookedTransformer`` for modular addition.
+
+        Returns the canonical-name-aware subclass that quarantines the
+        underlying TransformerLens dependency (REQ_112). Existing
+        checkpoints load unchanged because the subclass preserves TL's
+        parameter layout and state-dict format.
 
         Args:
             params: Domain parameters containing 'prime' and optionally 'seed'
             device: Device to place the model on (default: None, uses default device)
 
         Returns:
-            HookedTransformer configured for modular addition
+            ``HookedTransformer`` configured for modular addition.
         """
         p = params["prime"]
         seed = params.get("seed", self.get_default_params().get("seed", 999))
@@ -279,26 +284,6 @@ class ModuloAddition1LayerFamily(BaseModelFamily):
             "data_seed": data_seed,
             "training_fraction": training_fraction,
         }
-
-    def run_forward_pass(
-        self,
-        model: Any,
-        probe: torch.Tensor,
-    ) -> Any:
-        """Run a forward pass and return a TransformerLensBundle.
-
-        Args:
-            model: HookedTransformer instance created by create_model()
-            probe: Analysis dataset tensor from generate_analysis_dataset()
-
-        Returns:
-            TransformerLensBundle wrapping the model, cache, and logits
-        """
-        from miscope.analysis.bundle import TransformerLensBundle
-
-        with torch.inference_mode():
-            logits, cache = model.run_with_cache(probe)
-        return TransformerLensBundle(model, cache, logits)
 
     def make_probe(
         self,

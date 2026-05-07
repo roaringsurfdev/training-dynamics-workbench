@@ -11,7 +11,6 @@ import pytest
 
 from miscope.analysis import AnalysisPipeline, Analyzer, ArtifactLoader
 from miscope.analysis.analyzers import EffectiveDimensionalityAnalyzer
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.library.weights import (
     ATTENTION_MATRICES,
     WEIGHT_MATRIX_NAMES,
@@ -96,7 +95,7 @@ class TestComputeWeightSingularValues:
     @pytest.fixture
     def model(self):
         """Create a minimal HookedTransformer."""
-        from transformer_lens import HookedTransformer, HookedTransformerConfig
+        from miscope.architectures import HookedTransformer, HookedTransformerConfig
 
         cfg = HookedTransformerConfig(
             d_model=32,
@@ -112,7 +111,7 @@ class TestComputeWeightSingularValues:
 
     def test_returns_all_sv_keys(self, model):
         """Result contains sv_{name} for every weight matrix the bundle exposes."""
-        result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
+        result = compute_weight_singular_values(model)  # type: ignore
         # Only check names that the transformer architecture actually has — names in
         # WEIGHT_MATRIX_NAMES for other architectures (e.g. embed_a, embed_b) will be
         # absent from the transformer bundle and silently skipped.
@@ -125,7 +124,7 @@ class TestComputeWeightSingularValues:
 
     def test_non_attention_svs_are_1d(self, model):
         """Non-attention singular values are 1D arrays."""
-        result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
+        result = compute_weight_singular_values(model)  # type: ignore
         non_attn = [
             n for n in WEIGHT_MATRIX_NAMES if n not in ATTENTION_MATRICES and f"sv_{n}" in result
         ]
@@ -135,7 +134,7 @@ class TestComputeWeightSingularValues:
 
     def test_attention_svs_are_2d(self, model):
         """Attention singular values are 2D (n_heads, d_head)."""
-        result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
+        result = compute_weight_singular_values(model)  # type: ignore
         for name in ATTENTION_MATRICES:
             sv = result[f"sv_{name}"]
             assert sv.ndim == 2, f"sv_{name} should be 2D, got {sv.ndim}D"
@@ -144,13 +143,13 @@ class TestComputeWeightSingularValues:
 
     def test_singular_values_nonnegative(self, model):
         """All singular values are non-negative."""
-        result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
+        result = compute_weight_singular_values(model)  # type: ignore
         for key, sv in result.items():
             assert np.all(sv >= 0), f"{key} has negative singular values"
 
     def test_singular_values_sorted_descending(self, model):
         """Singular values are sorted in descending order."""
-        result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
+        result = compute_weight_singular_values(model)  # type: ignore
         for key, sv in result.items():
             if sv.ndim == 1:
                 assert np.all(sv[:-1] >= sv[1:] - 1e-6), f"{key} not sorted"
@@ -160,7 +159,7 @@ class TestComputeWeightSingularValues:
 
     def test_non_attention_sv_count(self, model):
         """Non-attention SVs have count = min(rows, cols)."""
-        result = compute_weight_singular_values(TransformerLensBundle(model, None, None))  # type: ignore
+        result = compute_weight_singular_values(model)  # type: ignore
         # W_E: (10, 32) → min = 10
         assert result["sv_W_E"].shape[0] == 10
         # W_in: (32, 128) → min = 32

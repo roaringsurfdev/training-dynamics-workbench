@@ -45,7 +45,9 @@ class LandscapeFlatnessAnalyzer:
 
     name = "landscape_flatness"
     description = "Measures loss landscape flatness via random weight perturbation"
-    architecture_support = ["transformer"]
+    # Reads model parameters directly via state_dict / parameters() — no
+    # canonical-name surface used. Runs on any HookedModel architecture.
+    required_hooks: list[str] = []
 
     def __init__(
         self,
@@ -73,6 +75,7 @@ class LandscapeFlatnessAnalyzer:
         Raises:
             ValueError: If 'loss_fn' not found in analysis_params.
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         if "loss_fn" not in ctx.analysis_params:
             raise ValueError(
                 "LandscapeFlatnessAnalyzer requires 'loss_fn' in analysis "
@@ -80,12 +83,12 @@ class LandscapeFlatnessAnalyzer:
                 "prepare_analysis_context() provides it."
             )
 
-        # Landscape flatness requires direct parameter manipulation — the bundle
-        # protocol doesn't cover perturbation. TransformerLensBundle.raw_model
-        # provides the escape hatch for this transformer-specific use case.
-        model = ctx.bundle.raw_model  # type: ignore[attr-defined]
+        # Landscape flatness requires direct parameter manipulation
+        # (state_dict / parameters / load_state_dict). ``ctx.model`` is
+        # the HookedModel; nn.Module surface is sufficient for the
+        # perturbation logic in compute_landscape_flatness.
         return compute_landscape_flatness(
-            model=model,
+            model=ctx.model,
             probe=ctx.probe,
             loss_fn=ctx.analysis_params["loss_fn"],
             n_directions=self.n_directions,

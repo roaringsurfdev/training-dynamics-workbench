@@ -38,7 +38,8 @@ class InputTraceAnalyzer:
 
     name = "input_trace"
     description = "Per-pair predictions on all input pairs at each checkpoint"
-    architecture_support = ["transformer", "mlp"]
+    # Reads logits only (output of the forward pass) — runs on any architecture.
+    required_hooks: list[str] = []
 
     def analyze(
         self,
@@ -47,19 +48,24 @@ class InputTraceAnalyzer:
         """Run predictions on all p² pairs and record train/test split.
 
         Args:
-            ctx: Analysis context with bundle, probe, and analysis_params.
+            ctx: Analysis context with logits, probe, and analysis_params.
                  analysis_params must contain 'params' with 'prime', 'data_seed',
                  'training_fraction'.
 
         Returns:
             Dict with 'predictions', 'correct', 'confidence', 'split'
         """
+        assert ctx.logits is not None  # type-narrowing for pyright
         params = ctx.analysis_params["params"]
         p = int(params["prime"])
         data_seed = int(params.get("data_seed", 598))
         training_fraction = float(params.get("training_fraction", 0.3))
 
-        last_logits = ctx.bundle.logits(-1)  # (p², p)
+        # Logits shape: (batch, seq_len, vocab) for transformers,
+        # (batch, vocab) for MLPs. Reduce to (batch, vocab) by taking
+        # the last sequence position when applicable.
+        logits = ctx.logits
+        last_logits = logits[:, -1, :] if logits.ndim == 3 else logits  # (p², p)
         device = last_logits.device
         probs = last_logits.softmax(dim=-1)
         predictions = last_logits.argmax(dim=-1)

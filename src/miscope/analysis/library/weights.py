@@ -3,6 +3,15 @@
 Provides functions for extracting and analyzing model weight matrices
 across training checkpoints. Used by parameter trajectory and
 effective dimensionality analyzers.
+
+REQ_114 migration
+-----------------
+``extract_parameter_snapshot`` and ``compute_weight_singular_values``
+now take a :class:`miscope.architectures.HookedModel` and read weights
+via canonical names internally. The returned dict still uses legacy
+short names (``W_E``, ``W_in``, ...) so downstream consumers (snapshot
+artifact schema, ``extract_neuron_weight_matrix`` dispatch logic) are
+unchanged.
 """
 
 from __future__ import annotations
@@ -11,10 +20,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle
+from miscope.core import architecture as canonical_hooks
+from miscope.core import weights as canonical_weights
 
-# Weight matrices to extract, in consistent order
+if TYPE_CHECKING:
+    from miscope.architectures import HookedModel
+
+# Weight matrices to extract, in consistent order. Legacy short names are
+# preserved as the artifact / consumer-facing identifiers.
 WEIGHT_MATRIX_NAMES = [
     "W_E",
     "W_pos",
@@ -41,33 +54,60 @@ COMPONENT_GROUPS = {
     "learned_embeddings": ["embed_a", "embed_b"],  # Learned-embedding MLP only
 }
 
+ATTENTION_MATRICES = {"W_Q", "W_K", "W_V", "W_O"}
 
-def extract_parameter_snapshot(
-    bundle: ActivationBundle,
-) -> dict[str, np.ndarray]:
-    """Extract all trainable weight matrices from a bundle.
 
-    Returns dict mapping weight matrix names to numpy arrays
-    in their original shapes. Tries both the standard transformer names
-    (WEIGHT_MATRIX_NAMES) and architecture-specific names (ARCH_WEIGHT_NAMES),
-    silently skipping any that the bundle doesn't expose.
+# Map legacy short name → canonical path. Attention matrices are
+# represented as their per-head stacked tensor; the canonical path
+# resolves to the (n_heads, ...) tensor on TL's HookedTransformer.
+# For HookedModel subclasses without these surfaces (MLPs), the lookup
+# raises and we silently skip (matching the pre-migration behavior).
+_LEGACY_TO_CANONICAL: dict[str, str] = {
+    "W_E": canonical_weights.EMBED_WEIGHT,
+    "W_pos": canonical_weights.POS_EMBED_WEIGHT,
+    "W_U": canonical_weights.UNEMBED_WEIGHT,
+    "W_Q": canonical_weights.block_attn_weight(0, canonical_hooks.ATTN_Q),
+    "W_K": canonical_weights.block_attn_weight(0, canonical_hooks.ATTN_K),
+    "W_V": canonical_weights.block_attn_weight(0, canonical_hooks.ATTN_V),
+    "W_O": canonical_weights.block_attn_weight(0, canonical_hooks.ATTN_O),
+    "W_in": canonical_weights.block_mlp_weight(0, canonical_hooks.MLP_IN),
+    "W_out": canonical_weights.block_mlp_weight(0, canonical_hooks.MLP_OUT),
+    "embed_a": canonical_weights.EMBED_A_PATH,
+    "embed_b": canonical_weights.EMBED_B_PATH,
+}
+
+
+def extract_parameter_snapshot(model: HookedModel) -> dict[str, np.ndarray]:
+    """Extract all trainable weight matrices from a HookedModel.
+
+    Returns dict mapping legacy short names (``W_E``, ``W_Q``, ``W_in``,
+    ``embed_a``, ...) to numpy arrays in their original shapes. Tries
+    every name in :data:`WEIGHT_MATRIX_NAMES` plus architecture-specific
+    names from :data:`ARCH_WEIGHT_NAMES`, silently skipping any the
+    model doesn't publish.
 
     Args:
-        bundle: ActivationBundle providing weight access via bundle.weight(name).
+        model: ``HookedModel`` instance providing canonical-name weight
+            access via ``model.get_weight(...)``.
 
     Returns:
-        Dict with available weight matrix names as keys, numpy arrays as values.
+        Dict with available legacy weight names as keys and numpy
+        arrays as values.
     """
     all_names = list(WEIGHT_MATRIX_NAMES)
     for extra in ARCH_WEIGHT_NAMES.values():
         all_names.extend(extra)
 
-    result = {}
+    result: dict[str, np.ndarray] = {}
     for name in all_names:
+        canonical = _LEGACY_TO_CANONICAL.get(name)
+        if canonical is None:
+            continue
         try:
-            result[name] = _to_numpy(bundle.weight(name))
+            tensor = model.get_weight(canonical)
         except KeyError:
-            pass  # Architecture doesn't have this weight
+            continue  # Architecture doesn't publish this weight
+        result[name] = _to_numpy(tensor)
     return result
 
 
@@ -92,9 +132,6 @@ def extract_neuron_weight_matrix(snapshot: dict) -> np.ndarray:
         return W_in  # (d_model, d_mlp) — columns are neuron vectors
     else:
         return W_in.T  # (2p, d_hidden) — transposed so columns are neuron vectors
-
-
-ATTENTION_MATRICES = {"W_Q", "W_K", "W_V", "W_O"}
 
 
 def compute_participation_ratio(
@@ -129,23 +166,21 @@ def compute_participation_ratio(
     return result
 
 
-def compute_weight_singular_values(
-    bundle: ActivationBundle,
-) -> dict[str, np.ndarray]:
+def compute_weight_singular_values(model: HookedModel) -> dict[str, np.ndarray]:
     """Compute singular values of all trainable weight matrices.
 
     For attention matrices (W_Q, W_K, W_V, W_O), SVD is computed
     per head. Each head's matrix is an independent subspace.
 
     Args:
-        bundle: ActivationBundle providing weight access.
+        model: ``HookedModel`` providing canonical-name weight access.
 
     Returns:
         Dict mapping "sv_{name}" to numpy arrays of singular values.
         Attention matrices: shape (n_heads, d_head).
         Other matrices: shape (min(rows, cols),).
     """
-    snapshot = extract_parameter_snapshot(bundle)
+    snapshot = extract_parameter_snapshot(model)
     result = {}
 
     for name in WEIGHT_MATRIX_NAMES:

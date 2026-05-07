@@ -277,28 +277,56 @@ class AnalysisPipeline:
         Saves each result immediately to disk, then cleans up GPU memory.
         If summary_collectors is provided, computes and accumulates summary
         statistics for analyzers that support them.
+
+        Migrated analyzers (those that declare ``required_hooks``) are
+        filtered: an analyzer whose declared canonical hooks are not all
+        published by the current model is skipped with an info-level log
+        entry. Legacy analyzers without ``required_hooks`` continue to
+        run unconditionally and consume the bundle.
         """
         state_dict = self.variant.load_checkpoint(epoch)
         model = self.variant.family.create_model(self.variant.params, device=self._device)
         model.load_state_dict(state_dict)
 
-        bundle = self.variant.family.run_forward_pass(model, probe)
-        ctx = ActivationContext(bundle=bundle, probe=probe, analysis_params=context)
+        with torch.inference_mode():
+            logits, cache = model.run_with_cache(probe)
+
+        ctx = ActivationContext(
+            probe=probe,
+            analysis_params=context,
+            model=model,
+            cache=cache,
+            logits=logits,
+        )
 
         for analyzer, needed_epochs in work_queue:
-            if epoch in needed_epochs:
-                result = analyzer.analyze(ctx)
-                self._save_epoch_artifact(analyzer.name, epoch, result)
+            if epoch not in needed_epochs:
+                continue
 
-                if summary_collectors and analyzer.name in summary_collectors:
-                    summary = analyzer.compute_summary(result, context)  # type: ignore[attr-defined]
-                    collector = summary_collectors[analyzer.name]
-                    collector["epochs"].append(epoch)
-                    for key, value in summary.items():
-                        collector["values"][key].append(value)
+            required = getattr(analyzer, "required_hooks", None)
+            if required:
+                missing = [h for h in required if h not in model.hook_names()]
+                if missing:
+                    logger.info(
+                        "Skipping %s on epoch %d: missing canonical hooks %s.",
+                        analyzer.name,
+                        epoch,
+                        missing,
+                    )
+                    continue
+
+            result = analyzer.analyze(ctx)
+            self._save_epoch_artifact(analyzer.name, epoch, result)
+
+            if summary_collectors and analyzer.name in summary_collectors:
+                summary = analyzer.compute_summary(result, context)  # type: ignore[attr-defined]
+                collector = summary_collectors[analyzer.name]
+                collector["epochs"].append(epoch)
+                for key, value in summary.items():
+                    collector["values"][key].append(value)
 
         # Explicit cleanup to prevent GPU memory accumulation
-        del model, bundle, state_dict
+        del model, cache, logits, state_dict
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 

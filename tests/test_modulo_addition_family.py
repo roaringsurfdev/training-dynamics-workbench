@@ -11,7 +11,6 @@ import pytest
 import torch
 
 from miscope.analysis.analyzers import AnalyzerRegistry
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.protocols import ActivationContext
 from miscope.families import FamilyRegistry, VariantState
 from miscope.families.implementations import ModuloAddition1LayerFamily
@@ -278,9 +277,7 @@ class TestAnalyzerIntegration:
         analyzer = AnalyzerRegistry.get("dominant_frequencies")
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, cache, logits),
-                probe=dataset,
-                analysis_params=context,
+                probe=dataset, analysis_params=context, model=model, cache=cache, logits=logits
             )
         )
 
@@ -302,9 +299,7 @@ class TestAnalyzerIntegration:
         analyzer = AnalyzerRegistry.get("neuron_activations")
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, cache, logits),
-                probe=dataset,
-                analysis_params=context,
+                probe=dataset, analysis_params=context, model=model, cache=cache, logits=logits
             )
         )
 
@@ -328,9 +323,7 @@ class TestAnalyzerIntegration:
         analyzer = AnalyzerRegistry.get("neuron_freq_norm")
         result = analyzer.analyze(
             ActivationContext(
-                bundle=TransformerLensBundle(model, cache, logits),
-                probe=dataset,
-                analysis_params=context,
+                probe=dataset, analysis_params=context, model=model, cache=cache, logits=logits
             )
         )
 
@@ -377,9 +370,7 @@ class TestEndToEnd:
         for analyzer in analyzers:
             result = analyzer.analyze(
                 ActivationContext(
-                    bundle=TransformerLensBundle(model, cache, logits),
-                    probe=dataset,
-                    analysis_params=context,
+                    probe=dataset, analysis_params=context, model=model, cache=cache, logits=logits
                 )
             )
             assert len(result) > 0

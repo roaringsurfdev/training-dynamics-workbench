@@ -3,6 +3,16 @@
 Computes geometric properties of class manifolds in activation space
 at multiple sites in the network. Tracks how representational structure
 evolves during training.
+
+REQ_112 canary
+--------------
+This analyzer is the canary for the HookedModel boundary (REQ_112). It
+declares ``required_hooks`` instead of the legacy
+``architecture_support`` flag and reads activations from
+``ctx.cache[canonical_name]`` instead of ``ctx.bundle.*``. Per-site
+artifact keys (``resid_pre_*``, ``attn_out_*``, ``mlp_out_*``,
+``resid_post_*``) are preserved verbatim for byte-identity validation
+against REQ_086's regression scaffold.
 """
 
 from __future__ import annotations
@@ -17,7 +27,8 @@ from miscope.analysis.library import (
 )
 
 if TYPE_CHECKING:
-    from miscope.analysis.protocols import ActivationBundle, ActivationContext
+    from miscope.analysis.protocols import ActivationContext
+    from miscope.architectures import ActivationCache
 from miscope.analysis.library.clustering import (
     compute_center_spread,
     compute_class_centroids,
@@ -31,13 +42,20 @@ from miscope.analysis.library.shape import (
     characterize_circularity,
     characterize_fourier_alignment,
 )
+from miscope.core import architecture as canonical_hooks
 
-# Activation sites to probe, with extraction config
-_SITES = {
-    "resid_pre": {"extractor": "residual", "location": "resid_pre"},
-    "attn_out": {"extractor": "residual", "location": "attn_out"},
-    "mlp_out": {"extractor": "mlp"},
-    "resid_post": {"extractor": "residual", "location": "resid_post"},
+# Activation sites to probe. Each maps the site label (preserved as the
+# artifact key prefix for byte-identity validation) to the canonical
+# hook name where the analyzer reads activations from the cache.
+_SITES: dict[str, str] = {
+    "resid_pre": canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_IN),
+    "attn_out": canonical_hooks.hook(
+        canonical_hooks.BLOCKS, 0, canonical_hooks.ATTN, canonical_hooks.HOOK_OUT
+    ),
+    "mlp_out": canonical_hooks.hook(
+        canonical_hooks.BLOCKS, 0, canonical_hooks.MLP, canonical_hooks.HOOK_OUT
+    ),
+    "resid_post": canonical_hooks.hook(canonical_hooks.BLOCKS, 0, canonical_hooks.HOOK_OUT),
 }
 
 # Summary keys: 11 scalar measures per site
@@ -77,7 +95,9 @@ class RepresentationalGeometryAnalyzer:
 
     name = "repr_geometry"
     description = "Tracks representational geometry evolution across training"
-    architecture_support = ["transformer", "mlp"]
+    # Canonical hooks this analyzer reads. Pipeline filters analyzers
+    # whose required hooks are not published by the current model.
+    required_hooks: list[str] = list(_SITES.values())
 
     def analyze(
         self,
@@ -86,21 +106,30 @@ class RepresentationalGeometryAnalyzer:
         """Compute geometric measures at all activation sites.
 
         Args:
-            ctx: Analysis context with bundle, probe, and analysis_params.
-                 analysis_params may contain 'labels' or 'params' with 'prime'.
+            ctx: Analysis context. Reads ``ctx.cache`` (canonical-name keyed)
+                for activations and ``ctx.analysis_params`` for the prime
+                / labels. Falls back to ``ctx.probe`` to derive labels when
+                the family does not provide them.
 
         Returns:
             Dict with site-prefixed keys for centroids, radii,
             dimensionality, and global scalar measures.
         """
+        assert ctx.cache is not None  # type-narrowing for pyright
+        if ctx.cache is None:
+            raise RuntimeError(
+                "repr_geometry requires the HookedModel cache (ctx.cache); "
+                "the family for this variant has not migrated to HookedModel."
+            )
+
         p = compute_grid_size_from_dataset(ctx.probe)
         labels = self._compute_labels(ctx.probe, p, ctx.analysis_params)
 
         result: dict[str, np.ndarray] = {}
-        for site_name, site_config in _SITES.items():
-            if not ctx.bundle.supports_site(site_config["extractor"]):
+        for site_name, canonical_hook in _SITES.items():
+            if canonical_hook not in ctx.cache:
                 continue
-            activations = self._extract_site(ctx.bundle, site_config)
+            activations = self._extract_site(ctx.cache, canonical_hook)
             site_result = self._compute_site_measures(activations, labels, p)
             for key, value in site_result.items():
                 result[f"{site_name}_{key}"] = value
@@ -170,14 +199,16 @@ class RepresentationalGeometryAnalyzer:
 
     def _extract_site(
         self,
-        bundle: ActivationBundle,
-        site_config: dict,
+        cache: ActivationCache,
+        canonical_hook: str,
     ) -> np.ndarray:
-        """Extract activations from bundle for a given site."""
-        if site_config["extractor"] == "mlp":
-            acts = bundle.mlp_post(0, -1)
-        else:
-            acts = bundle.residual_stream(0, -1, site_config["location"])
+        """Extract last-position activations from the canonical-name cache.
+
+        ``cache[canonical_hook]`` is shape ``(batch, seq_len, d)``; we
+        take the final sequence position (the equals token in modular
+        addition) and convert to a numpy array on CPU.
+        """
+        acts = cache[canonical_hook][:, -1, :]
         return acts.detach().cpu().numpy()
 
     def _compute_site_measures(

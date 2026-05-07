@@ -24,7 +24,11 @@ class DominantFrequenciesAnalyzer:
 
     name = "dominant_frequencies"
     description = "Identifies dominant frequencies in learned embeddings"
-    architecture_support = ["transformer"]
+    # Reads embed.W_E only — runs on transformer-class architectures that
+    # publish a shared embedding matrix. Family-level registration (in
+    # family.json) is the primary filter; if registered to a family that
+    # doesn't publish embed.W_E, ``model.get_weight`` raises KeyError loudly.
+    required_hooks: list[str] = []
 
     def analyze(
         self,
@@ -34,16 +38,17 @@ class DominantFrequenciesAnalyzer:
         Compute Fourier coefficient norms for embedding weights.
 
         Args:
-            ctx: Analysis context with bundle and analysis_params.
+            ctx: Analysis context with model and analysis_params.
                  analysis_params must contain 'fourier_basis'.
 
         Returns:
             Dict with 'coefficients' array of shape (n_fourier_components,)
         """
+        assert ctx.model is not None  # type-narrowing for pyright
         fourier_basis = ctx.analysis_params["fourier_basis"]
 
         # Get embedding weights, excluding the equals token
-        W_E = ctx.bundle.weight("W_E")[:-1]
+        W_E = ctx.model.get_weight("embed.W_E")[:-1]
 
         # Compute norms of embedding projected onto Fourier basis
         coefficients = project_onto_fourier_basis(W_E, fourier_basis)

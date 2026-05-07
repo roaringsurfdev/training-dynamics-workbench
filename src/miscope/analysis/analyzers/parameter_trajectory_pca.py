@@ -30,7 +30,6 @@ class ParameterTrajectoryPCA:
 
     name = "parameter_trajectory"
     requires = ["parameter_snapshot"]
-    architecture_support = ["transformer", "mlp"]
 
     def analyze_across_epochs(
         self,

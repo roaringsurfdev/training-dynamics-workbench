@@ -1,6 +1,9 @@
-"""Tests for REQ_044/REQ_045: Representational Geometry library and analyzer."""
+"""Tests for REQ_044/REQ_045: Representational Geometry library and analyzer.
 
-from unittest.mock import MagicMock
+Updated under REQ_112 to consume the canonical-name ``ActivationCache``
+that ``HookedModel.run_with_cache`` produces. The mock cache populates
+the canonical hook paths the migrated analyzer reads from.
+"""
 
 import numpy as np
 import plotly.graph_objects as go
@@ -13,7 +16,6 @@ from miscope.analysis.analyzers.repr_geometry import (
     RepresentationalGeometryAnalyzer,
     _get_summary_keys,
 )
-from miscope.analysis.bundle import TransformerLensBundle
 from miscope.analysis.library.clustering import (
     compute_center_spread,
     compute_class_centroids,
@@ -28,6 +30,7 @@ from miscope.analysis.library.shape import (
     characterize_fourier_alignment,
 )
 from miscope.analysis.protocols import ActivationContext
+from miscope.architectures import ActivationCache
 from miscope.visualization.renderers.repr_geometry import render_fisher_heatmap, render_pc_budget
 
 
@@ -234,30 +237,35 @@ class TestComputeFisherDiscriminant:
 
 
 class TestRepresentationalGeometryAnalyzer:
-    def _make_mock_cache(self, p: int, d_model: int = 8, d_mlp: int = 16):
-        """Create a mock activation cache with known activations."""
+    def _make_canonical_cache(self, p: int, d_model: int = 8, d_mlp: int = 16) -> ActivationCache:
+        """Build a canonical-name-keyed cache populated for repr_geometry sites."""
         n_samples = p * p
         seq_len = 3
         rng = np.random.default_rng(42)
 
-        cache = MagicMock()
+        def resid_tensor() -> torch.Tensor:
+            return torch.tensor(
+                rng.standard_normal((n_samples, seq_len, d_model)), dtype=torch.float32
+            )
 
-        def cache_getitem(key):
-            if isinstance(key, tuple):
-                if len(key) == 3 and key[2] == "mlp":
-                    return torch.tensor(
-                        rng.standard_normal((n_samples, seq_len, d_mlp)),
-                        dtype=torch.float32,
-                    )
-                else:
-                    return torch.tensor(
-                        rng.standard_normal((n_samples, seq_len, d_model)),
-                        dtype=torch.float32,
-                    )
-            return None
-
-        cache.__getitem__ = MagicMock(side_effect=cache_getitem)
+        cache = ActivationCache()
+        for site_name, canonical_hook in _SITES.items():
+            shape_d = d_mlp if site_name == "mlp_out" else d_model
+            cache[canonical_hook] = torch.tensor(
+                rng.standard_normal((n_samples, seq_len, shape_d)),
+                dtype=torch.float32,
+            )
         return cache
+
+    def _activation_context(self, p: int, d_model: int = 8, d_mlp: int = 16) -> ActivationContext:
+        cache = self._make_canonical_cache(p, d_model=d_model, d_mlp=d_mlp)
+        return ActivationContext(
+            # type: ignore[arg-type]
+            probe=self._make_probe(p),
+            analysis_params={"params": {"prime": p}},
+            model=None,
+            cache=cache,
+        )
 
     def _make_probe(self, p: int):
         """Create a probe tensor for modular addition."""
@@ -280,17 +288,7 @@ class TestRepresentationalGeometryAnalyzer:
     def test_analyze_returns_expected_keys(self):
         p = 7
         analyzer = RepresentationalGeometryAnalyzer()
-        probe = self._make_probe(p)
-        cache = self._make_mock_cache(p)
-        # model = MagicMock()
-
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-                probe=probe,
-                analysis_params={"params": {"prime": p}},
-            )
-        )
+        result = analyzer.analyze(self._activation_context(p))
 
         # Check all sites have all expected keys
         for site in _SITES:
@@ -312,17 +310,7 @@ class TestRepresentationalGeometryAnalyzer:
     def test_analyze_shapes(self):
         p = 7
         analyzer = RepresentationalGeometryAnalyzer()
-        probe = self._make_probe(p)
-        cache = self._make_mock_cache(p, d_model=8, d_mlp=16)
-        # model = MagicMock()
-
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-                probe=probe,
-                analysis_params={"params": {"prime": p}},
-            )
-        )
+        result = analyzer.analyze(self._activation_context(p, d_model=8, d_mlp=16))
 
         # Centroid shapes
         assert result["resid_post_centroids"].shape == (p, 8)
@@ -338,17 +326,7 @@ class TestRepresentationalGeometryAnalyzer:
     def test_compute_summary_extracts_scalars(self):
         p = 7
         analyzer = RepresentationalGeometryAnalyzer()
-        probe = self._make_probe(p)
-        cache = self._make_mock_cache(p)
-        # model = MagicMock()
-
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-                probe=probe,
-                analysis_params={"params": {"prime": p}},
-            )
-        )
+        result = analyzer.analyze(self._activation_context(p))
         summary = analyzer.compute_summary(result, {})
 
         # All summary values should be floats
@@ -378,17 +356,7 @@ class TestRepresentationalGeometryAnalyzer:
     def test_argmin_values_are_valid_class_indices(self):
         p = 7
         analyzer = RepresentationalGeometryAnalyzer()
-        probe = self._make_probe(p)
-        cache = self._make_mock_cache(p)
-        # model = MagicMock()
-
-        result = analyzer.analyze(
-            ActivationContext(
-                bundle=TransformerLensBundle(MagicMock(), cache, None),  # type: ignore
-                probe=probe,
-                analysis_params={"params": {"prime": p}},
-            )
-        )
+        result = analyzer.analyze(self._activation_context(p))
 
         for site in _SITES:
             r = int(result[f"{site}_fisher_argmin_r"])

@@ -34,7 +34,8 @@ class EffectiveDimensionalityAnalyzer:
 
     name = "effective_dimensionality"
     description = "Computes weight matrix singular values for dimensionality analysis"
-    architecture_support = ["transformer", "mlp"]
+    # Reads weights only — runs on any architecture.
+    required_hooks: list[str] = []
 
     def analyze(
         self,
@@ -43,12 +44,13 @@ class EffectiveDimensionalityAnalyzer:
         """Compute singular values of all trainable weight matrices.
 
         Args:
-            ctx: Analysis context with bundle (probe and analysis_params unused).
+            ctx: Analysis context with model (probe and analysis_params unused).
 
         Returns:
             Dict mapping sv_{name} to singular value arrays.
         """
-        return compute_weight_singular_values(ctx.bundle)
+        assert ctx.model is not None  # type-narrowing for pyright
+        return compute_weight_singular_values(ctx.model)
 
     def get_summary_keys(self) -> list[str]:
         """Declare participation ratio summary keys."""

@@ -15,6 +15,15 @@ This is rung 2 of the architecture ladder:
 
 Input encoding: integer indices a, b ∈ {0, ..., p-1} (not one-hot).
 The embedding layers handle encoding; output is logits over p classes.
+
+REQ_113 migration
+-----------------
+The standalone ``ModuloAdditionEmbedMLP`` ``nn.Module`` and its
+``ModuloAdditionEmbedMLPActivationBundle`` are retired. The model is
+now :class:`miscope.architectures.HookedEmbeddingMLP`. Per-input
+embeddings are still published as ``embed.embed_a`` / ``embed.embed_b``
+(never ``embed.W_E``); see :mod:`miscope.architectures.hooked_embedding_mlp`
+for the embedding-identity invariant.
 """
 
 from __future__ import annotations
@@ -23,146 +32,10 @@ from pathlib import Path
 from typing import Any
 
 import torch
-import torch.nn as nn
 
 from miscope.analysis.library import get_fourier_basis
+from miscope.architectures import HookedEmbeddingMLP, HookedEmbeddingMLPConfig
 from miscope.families.base_model_family import BaseModelFamily
-
-
-class ModuloAdditionEmbedMLP(nn.Module):
-    """Two-layer MLP with separate learned embeddings for a and b, summed.
-
-    Architecture:
-        embed_a: Embedding(p, d_embed)
-        embed_b: Embedding(p, d_embed)
-        hidden:  Linear(d_embed, d_hidden, bias=False) → ReLU
-        output:  Linear(d_hidden, p, bias=False) → logits
-
-    The two embeddings are summed before the hidden layer, forcing the
-    model to encode the joint (a, b) representation in d_embed dimensions.
-    """
-
-    def __init__(
-        self,
-        vocab_size: int,
-        d_embed: int,
-        d_hidden: int,
-        seed: int | None = None,
-    ) -> None:
-        super().__init__()
-        if seed is not None:
-            torch.manual_seed(seed)
-
-        self.vocab_size = vocab_size
-        self.d_embed = d_embed
-        self.d_hidden = d_hidden
-
-        self.embed_a = nn.Embedding(vocab_size, d_embed)
-        self.embed_b = nn.Embedding(vocab_size, d_embed)
-        self.W_in = nn.Linear(d_embed, d_hidden, bias=False)
-        self.relu = nn.ReLU()
-        self.W_out = nn.Linear(d_hidden, vocab_size, bias=False)
-
-    def forward(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        """Forward pass.
-
-        Args:
-            a: Integer indices of shape (batch,) for first input
-            b: Integer indices of shape (batch,) for second input
-
-        Returns:
-            Logits of shape (batch, vocab_size)
-        """
-        x = self.embed_a(a) + self.embed_b(b)
-        hidden = self.relu(self.W_in(x))
-        return self.W_out(hidden)
-
-
-class ModuloAdditionEmbedMLPActivationBundle:
-    """ActivationBundle implementation for ModuloAdditionEmbedMLP.
-
-    Captures hidden activations via a forward hook registered during
-    run_forward_pass(). Exposes them via the ActivationBundle protocol.
-
-    Weight access:
-        W_in   — hidden layer weight (d_hidden, d_embed)
-        W_out  — output layer weight (vocab_size, d_hidden)
-        embed_a — input a embedding weights (vocab_size, d_embed)
-        embed_b — input b embedding weights (vocab_size, d_embed)
-
-    Note: W_E is intentionally NOT exposed. The dispatch logic used by all
-    analyzers treats presence of W_E as a transformer signal. These embeddings
-    use separate 'embed_a'/'embed_b' keys so the architecture is correctly
-    identified as MLP-class (no W_E) while still exposing embedding weights.
-    """
-
-    _WEIGHT_LOOKUP = {
-        "W_in": lambda m: m.W_in.weight,
-        "W_out": lambda m: m.W_out.weight,
-        "embed_a": lambda m: m.embed_a.weight,
-        "embed_b": lambda m: m.embed_b.weight,
-    }
-
-    def __init__(
-        self,
-        model: ModuloAdditionEmbedMLP,
-        hidden_acts: torch.Tensor,
-        logits: torch.Tensor,
-    ) -> None:
-        self._model = model
-        self._hidden_acts = hidden_acts
-        self._logits = logits
-
-    def mlp_post(self, layer: int, position: int) -> torch.Tensor:
-        """Return post-ReLU hidden activations.
-
-        Args:
-            layer: Must be 0 (the only hidden layer).
-            position: Ignored — MLP has no sequence dimension.
-
-        Returns:
-            Tensor of shape (batch, d_hidden).
-        """
-        if layer != 0:
-            raise ValueError(
-                f"ModuloAdditionEmbedMLPActivationBundle has one hidden layer (layer 0), got layer={layer}"
-            )
-        return self._hidden_acts
-
-    def weight(self, name: str) -> torch.Tensor:
-        """Return a named weight matrix.
-
-        Supported: W_in, W_out, embed_a, embed_b.
-        Raises KeyError for unsupported weight names.
-        """
-        if name not in self._WEIGHT_LOOKUP:
-            raise KeyError(
-                f"Weight '{name}' not available in ModuloAdditionEmbedMLPActivationBundle"
-            )
-        return self._WEIGHT_LOOKUP[name](self._model)
-
-    def attention_pattern(self, layer: int) -> torch.Tensor:
-        raise NotImplementedError(
-            "ModuloAdditionEmbedMLPActivationBundle has no attention patterns"
-        )
-
-    def residual_stream(self, layer: int, position: int, location: str) -> torch.Tensor:
-        raise NotImplementedError("ModuloAdditionEmbedMLPActivationBundle has no residual stream")
-
-    def logits(self, position: int) -> torch.Tensor:
-        """Return output logits.
-
-        Args:
-            position: Ignored — MLP has no sequence dimension.
-
-        Returns:
-            Tensor of shape (batch, vocab_size).
-        """
-        return self._logits
-
-    def supports_site(self, extractor: str) -> bool:
-        """Supports 'mlp' extraction only."""
-        return extractor == "mlp"
 
 
 class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
@@ -181,13 +54,15 @@ class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
         self,
         params: dict[str, Any],
         device: str | torch.device | None = None,
-    ) -> ModuloAdditionEmbedMLP:
+    ) -> HookedEmbeddingMLP:
         p = params["prime"]
         seed = params.get("seed", self.get_default_params().get("seed", 999))
         d_embed = self.architecture.get("d_embed", 16)
         d_hidden = self.architecture.get("d_hidden", 512)
 
-        model = ModuloAdditionEmbedMLP(vocab_size=p, d_embed=d_embed, d_hidden=d_hidden, seed=seed)
+        model = HookedEmbeddingMLP(
+            HookedEmbeddingMLPConfig(vocab_size=p, d_embed=d_embed, d_hidden=d_hidden, seed=seed)
+        )
         if device is not None:
             model = model.to(device)
         return model
@@ -246,35 +121,6 @@ class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
             test_idx,
         )
 
-    def run_forward_pass(
-        self,
-        model: ModuloAdditionEmbedMLP,
-        probe: torch.Tensor,
-    ) -> ModuloAdditionEmbedMLPActivationBundle:
-        """Run a forward pass and return a ModuloAdditionEmbedMLPActivationBundle.
-
-        Args:
-            model: ModuloAdditionEmbedMLP instance
-            probe: (N, 2) long tensor of (a, b) index pairs from generate_analysis_dataset()
-
-        Returns:
-            ModuloAdditionEmbedMLPActivationBundle with hidden activations and logits
-        """
-        a_vals, b_vals = probe.unbind(1)
-        captured: dict[str, torch.Tensor] = {}
-
-        def _hook(module: nn.Module, inp: Any, output: torch.Tensor) -> None:
-            captured["hidden"] = output
-
-        hook = model.relu.register_forward_hook(_hook)
-        try:
-            with torch.inference_mode():
-                logits = model(a_vals, b_vals)
-        finally:
-            hook.remove()
-
-        return ModuloAdditionEmbedMLPActivationBundle(model, captured["hidden"], logits)
-
     def prepare_analysis_context(
         self,
         params: dict[str, Any],
@@ -284,11 +130,11 @@ class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
         p = params["prime"]
         fourier_basis, _ = get_fourier_basis(p, device)
 
-        def loss_fn(model: ModuloAdditionEmbedMLP, probe: torch.Tensor) -> float:
+        def loss_fn(model: HookedEmbeddingMLP, probe: torch.Tensor) -> float:
             a_vals, b_vals = probe.unbind(1)
             labels = (a_vals + b_vals) % p
             with torch.no_grad():
-                logits = model(a_vals, b_vals)
+                logits = model(probe)
             log_probs = logits.log_softmax(dim=-1)
             loss = -log_probs.gather(1, labels.unsqueeze(1)).squeeze(1).mean()
             return loss.item()
@@ -357,7 +203,7 @@ class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
         """Cross-entropy loss on MLP logits (batch, vocab_size).
 
         Args:
-            logits: Shape (batch, vocab_size) from ModuloAdditionEmbedMLP.
+            logits: Shape (batch, vocab_size) from the model.
             labels: Target class indices of shape (batch,).
 
         Returns:
@@ -370,12 +216,12 @@ class ModuloAdditionEmbedMLPFamily(BaseModelFamily):
 
     def build_config_dict(
         self,
-        model: ModuloAdditionEmbedMLP,
+        model: HookedEmbeddingMLP,
         params: dict[str, Any],
         data_seed: int,
         training_fraction: float,
     ) -> dict[str, Any]:
-        """Build config.json dict for a ModuloAdditionEmbedMLP."""
+        """Build config.json dict for the model."""
         return {
             "architecture": "learned_emb_mlp",
             "vocab_size": model.vocab_size,
