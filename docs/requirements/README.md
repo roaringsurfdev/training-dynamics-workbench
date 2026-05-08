@@ -8,16 +8,31 @@ This directory contains requirements for the Training Dynamics Workbench.
 requirements/
 ├── README.md           # This file
 ├── active/             # Requirements currently being worked on
+├── staging/            # Requirements complete, awaiting next release
 ├── drafts/             # Requirement ideas and research notes
 ├── future/             # Deferred/future requirements (not yet scheduled)
-└── archive/            # Completed requirements organized by milestone
-    ├── v0.1.0-mvp/     # MVP milestone
-    ├── v0.1.1-cuda/    # CUDA support
-    ├── v0.1.2-quality/ # Code quality (ruff, pyright, deps)
-    ├── v0.2.0-foundations/ # Model Family abstraction, per-epoch artifacts
-    ├── v0.2.1-coarseness/  # Summary statistics, coarseness analysis & visualization
-    └── v0.4.0-notebook-api/ # App config, notebook research API
+└── archive/            # Released requirements organized by milestone
+    ├── v0.1.0-mvp/
+    ├── v0.1.1-cuda/
+    ├── v0.1.2-quality/
+    ├── v0.2.0-foundations/
+    ├── v0.2.1-coarseness/
+    └── v0.4.0-notebook-api/
 ```
+
+## Lifecycle
+
+A requirement moves through three stages:
+
+1. **`active/`** — In flight. Status: `Draft` or `In Progress`.
+2. **`staging/`** — Implementation complete; merged to `develop` but not yet
+   released. Status: `Completed`. Looking at `staging/` answers the question
+   "what's about to ship in the next release?"
+3. **`archive/vX.Y.Z-name/`** — Released. Moved here as part of the milestone
+   release process.
+
+`drafts/` and `future/` sit outside this flow — they're parking lots for ideas
+that haven't been scheduled yet.
 
 ## Current Status
 
@@ -79,15 +94,26 @@ Requirements that have been documented but are not yet scheduled for implementat
 
 4. Reference by number: "Work on REQ_014"
 
+### Completing a Requirement
+
+When a requirement's implementation is merged to `develop`:
+
+1. Update the requirement file's `Status:` field to `Completed`.
+2. Move the file from `active/` to `staging/`.
+
+The requirement remains in `staging/` until its release milestone moves it to
+`archive/`.
+
 ### Completing a Milestone
 
-When a set of requirements is complete:
+When a set of requirements is ready to release:
 
 1. Create archive directory: `archive/vX.Y.Z-name/`
-2. Move completed requirements to archive
+2. Move requirements from `staging/` (and any not-yet-staged completions) to
+   the new archive directory.
 3. Create `MILESTONE_SUMMARY.md` in archive
 4. Update `CHANGELOG.md` in project root
-5. Bump version in `dashboard/version.py`
+5. Bump version in `apps/dashboard/src/dashboard/version.py`
 
 ### Referencing Archived Requirements
 

@@ -141,7 +141,7 @@ This balances structure (clear minimum scope from CoS) with pragmatism (don't wr
 
 ### Requirements
 
-Requirements are documented in `/requirements/` using a structured format that emphasizes:
+Requirements are documented in `docs/requirements/` using a structured format that emphasizes:
 - Problem-first thinking (not solution prescription)
 - Clear conditions of satisfaction
 - Explicit constraints and decision authority
@@ -149,20 +149,25 @@ Requirements are documented in `/requirements/` using a structured format that e
 
 **Directory structure:**
 ```
-/requirements/
+docs/requirements/
 ├── README.md           # Current status and workflow guide
 ├── active/             # Requirements currently being worked on
-└── archive/            # Completed requirements by milestone
+├── staging/            # Implementation complete, awaiting next release
+└── archive/            # Released requirements by milestone
     └── vX.Y.Z-name/    # Each milestone preserves its requirements
 ```
 
+A requirement moves `active/` → `staging/` (when its implementation merges to
+`develop`, status flipped to `Completed`) → `archive/vX.Y.Z-name/` (at release
+time). `staging/` answers "what's about to ship next?"
+
 **Working with requirements:**
 - Claude works on requirements via explicit direction (e.g., "Work on REQ_011")
-- New requirements go in `requirements/active/`
+- New requirements go in `docs/requirements/active/`
 - Requirements are stated in terms of problems to solve, not solutions expected
 - Every requirement includes conditions of satisfaction to define "done"
 - Claude has two outlets for observations and suggestions:
-  - `/notes/thoughts.md` - Unstructured parking lot for ideas and observations
+  - `docs/notes/thoughts.md` - Unstructured parking lot for ideas and observations
   - Notes section within requirements - Implementation-specific observations
 
 **Interrupt vs. Log decision boundary:**
@@ -173,13 +178,13 @@ This approach maintains flow while preserving collaborative intelligence for asy
 
 ### Milestone Releases
 
-When a set of requirements is complete, follow this process:
+When a set of requirements is ready to release, follow this process:
 
-1. **Bump version** in `dashboard/version.py`
+1. **Bump version** in `apps/dashboard/src/dashboard/version.py`
 2. **Update CHANGELOG.md** with release notes (features, architecture notes, references)
 3. **Archive requirements:**
-   - Create `requirements/archive/vX.Y.Z-name/`
-   - Move completed requirements from `active/` to archive
+   - Create `docs/requirements/archive/vX.Y.Z-name/`
+   - Move requirements from `staging/` (and any not-yet-staged completions) into the archive directory
    - Create `MILESTONE_SUMMARY.md` with key decisions and file locations
 4. **Commit** with message: "Release vX.Y.Z milestone-name"
 

@@ -1,8 +1,8 @@
 # REQ_115: Monorepo Layout (apps/ + packages/ + uv Workspace)
 
-**Status:** Draft
+**Status:** Completed (merged to develop 2026-05-07)
 **Priority:** High (gate for REQ_103)
-**Branch:** TBD
+**Branch:** `feature/monorepo-layout` (merged)
 **Dependencies:** None upstream. **Precedes REQ_103** — PyPI publication hardening should target the final layout, not an interim one. After this lands, REQ_103 CoS items that reference `src/miscope/`, root-level `dashboard/`/`fieldnotes/`, and the `research/` restructure idea must be revised.
 **Attribution:** Engineering Claude (drafted from collaborative discussion 2026-05-07)
 
