@@ -60,6 +60,18 @@ inconsistencies that erode trust.
     REQ_098+ adds backend abstraction), `hf` (huggingface_hub — for
     if/when REQ_100 lands). Dashboard deps live in
     `apps/dashboard/pyproject.toml` and are not a miscope extra.
+- [ ] **Decision: where do `model_families/` JSON configs live?** Currently
+  at the repo root (`model_families/`) and resolved via
+  `MISCOPE_MODEL_FAMILIES_DIR` (default: `<project_root>/model_families/`).
+  Two options for v1.0:
+  - **Bundle** — move under `packages/miscope/model_families/` so
+    `pip install miscope` ships with the canonical family configs. Files are
+    small (~kilobytes); this is configuration, not artifact data.
+  - **Decouple** — leave at root or move to `data/model_families/`; users
+    fetch families separately. Cleaner package boundary.
+  Lean: **bundle.** "Install miscope, immediately have the canonical families"
+  matches the researcher experience. Confirm before implementing — see
+  Architecture Notes for the trade-off.
 - [ ] `miscope/__init__.py` exports the documented public API:
   - Re-export `miscope.core.*` (vocabulary types, enums).
   - Re-export the variant / family entry points (`load_family`, etc.).
@@ -262,6 +274,22 @@ researchers from inventing new paths to existing data.
 **Schema versioning per-artifact, not global.** A change to one analyzer's
 output shouldn't invalidate every other artifact. Per-analyzer versioning
 keeps the blast radius small.
+
+**`model_families/` bundling — the trade-off.** Surfaced as a follow-up to
+REQ_115 (2026-05-07). The directory currently sits at the repo root because
+that's where it landed historically; it does not have a natural home in the
+post-REQ_115 layout. Two consistent positions:
+- **Bundle with the wheel** treats family configs as part of the library's
+  contract — versioned alongside the code that consumes them, available to
+  anyone who `pip install miscope`s. Cost: family additions/edits ride the
+  package release cycle (or require an out-of-band fetch mechanism).
+- **Keep separate** treats family configs as data — independent versioning,
+  no package boundary leak, but the install-and-go path is broken.
+The lean toward bundling reflects the v1.0 reviewer experience: the canonical
+families *are* the demo. A reviewer who installs miscope and can't load
+`modulo_addition_1layer` without a separate fetch step has hit friction the
+project doesn't need at v1.0. Decision blocked here pending explicit
+confirmation rather than a folder move.
 
 **First impression as a real cost for an independent researcher.** The user
 named this directly during the discussion that produced this REQ:
