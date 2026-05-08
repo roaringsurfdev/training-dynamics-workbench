@@ -170,7 +170,7 @@ class TestViewsRender:
 
         fig = render_data_compatibility_spectrum(compat_data, epoch=None)
         assert fig is not None
-        assert len(fig.data) > 0
+        assert len(fig.data) > 0  # pyright: ignore[reportArgumentType]
 
     def test_overlap_renders_without_nucleation(self, compat_data):
         """Overlap view should work gracefully when nucleation artifact is absent."""
@@ -181,7 +181,7 @@ class TestViewsRender:
         data = {"compatibility": compat_data, "nucleation": None}
         fig = render_data_compatibility_overlap(data, epoch=None)
         assert fig is not None
-        assert len(fig.data) > 0
+        assert len(fig.data) > 0  # pyright: ignore[reportArgumentType]
 
     def test_overlap_renders_with_nucleation(self, compat_data):
         """Overlap view should synthesize nucleation + compatibility when both present."""
@@ -199,4 +199,4 @@ class TestViewsRender:
         fig = render_data_compatibility_overlap(data, epoch=None)
         assert fig is not None
         # Should have bars + compatibility line + overlap line
-        assert len(fig.data) >= 3
+        assert len(fig.data) >= 3  # pyright: ignore[reportArgumentType]

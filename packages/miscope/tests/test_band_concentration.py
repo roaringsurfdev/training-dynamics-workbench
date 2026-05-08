@@ -448,7 +448,7 @@ class TestRenderConcentrationTrajectory:
 
     def test_has_traces(self):
         fig = render_concentration_trajectory(self._data())
-        assert len(fig.data) > 0
+        assert len(fig.data) > 0  # type: ignore
 
 
 class TestRenderRankAlignmentTrajectory:
@@ -490,7 +490,7 @@ class TestRenderConcentrationScatter:
 
     def test_has_traces(self):
         fig = render_concentration_scatter(self._df())
-        assert len(fig.data) > 0
+        assert len(fig.data) > 0  # type: ignore
 
     def test_custom_title(self):
         fig = render_concentration_scatter(self._df(), title="Scatter")

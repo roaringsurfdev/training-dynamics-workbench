@@ -125,7 +125,7 @@ export_animation(
     output_path=output_path,
     fps=2,
     epochs=checkpoint_range,
-    **view_kwargs,
+    **view_kwargs,  # pyright: ignore[reportArgumentType]
 )
 
 # %%

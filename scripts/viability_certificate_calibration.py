@@ -290,7 +290,7 @@ for col, (r, color) in enumerate(zip(results, CASE_COLORS), start=1):
         col=col,
     )
     # Mark Nyquist threshold at 0.5
-    fig2.add_hline(y=0.5, line=dict(color="black", dash="dash", width=1), row=1, col=col)
+    fig2.add_hline(y=0.5, line=dict(color="black", dash="dash", width=1), row=1, col=col)  # pyright: ignore[reportArgumentType]
 
 fig2.update_yaxes(title_text="Aliasing risk k/((p-1)/2)", range=[0, 1.05], col=1)
 fig2.update_xaxes(title_text="Frequency k")

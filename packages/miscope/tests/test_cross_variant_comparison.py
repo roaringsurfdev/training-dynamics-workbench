@@ -343,19 +343,19 @@ class TestRenderLossCurveOverlay:
         v1 = self._make_variant_with_losses([2.0, 0.5, 0.05, 0.001])
         v2 = self._make_variant_with_losses([2.0, 1.5, 0.5, 0.05], prime=101)
         fig = render_loss_curve_overlay([v1, v2])
-        assert len(fig.data) == 2
+        assert len(fig.data) == 2  # pyright: ignore[reportArgumentType]
 
     def test_align_by_grokking_skips_no_grokkers(self):
         grokker = self._make_variant_with_losses([2.0, 0.5, 0.05, 0.001])
         no_grok = self._make_variant_with_losses([2.0, 1.5, 1.2, 1.1])
         fig = render_loss_curve_overlay([grokker, no_grok], align_by_grokking=True)
         # Only the grokking variant should appear
-        assert len(fig.data) == 1
+        assert len(fig.data) == 1  # pyright: ignore[reportArgumentType]
 
     def test_show_train_doubles_traces(self):
         v = self._make_variant_with_losses([2.0, 0.5, 0.05, 0.001])
         fig = render_loss_curve_overlay([v], show_train=True)
-        assert len(fig.data) == 2  # test + train
+        assert len(fig.data) == 2  # pyright: ignore[reportArgumentType] # test + train
 
     def test_failure_mode_coloring_accepted(self):
         v = self._make_variant_with_losses([2.0, 0.5, 0.05, 0.001])

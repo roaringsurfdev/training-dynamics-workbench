@@ -60,7 +60,7 @@ class TestRenderPerBandSpecialization:
         assignments = [[0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2]] * 5
         data = _make_cross_epoch_data(assignments=assignments)
         fig = render_per_band_specialization(data, prime=17)
-        trace_names = {t.name for t in fig.data}
+        trace_names = {t.name for t in fig.data}  # pyright: ignore[reportAttributeAccessIssue]
         assert "Freq 1" in trace_names  # freq 0 → "Freq 1" (1-indexed)
         assert "Freq 3" in trace_names  # freq 2 → "Freq 3"
         assert "Freq 2" not in trace_names  # freq 1 absent
@@ -71,15 +71,15 @@ class TestRenderPerBandSpecialization:
         fig_low = render_per_band_specialization(data, prime=17, threshold=0.25)
         fig_high = render_per_band_specialization(data, prime=17, threshold=0.5)
         # At low threshold, band 0 (all neurons) should have count > 0.
-        assert len(fig_low.data) > 0
+        assert len(fig_low.data) > 0  # pyright: ignore[reportArgumentType]
         # At high threshold, no neurons committed — no traces.
-        assert len(fig_high.data) == 0
+        assert len(fig_high.data) == 0  # pyright: ignore[reportArgumentType]
 
     def test_uses_stored_threshold_when_none(self):
         # stored threshold is 3/8 = 0.375; max_frac=0.5 should be above it.
         data = _make_cross_epoch_data(max_frac_value=0.5, n_freq=8)
         fig = render_per_band_specialization(data, prime=17)
-        assert len(fig.data) > 0
+        assert len(fig.data) > 0  # pyright: ignore[reportArgumentType]
 
     def test_neuron_counts_correct(self):
         # 4 neurons on freq 0, 8 neurons on freq 3 at all epochs.
@@ -87,9 +87,9 @@ class TestRenderPerBandSpecialization:
         assignments = [[0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3]] * 5
         data = _make_cross_epoch_data(assignments=assignments, d_mlp=d_mlp)
         fig = render_per_band_specialization(data, prime=17)
-        trace_by_name = {t.name: t for t in fig.data}
-        assert np.all(np.array(trace_by_name["Freq 1"].y) == 4)
-        assert np.all(np.array(trace_by_name["Freq 4"].y) == 8)
+        trace_by_name = {t.name: t for t in fig.data}  # pyright: ignore[reportAttributeAccessIssue]
+        assert np.all(np.array(trace_by_name["Freq 1"].y) == 4)  # pyright: ignore[reportAttributeAccessIssue]
+        assert np.all(np.array(trace_by_name["Freq 4"].y) == 8)  # pyright: ignore[reportAttributeAccessIssue]
 
     def test_threshold_in_title(self):
         data = _make_cross_epoch_data()
@@ -112,8 +112,8 @@ class TestRenderPerBandSpecialization:
         ]
         data = _make_cross_epoch_data(assignments=assignments)
         fig = render_per_band_specialization(data, prime=17)
-        trace_by_name = {t.name: t for t in fig.data}
-        freq2_counts = np.array(trace_by_name["Freq 2"].y)
+        trace_by_name = {t.name: t for t in fig.data}  # pyright: ignore[reportAttributeAccessIssue]
+        freq2_counts = np.array(trace_by_name["Freq 2"].y)  # pyright: ignore[reportAttributeAccessIssue]
         # Should be 4 for first 3 epochs, then 0
         assert freq2_counts[0] == 4
         assert freq2_counts[3] == 0
@@ -133,8 +133,8 @@ class TestNeuronFreqTrajectoryThreshold:
         # At high threshold, max_frac=0.5 < 0.8 → all masked.
         fig_high = render_neuron_freq_trajectory(data, prime=17, threshold=0.8)
         # High threshold figure should have mostly NaN in the heatmap.
-        z_low = np.array(fig_low.data[0].z)
-        z_high = np.array(fig_high.data[0].z)
+        z_low = np.array(fig_low.data[0].z)  # pyright: ignore[reportAttributeAccessIssue]
+        z_high = np.array(fig_high.data[0].z)  # pyright: ignore[reportAttributeAccessIssue]
         assert np.sum(~np.isnan(z_low)) > np.sum(~np.isnan(z_high))
 
     def test_no_threshold_uses_stored(self):
