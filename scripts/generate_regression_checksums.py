@@ -2,7 +2,7 @@
 
 Walks the artifacts directory for each reference variant and records the
 SHA-256 hash of every .npz file. Output is written to
-regression/reference_checksums.json.
+tests/regression/reference_checksums.json.
 
 Run this once before refactoring to establish the ground truth. The
 run_regression_check.py script compares new outputs against these checksums.
@@ -70,7 +70,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(__file__).parent.parent / "regression" / "reference_checksums.json",
+        default=Path(__file__).parent.parent / "tests" / "regression" / "reference_checksums.json",
         help="Output path for checksums JSON",
     )
     args = parser.parse_args()

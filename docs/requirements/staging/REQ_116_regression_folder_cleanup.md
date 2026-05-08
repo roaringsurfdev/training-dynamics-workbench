@@ -1,6 +1,6 @@
 # REQ_116: Regression Folder Cleanup
 
-**Status:** Draft
+**Status:** Completed (by user)
 **Priority:** Low
 **Branch:** TBD
 **Dependencies:** None. Follows REQ_115 (monorepo layout) — this finishes the
@@ -36,15 +36,14 @@ existing layout.
 tests/regression/                    # committed reference checksums
   reference_checksums.json
   reference_checksums_req112.json
-results/regression/                  # gitignored generated regression artifacts
-results/regression_fresh/            # gitignored
-results/regression_req112/           # gitignored
-results/regression_req114/           # gitignored
+results/regressions/regression/                  # gitignored generated results/regressions/regression_fresh/            # gitignored
+results/regressions/regression_req112/           # gitignored
+results/regressions/regression_req114/           # gitignored
 ```
 
 `tests/regression/` makes the role visible: this is reference data the test
-suite compares against. `results/regression*/` keeps all generated artifacts
-under one tree (`results/`).
+suite compares against. `results/regressions/regression*/` keeps all generated artifacts
+under one tree (`results/regressions/`).
 
 ---
 
@@ -56,10 +55,10 @@ under one tree (`results/`).
   `results_regression_req112/`, `results_regression_req114/` moved under
   `results/` (plain `mv` — they are gitignored).
 - [ ] `.gitignore` pattern `/results_regression*` updated to
-  `/results/regression*`.
+  `/results/regressions/regression*`.
 - [ ] `scripts/run_regression_check.py` and
   `scripts/generate_regression_checksums.py` default paths updated:
-  - `--output-dir` default: `results_regression/` → `results/regression/`
+  - `--output-dir` default: `results_regression/` → `results/regressions/regression/`
   - `--checksums` default: `regression/reference_checksums.json` →
     `tests/regression/reference_checksums.json`
   - The argument-driven nature of these scripts is preserved — only the
@@ -87,15 +86,9 @@ under one tree (`results/`).
 - Touching the regression-check logic (analyzer set, comparison rules,
   exclusion list). Out of scope.
 
-**Flexible:**
-- Whether to fold `results_regression*/` into a single `results/regression/`
-  with subdirectories, or keep four separate top-level dirs under `results/`.
-  Default: keep separate (the names encode different runs/REQs and that
-  distinction is useful).
-
 ---
 
 ## Notes
 
 - Branch name suggestion: `feature/regression-cleanup`.
-- Single-PR scope; trivial commit.
+- trivial commit.
