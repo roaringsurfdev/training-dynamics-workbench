@@ -11,7 +11,6 @@ from dashboard.components.variant_context_bar import register_variant_context_ba
 from dashboard.components.variant_selector import register_variant_selector_callbacks
 from dashboard.layout import create_default_layout
 from dashboard.pages.activation_dmd import register_activation_dmd_callbacks
-from dashboard.pages.parameter_dmd import register_parameter_dmd_callbacks
 from dashboard.pages.activation_heatmaps import register_activation_heatmap_page_callbacks
 from dashboard.pages.analysis_run import register_analysis_run_page_callbacks
 from dashboard.pages.centroid_dmd import register_centroid_dmd_callbacks
@@ -26,6 +25,7 @@ from dashboard.pages.loss_landscape import register_loss_landscape_page_callback
 from dashboard.pages.multistream import register_multistream_page_callbacks
 from dashboard.pages.neuron_dynamics import register_neuron_dynamics_page_callbacks
 from dashboard.pages.neuron_group import register_neuron_group_page_callbacks
+from dashboard.pages.parameter_dmd import register_parameter_dmd_callbacks
 from dashboard.pages.peer_comparison import register_peer_comparison_page_callbacks
 from dashboard.pages.repr_geometry import register_repr_geometry_page_callbacks
 from dashboard.pages.summary import register_summary_page_callbacks

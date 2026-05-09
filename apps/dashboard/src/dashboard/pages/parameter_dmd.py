@@ -100,16 +100,12 @@ def create_parameter_dmd_layout(app: Dash) -> html.Div:
                         dbc.Col(_graph_manager.create_graph("parameter-dmd-residuals", "1100px"))
                     ),
                     dbc.Row(
-                        dbc.Col(
-                            _graph_manager.create_graph("parameter-dmd-eigenvalues", "1300px")
-                        )
+                        dbc.Col(_graph_manager.create_graph("parameter-dmd-eigenvalues", "1300px"))
                     ),
                     dbc.Row(
                         dbc.Col(_graph_manager.create_graph("parameter-dmd-per-regime", "1100px"))
                     ),
-                    dbc.Row(
-                        dbc.Col(_graph_manager.create_graph("parameter-dmd-tracks", "600px"))
-                    ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("parameter-dmd-tracks", "600px"))),
                 ],
             ),
         ]
@@ -162,9 +158,7 @@ def register_parameter_dmd_callbacks(app: Dash) -> None:
         Input("variant-selector-store", "modified_timestamp"),
         State("variant-selector-store", "data"),
     )
-    def update_group_dropdown(
-        _ts: str | None, variant_data: dict | None
-    ) -> tuple[list, Any, str]:
+    def update_group_dropdown(_ts: str | None, variant_data: dict | None) -> tuple[list, Any, str]:
         """Populate the group dropdown from the loaded variant's
         parameter_dmd artifact, and surface the reference_epoch."""
         from dashboard.state import variant_server_state

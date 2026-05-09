@@ -10,7 +10,6 @@ from miscope.analysis.analyzers.parameter_dmd import ParameterDMD
 from miscope.analysis.analyzers.registry import AnalyzerRegistry
 from miscope.analysis.protocols import CrossEpochAnalyzer
 
-
 # ── Synthetic artifact builders ──────────────────────────────────────
 
 
@@ -44,9 +43,7 @@ def _make_neuron_grouping(
     ).astype(np.int64)
     # Override with real bincount over only assigned values
     assigned_mask = assignments != -1
-    n_per_group = np.bincount(
-        assignments[assigned_mask], minlength=n_groups
-    ).astype(np.int64)
+    n_per_group = np.bincount(assignments[assigned_mask], minlength=n_groups).astype(np.int64)
     return {
         "assignments": assignments,
         "n_groups": np.array(n_groups, dtype=np.int64),
@@ -224,9 +221,7 @@ class TestParameterDMDOutput:
         expected_n_windows = n_epochs - 10 + 1
         for g in result["populated_groups"]:
             for matrix in ["W_in", "W_out"]:
-                window_starts = result[
-                    f"group_{int(g)}__{matrix}__windowed__window_starts"
-                ]
+                window_starts = result[f"group_{int(g)}__{matrix}__windowed__window_starts"]
                 assert len(window_starts) == expected_n_windows
 
     def test_regime_segments_partition_window_space(self, variant_artifacts_dir):

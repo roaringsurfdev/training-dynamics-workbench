@@ -678,21 +678,13 @@ def _register_all() -> None:
     def _load_parameter_dmd(variant: Variant, epoch: int | None) -> dict:
         return variant.artifacts.load_cross_epoch("parameter_dmd")
 
-    def _render_parameter_dmd_residuals(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
-        return viz.render_parameter_dmd_residuals_with_regimes(
-            data, current_epoch=epoch
-        )
+    def _render_parameter_dmd_residuals(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_parameter_dmd_residuals_with_regimes(data, current_epoch=epoch)
 
-    def _render_parameter_dmd_eigenvalues(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
+    def _render_parameter_dmd_eigenvalues(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         return viz.render_parameter_dmd_eigenvalue_migration(data)
 
-    def _render_parameter_dmd_tracks(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
+    def _render_parameter_dmd_tracks(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         # Caller (dashboard) supplies group_id + matrix via kwargs.
         # Defaults: first populated group, W_in.
         group_id = kwargs.pop("group_id", None)
@@ -704,16 +696,10 @@ def _register_all() -> None:
             data, group_id=int(group_id), matrix=matrix, current_epoch=epoch
         )
 
-    def _render_parameter_dmd_per_regime(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
-        return viz.render_parameter_dmd_per_regime_vs_windowed(
-            data, current_epoch=epoch
-        )
+    def _render_parameter_dmd_per_regime(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_parameter_dmd_per_regime_vs_windowed(data, current_epoch=epoch)
 
-    _parameter_dmd_req = [
-        AnalyzerRequirement("parameter_dmd", ArtifactKind.CROSS_EPOCH)
-    ]
+    _parameter_dmd_req = [AnalyzerRequirement("parameter_dmd", ArtifactKind.CROSS_EPOCH)]
 
     for name, renderer in [
         ("parameter_dmd.residuals_with_regimes", _render_parameter_dmd_residuals),

@@ -19,8 +19,6 @@ matrix) axis structure:
     via dashboard dropdowns.
 """
 
-from typing import Any
-
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -46,9 +44,7 @@ def _populated_groups(cross_epoch_data: dict[str, np.ndarray]) -> list[int]:
     return [int(g) for g in cross_epoch_data["populated_groups"]]
 
 
-def _group_neuron_count(
-    cross_epoch_data: dict[str, np.ndarray], group_id: int
-) -> int:
+def _group_neuron_count(cross_epoch_data: dict[str, np.ndarray], group_id: int) -> int:
     """Lookup n_neurons for a populated group."""
     populated = cross_epoch_data["populated_groups"]
     counts = cross_epoch_data["group_n_neurons"]
@@ -60,7 +56,7 @@ def _group_neuron_count(
 
 def _group_label(group_id: int, n_neurons: int) -> str:
     """Modadd-friendly label: group_id corresponds to dominant-frequency k - 1."""
-    return f"group {int(group_id)} (k={int(group_id)+1}) — {n_neurons} neurons"
+    return f"group {int(group_id)} (k={int(group_id) + 1}) — {n_neurons} neurons"
 
 
 # ── Residuals with regimes ────────────────────────────────────────────
@@ -162,8 +158,7 @@ def render_parameter_dmd_residuals_with_regimes(
     ref_epoch = int(cross_epoch_data["reference_epoch"])
     fig.update_layout(
         title=(
-            "Parameter DMD — windowed residual + regime boundaries "
-            f"(reference_epoch={ref_epoch})"
+            f"Parameter DMD — windowed residual + regime boundaries (reference_epoch={ref_epoch})"
         ),
         template="plotly_white",
         height=height if height is not None else max(300 * max(n_groups, 1), 600),
@@ -210,9 +205,7 @@ def render_parameter_dmd_eigenvalue_migration(
         for c, matrix in enumerate(_MATRICES, start=1):
             prefix = f"group_{int(g)}__{matrix}"
             eigs = cross_epoch_data[f"{prefix}__windowed__eigenvalues"]
-            n_modes_per_window = cross_epoch_data[
-                f"{prefix}__windowed__n_modes_per_window"
-            ]
+            n_modes_per_window = cross_epoch_data[f"{prefix}__windowed__n_modes_per_window"]
             starts = cross_epoch_data[f"{prefix}__windowed__window_starts"]
             ends = cross_epoch_data[f"{prefix}__windowed__window_ends"]
             center_epochs = epochs[(starts + ends) // 2]
@@ -223,8 +216,8 @@ def render_parameter_dmd_eigenvalue_migration(
             for w_idx in range(len(starts)):
                 k = int(n_modes_per_window[w_idx])
                 valid = eigs[w_idx, :k]
-                all_real.extend(valid.real.tolist())
-                all_imag.extend(valid.imag.tolist())
+                all_real.extend(valid.real.tolist())  # pyright: ignore[reportAttributeAccessIssue]
+                all_imag.extend(valid.imag.tolist())  # pyright: ignore[reportAttributeAccessIssue]
                 all_epoch.extend([int(center_epochs[w_idx])] * k)
 
             if all_real:
@@ -269,20 +262,13 @@ def render_parameter_dmd_eigenvalue_migration(
                 row=r,
                 col=c,
             )
-            fig.update_xaxes(
-                title_text="Re(λ)", row=r, col=c, range=x_range, zeroline=True
-            )
-            fig.update_yaxes(
-                title_text="Im(λ)", row=r, col=c, range=y_range, zeroline=True
-            )
+            fig.update_xaxes(title_text="Re(λ)", row=r, col=c, range=x_range, zeroline=True)
+            fig.update_yaxes(title_text="Im(λ)", row=r, col=c, range=y_range, zeroline=True)
             cell_idx += 1
 
     ref_epoch = int(cross_epoch_data["reference_epoch"])
     fig.update_layout(
-        title=(
-            "Parameter DMD — eigenvalue migration (auto-zoom) "
-            f"(reference_epoch={ref_epoch})"
-        ),
+        title=(f"Parameter DMD — eigenvalue migration (auto-zoom) (reference_epoch={ref_epoch})"),
         template="plotly_white",
         height=height if height is not None else max(380 * max(n_groups, 1), 600),
         margin=dict(l=60, r=20, t=60, b=50),
@@ -324,9 +310,7 @@ def render_parameter_dmd_track_trajectories(
     center_epochs = epochs[(starts + ends) // 2]
     n_tracks = int(cross_epoch_data[f"{prefix}__tracks__n_tracks"])
 
-    track_data: dict[int, dict[str, list]] = {
-        t: {"epoch": [], "eig": []} for t in range(n_tracks)
-    }
+    track_data: dict[int, dict[str, list]] = {t: {"epoch": [], "eig": []} for t in range(n_tracks)}
     for w in range(len(starts)):
         k = int(n_modes_per_window[w])
         for slot in range(k):

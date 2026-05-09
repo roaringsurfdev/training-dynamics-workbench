@@ -73,5 +73,5 @@ __all__ = [
     "NeuronGroupPCAAnalyzer",
     "TransientFrequencyAnalyzer",
     "NeuronGrouping",
-    "ParameterDMD"
+    "ParameterDMD",
 ]

@@ -106,9 +106,7 @@ class ParameterDMD:
         populated_groups = np.where(n_per_group > 0)[0].astype(np.int64)
 
         # Load weight trajectories selectively (parameter_snapshot is large).
-        snapshots = loader.load_epochs(
-            "parameter_snapshot", epochs, fields=["W_in", "W_out"]
-        )
+        snapshots = loader.load_epochs("parameter_snapshot", epochs, fields=["W_in", "W_out"])
         # snapshots["W_in"] shape:  (n_epochs, d_model, d_mlp)
         # snapshots["W_out"] shape: (n_epochs, d_mlp, d_model)
         w_in_traj = np.asarray(snapshots["W_in"], dtype=np.float64)
@@ -151,8 +149,7 @@ class ParameterDMD:
         available = sorted(loader.get_epochs("neuron_grouping"))
         if not available:
             raise FileNotFoundError(
-                "parameter_dmd requires neuron_grouping artifacts. "
-                "Run neuron_grouping first."
+                "parameter_dmd requires neuron_grouping artifacts. Run neuron_grouping first."
             )
         if configured is None:
             return int(available[-1])
@@ -222,9 +219,7 @@ class ParameterDMD:
         tracks = track_eigenvalues_across_windows(
             windowed["eigenvalues"], windowed["n_modes_per_window"]
         )
-        regimes = detect_regime_boundaries(
-            windowed["residual_norm_mean"], threshold=None
-        )
+        regimes = detect_regime_boundaries(windowed["residual_norm_mean"], threshold=None)
         step_starts, step_ends = _regime_segments_to_step_space(
             regimes["segment_starts"],
             regimes["segment_ends"],
@@ -241,9 +236,7 @@ class ParameterDMD:
 
         prefix = f"group_{int(group_id)}__{matrix_name}"
         result[f"{prefix}__trajectory"] = projected
-        result[f"{prefix}__n_components"] = np.array(
-            projected.shape[1], dtype=np.int64
-        )
+        result[f"{prefix}__n_components"] = np.array(projected.shape[1], dtype=np.int64)
         for key, value in windowed.items():
             result[f"{prefix}__windowed__{key}"] = value
         for key, value in tracks.items():

@@ -25,12 +25,6 @@ from miscope.visualization.renderers.activation_dmd import (
     render_activation_dmd_residuals_with_regimes,
     render_activation_dmd_track_trajectories,
 )
-from miscope.visualization.renderers.parameter_dmd import (
-    render_parameter_dmd_eigenvalue_migration,
-    render_parameter_dmd_per_regime_vs_windowed,
-    render_parameter_dmd_residuals_with_regimes,
-    render_parameter_dmd_track_trajectories,
-)
 from miscope.visualization.renderers.attention_fourier import (
     render_head_alignment_trajectory,
     render_qk_freq_heatmap,
@@ -145,6 +139,12 @@ from miscope.visualization.renderers.neuron_group_pca import (
     render_neuron_group_scatter_purity,
     render_neuron_group_spread,
     render_neuron_group_trajectory,
+)
+from miscope.visualization.renderers.parameter_dmd import (
+    render_parameter_dmd_eigenvalue_migration,
+    render_parameter_dmd_per_regime_vs_windowed,
+    render_parameter_dmd_residuals_with_regimes,
+    render_parameter_dmd_track_trajectories,
 )
 from miscope.visualization.renderers.parameter_trajectory import (
     get_group_label,
