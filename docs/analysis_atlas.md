@@ -99,12 +99,14 @@ Per-class centroid trajectories in a single cross-epoch PCA basis, plus standard
 
 Generalizes raw activation capture into a single snapshot analyzer parameterized by site. Cheap on small models; foundation for downstream activation-space analysis.
 
-### `neuron_grouping`
+### `neuron_grouping` *(home: REQ_118)*
 **Status:** planned-new | **Bucket:** new
 
 Data-driven clustering of neurons by learned behavior. Input: per-neuron activation profiles or weight signatures. Output: group assignments + group centroids + dispersion metrics.
 
 **This is a missing primitive.** Today, neuron grouping happens implicitly via Fourier dominant frequency (`neuron_freq_norm` from `neuron_dynamics`), which is task-specific. A generic grouping primitive lets the geometry analyzers operate on any partition; modadd family can override with a Fourier-based grouping where appropriate.
+
+REQ_118 specifies this primitive in detail. It is on the critical path for REQ_117's parameter-DMD track.
 
 ### `group_geometry`
 **Status:** planned-consolidation (absorbs `neuron_group_pca`, `freq_group_weight_geometry`, `intragroup_manifold`) | **Bucket:** reorganization
@@ -196,16 +198,19 @@ Distinct from trajectory curvature: trajectory curvature describes the *path*; H
 
 ### Operator dynamics — modal decompositions and coupling
 
-#### `activation_dmd`
-**Status:** existing-rename | **Bucket:**: reorganization
+#### `activation_dmd` *(home: REQ_117)*
+**Status:** existing-rename | **Bucket:** reorganization
 
-DMD applied to activation class residues. Need rework to properly capture the different dynamical regimes present in different models. A refactor would include windowed DMD to capture regime changes (spikes in residuals) that feed into each regime's separate DMD analysis.
+DMD applied to per-class centroid trajectories at each analyzed site. Reorganization replaces the current single-window global DMD with per-site windowed DMD, eigenvalue tracking across windows, residual-driven regime detection, and per-regime DMD as a recursive second pass. Operates on per-class state vectors rather than cross-class averages so phase information is preserved.
 
-#### `parameter_dmd` *(home: REQ_073)*
-**Status:** planned-new | **Bucket:** new (carries forward `centroid_dmd`'s modal portion)
-DMD applied to weight trajectories rather than activations.
+REQ_117 specifies this work in detail and absorbs the Research Claude drafts (REQ_001 / REQ_002 / REQ_003) that originally proposed the windowed treatment.
 
-REQ_073 already specifies this work in detail — the Atlas registers it as the canonical home for the modal-dynamics analyzer.
+#### `parameter_dmd` *(home: REQ_117; depends on REQ_118)*
+**Status:** planned-new | **Bucket:** new (carries forward `centroid_dmd`'s modal portion in weight space)
+
+DMD applied to weight matrices rather than activations, with the same windowed + per-regime structure as `activation_dmd`. Operates per-frequency-group on slices of `W_in` columns and `W_out` rows, where the grouping comes from `neuron_grouping` (REQ_118) — modadd's Fourier grouping is supplied through the family-override mechanism, not hardcoded.
+
+REQ_117 supersedes REQ_073 and is the canonical home. The hard dependency on REQ_118 reflects the architectural choice to ship parameter DMD on the clean grouping interface rather than refactor later.
 
 #### `gradient_site`
 **Status:** existing-rename + integrate | **Bucket:** refactor
@@ -258,8 +263,8 @@ How current analyzers map to Atlas entries:
 | `parameter_trajectory_pca` | Universal Core / `parameter_trajectory` | refactor |
 | `global_centroid_pca` | Universal Core / `representation_trajectory` | reorganization |
 | `centroid_dmd` *(trajectory portion)* | Universal Core / `representation_trajectory` | reorganization |
-| `centroid_dmd` *(modal portion)* | Dynamical / `parameter_dmd` (REQ_073) | reorganization |
-| `centroid_dmd` *(modal portion)* | Dynamical / `activation_dmd` | reorganization |
+| `centroid_dmd` *(modal portion)* | Dynamical / `activation_dmd` (REQ_117) | reorganization |
+| `centroid_dmd` *(modal portion, weight-space mirror)* | Dynamical / `parameter_dmd` (REQ_117, blocked on REQ_118) | reorganization |
 | `neuron_activations` | Universal Core / `activation_snapshot` | reorganization |
 | `attention_patterns` | Universal Core / `activation_snapshot` | reorganization |
 | `neuron_group_pca` | Universal Core / `group_geometry` | reorganization |
@@ -292,7 +297,7 @@ Capabilities with no existing predecessor:
 - **`trajectory_metrics`** — second-order trajectory geometry (acceleration, curvature, torsion). Dynamical / Trajectory.
 - **`hessian_topk`** — Hessian top-k eigenvalues via Lanczos+Hvp. Dynamical / Landscape.
 - **`cross_site_coupling`** — phase-lock and synchrony between sites. Dynamical / Operator.
-- **`parameter_dmd`** — already specified in REQ_073. Dynamical / Operator.
+- **`parameter_dmd`** — specified in REQ_117 (supersedes REQ_073); blocked on REQ_118 (`neuron_grouping`). Dynamical / Operator.
 - **`lissajous_fit`** — already specified in REQ_111 as a research-active addition. Dynamical / Phase-space fits.
 - **`saddle_center_center_fit`** — saddle-center-center linearization fit on `representation_trajectory`. Dynamical / Phase-space fits.
 - **`saddle_transport_sigmoidality`** — already specified in REQ_111 as a research-active addition. Dynamical / Phase-space fits.
@@ -328,7 +333,9 @@ Subsequent releases extend the baseline rather than disrupting it. External rese
 - [REQ_109: Measurement Primitives](requirements/staging/REQ_109_measurement_primitives.md) — primitives library. Every Atlas analyzer (existing or planned) consumes REQ_109 primitives for its transform step.
 - [REQ_110: Lakehouse Surface](requirements/active/REQ_110_lakehouse_surface.md) — tabular output contract. Atlas analyzers respect it where applicable.
 - [REQ_111: Parallel Analyzer Buildout](requirements/active/REQ_111_parallel_analyzer_buildout.md) — to be rescoped: covers `refactor` bucket entries (parity validation meaningful). Reorganization-bucket and new-bucket entries get their own scoped REQs.
-- [REQ_073: Weight-Space DMD](requirements/active/REQ_073_weight_space_dmd.md) — canonical home for `parameter_dmd`.
+- [REQ_117: DMD Reorganization](requirements/active/REQ_117_dmd_reorganization.md) — canonical home for `activation_dmd` and `parameter_dmd`. Supersedes REQ_073; absorbs the Research Claude drafts that proposed the windowed treatment.
+- [REQ_118: Neuron Grouping Primitive](requirements/active/REQ_118_neuron_grouping.md) — prerequisite for REQ_117's parameter track; canonical home for `neuron_grouping`.
+- [REQ_073: Weight-Space DMD](requirements/active/REQ_073_weight_space_dmd.md) — superseded by REQ_117. Retained for archaeology.
 - [REQ_055: Attention Head Phase Analysis](requirements/active/REQ_055_attention_head_phase_analysis.md) — possibly overlaps with `cross_site_coupling`; coordinate scope when implementing.
 - [REQ_102: Analyzer Deprecation](requirements/active/REQ_102_analyzer_deprecation.md) — handles retirement of analyzers marked retire-bucket.
 - [Roadmap_Analysis_rough.md](requirements/Roadmap_Analysis_rough.md) — superseded *Analysis Catalog* section. Other sections remain valid in that document.

@@ -1,3 +1,7 @@
+**Status:** Absorbed by [REQ_117](../../active/REQ_117_dmd_reorganization.md) (DMD Reorganization — Activation and Parameter, Windowed and Per-Regime). REQ_003's windowed DMD with eigenvalue tracking is the activation track of REQ_117, extended with per-regime DMD and mirrored on the parameter side. Content preserved below for archaeology.
+
+---
+
 # REQ_003: Windowed DMD Eigenvalue Analysis
 
 ## Problem Statement
