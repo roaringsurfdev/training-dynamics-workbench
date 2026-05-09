@@ -26,6 +26,7 @@ def create_sitenav() -> dbc.NavbarSimple:
                     dbc.DropdownMenuItem("Activations", href="/activations"),
                     dbc.DropdownMenuItem("Centroid DMD", href="/centroid-dmd"),
                     dbc.DropdownMenuItem("Activation DMD", href="/activation-dmd"),
+                    dbc.DropdownMenuItem("Parameter DMD", href="/parameter-dmd"),
                     dbc.DropdownMenuItem("Loss Landscape", href="/loss-landscape"),
                     dbc.DropdownMenuItem("Input Trace", href="/input-trace"),
                     dbc.DropdownMenuItem("Neuron Groups", href="/neuron-group"),
@@ -139,6 +140,10 @@ def register_sitenav_callbacks(app: Dash) -> None:
         create_neuron_group_page_layout,
         create_neuron_group_page_nav,
     )
+    from dashboard.pages.parameter_dmd import (
+        create_parameter_dmd_layout,
+        create_parameter_dmd_nav,
+    )
     from dashboard.pages.peer_comparison import (
         create_peer_comparison_page_layout,
         create_peer_comparison_page_nav,
@@ -202,6 +207,8 @@ def register_sitenav_callbacks(app: Dash) -> None:
             return [create_centroid_dmd_nav(app), create_centroid_dmd_layout(app)]
         elif pathname == "/activation-dmd":
             return [create_activation_dmd_nav(app), create_activation_dmd_layout(app)]
+        elif pathname == "/parameter-dmd":
+            return [create_parameter_dmd_nav(app), create_parameter_dmd_layout(app)]
         elif pathname == "/training":
             return [create_training_page_nav(app), create_training_page_layout(app)]
         elif pathname == "/checkpoint-schedule":
