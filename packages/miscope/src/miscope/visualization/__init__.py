@@ -25,6 +25,12 @@ from miscope.visualization.renderers.activation_dmd import (
     render_activation_dmd_residuals_with_regimes,
     render_activation_dmd_track_trajectories,
 )
+from miscope.visualization.renderers.parameter_dmd import (
+    render_parameter_dmd_eigenvalue_migration,
+    render_parameter_dmd_per_regime_vs_windowed,
+    render_parameter_dmd_residuals_with_regimes,
+    render_parameter_dmd_track_trajectories,
+)
 from miscope.visualization.renderers.attention_fourier import (
     render_head_alignment_trajectory,
     render_qk_freq_heatmap,
@@ -253,6 +259,11 @@ __all__ = [
     "render_activation_dmd_eigenvalue_migration",
     "render_activation_dmd_track_trajectories",
     "render_activation_dmd_per_regime_vs_windowed",
+    # REQ_117 phase 2: Parameter DMD (per-(group, matrix) windowed + per-regime)
+    "render_parameter_dmd_residuals_with_regimes",
+    "render_parameter_dmd_eigenvalue_migration",
+    "render_parameter_dmd_track_trajectories",
+    "render_parameter_dmd_per_regime_vs_windowed",
     # REQ_049: Neuron Fourier decomposition
     "render_neuron_fourier_heatmap",
     "render_neuron_fourier_heatmap_output",
