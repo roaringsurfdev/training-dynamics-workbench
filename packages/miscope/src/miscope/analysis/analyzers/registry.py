@@ -173,6 +173,7 @@ class AnalyzerRegistry:
 
 def register_default_analyzers() -> None:
     """Register the built-in analyzers."""
+    from miscope.analysis.analyzers.activation_dmd import ActivationDMD
     from miscope.analysis.analyzers.attention_fourier import AttentionFourierAnalyzer
     from miscope.analysis.analyzers.attention_freq import AttentionFreqAnalyzer
     from miscope.analysis.analyzers.attention_patterns import AttentionPatternsAnalyzer
@@ -222,6 +223,7 @@ def register_default_analyzers() -> None:
     AnalyzerRegistry.register_cross_epoch(NeuronDynamicsAnalyzer)
     AnalyzerRegistry.register_cross_epoch(GlobalCentroidPCA)
     AnalyzerRegistry.register_cross_epoch(CentroidDMD)
+    AnalyzerRegistry.register_cross_epoch(ActivationDMD)
     AnalyzerRegistry.register_cross_epoch(GradientSiteAnalyzer)
     AnalyzerRegistry.register_cross_epoch(InputTraceGraduationAnalyzer)
     AnalyzerRegistry.register_cross_epoch(NeuronGroupPCAAnalyzer)

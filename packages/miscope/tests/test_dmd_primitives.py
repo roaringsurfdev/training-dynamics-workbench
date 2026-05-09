@@ -1,24 +1,29 @@
-"""Tests for REQ_117 DMD primitives: windowed DMD, eigenvalue tracking,
-residual-driven regime detection, per-regime DMD recursive pass.
+"""Tests for REQ_117 DMD primitives and the activation_dmd analyzer:
+windowed DMD, eigenvalue tracking, residual-driven regime detection,
+per-regime DMD recursive pass, and the analyzer that composes them.
 
 The standard `compute_dmd` primitive (REQ_051) is tested in
 test_centroid_dmd.py and is composed by the windowed and per-regime
 extensions tested here.
 """
 
+import os
+import tempfile
+
 import numpy as np
 import pytest
 
+from miscope.analysis.analyzers.activation_dmd import ActivationDMD
+from miscope.analysis.analyzers.registry import AnalyzerRegistry
 from miscope.analysis.library.dmd import (
     compute_per_regime_dmd,
     compute_windowed_dmd,
     detect_regime_boundaries,
     track_eigenvalues_across_windows,
 )
+from miscope.analysis.protocols import CrossEpochAnalyzer
 
-
-
-
+_SITES = ["resid_pre", "attn_out", "mlp_out", "resid_post"]
 def _make_trajectory(n_steps: int, state_dim: int, seed: int = 0) -> np.ndarray:
     rng = np.random.default_rng(seed)
     return rng.normal(size=(n_steps, state_dim))
@@ -611,3 +616,169 @@ class TestComputePerRegimeDmd:
         ])
         per_regime = compute_per_regime_dmd(traj, step_starts, step_ends)
         assert len(per_regime["segment_starts"]) == len(regimes["segment_starts"])
+
+
+# ── ActivationDMD analyzer ──────────────────────────────────────────
+
+
+def _make_global_pca_artifact(
+    n_epochs: int = 30,
+    n_classes: int = 7,
+    n_components: int = 3,
+    seed: int = 0,
+) -> dict:
+    """Synthetic global_centroid_pca cross_epoch artifact."""
+    rng = np.random.default_rng(seed)
+    data: dict = {"epochs": np.arange(n_epochs) * 100}
+    for site in _SITES:
+        data[f"{site}__projections"] = rng.normal(size=(n_epochs, n_classes, n_components))
+        data[f"{site}__basis"] = rng.normal(size=(16, n_components))
+        data[f"{site}__mean"] = rng.normal(size=(16,))
+        data[f"{site}__explained_variance_ratio"] = np.array([0.70, 0.20, 0.09])
+    return data
+
+
+@pytest.fixture
+def artifacts_with_global_pca():
+    """Temp artifacts dir with global_centroid_pca cross_epoch.npz and
+    repr_geometry per-epoch stubs (the requires-check looks for those)."""
+    n_epochs, n_classes, n_components = 30, 7, 3
+    pca_data = _make_global_pca_artifact(n_epochs, n_classes, n_components)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        artifacts_dir = os.path.join(tmpdir, "artifacts")
+        pca_dir = os.path.join(artifacts_dir, "global_centroid_pca")
+        rg_dir = os.path.join(artifacts_dir, "repr_geometry")
+        os.makedirs(pca_dir)
+        os.makedirs(rg_dir)
+        for epoch in pca_data["epochs"]:
+            p = os.path.join(rg_dir, f"epoch_{int(epoch):05d}.npz")
+            np.savez_compressed(p, dummy=np.array([0]))
+        np.savez_compressed(  # type: ignore[arg-type]
+            os.path.join(pca_dir, "cross_epoch.npz"), **pca_data
+        )
+        yield artifacts_dir, list(pca_data["epochs"].astype(int)), n_epochs, n_classes, n_components
+
+
+class TestActivationDMDProtocol:
+    def test_conforms_to_cross_epoch_protocol(self):
+        assert isinstance(ActivationDMD(), CrossEpochAnalyzer)
+
+    def test_name(self):
+        assert ActivationDMD().name == "activation_dmd"
+
+    def test_requires(self):
+        assert ActivationDMD().requires == ["repr_geometry"]
+
+    def test_registered_in_registry(self):
+        assert "activation_dmd" in AnalyzerRegistry._cross_epoch_analyzers
+
+    def test_distinct_from_centroid_dmd(self):
+        """Parallel construction: both analyzers exist independently."""
+        assert "centroid_dmd" in AnalyzerRegistry._cross_epoch_analyzers
+        assert "activation_dmd" in AnalyzerRegistry._cross_epoch_analyzers
+        assert (
+            AnalyzerRegistry._cross_epoch_analyzers["centroid_dmd"]
+            is not AnalyzerRegistry._cross_epoch_analyzers["activation_dmd"]
+        )
+
+
+class TestActivationDMDOutput:
+    def test_returns_dict(self, artifacts_with_global_pca):
+        artifacts_dir, epochs, *_ = artifacts_with_global_pca
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs, {})
+        assert isinstance(result, dict)
+
+    def test_contains_epochs(self, artifacts_with_global_pca):
+        artifacts_dir, epochs, *_ = artifacts_with_global_pca
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs, {})
+        np.testing.assert_array_equal(result["epochs"], epochs)
+
+    def test_contains_namespaced_keys_per_site(self, artifacts_with_global_pca):
+        artifacts_dir, epochs, *_ = artifacts_with_global_pca
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs, {})
+        for site in _SITES:
+            for stage_key in [
+                f"{site}__trajectory",
+                f"{site}__n_classes",
+                f"{site}__n_components",
+                f"{site}__windowed__eigenvalues",
+                f"{site}__windowed__residual_norm_mean",
+                f"{site}__tracks__track_ids",
+                f"{site}__tracks__n_tracks",
+                f"{site}__regimes__segment_starts",
+                f"{site}__regimes__segment_ends",
+                f"{site}__regimes__threshold_used",
+                f"{site}__per_regime__eigenvalues",
+                f"{site}__per_regime__residual_norm_mean",
+            ]:
+                assert stage_key in result, f"missing: {stage_key}"
+
+    def test_trajectory_shape(self, artifacts_with_global_pca):
+        artifacts_dir, epochs, n_epochs, n_classes, n_components = artifacts_with_global_pca
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs, {})
+        state_dim = n_classes * n_components
+        for site in _SITES:
+            assert result[f"{site}__trajectory"].shape == (n_epochs, state_dim)
+
+    def test_windowed_dmd_shapes(self, artifacts_with_global_pca):
+        artifacts_dir, epochs, n_epochs, *_ = artifacts_with_global_pca
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs, {})
+        # Default window_size = 10, stride = 1 -> n_windows = n_epochs - 10 + 1 = 21
+        expected_n_windows = n_epochs - 10 + 1
+        for site in _SITES:
+            assert len(result[f"{site}__windowed__window_starts"]) == expected_n_windows
+            assert (
+                result[f"{site}__windowed__residual_norm_mean"].shape == (expected_n_windows,)
+            )
+
+    def test_short_trajectory_scales_window(self, artifacts_with_global_pca, tmp_path):
+        """If n_epochs < 10, window_size is scaled down so the analyzer
+        still runs (rather than raising)."""
+        short_data = _make_global_pca_artifact(n_epochs=5)
+        artifacts_dir = str(tmp_path / "artifacts")
+        pca_dir = os.path.join(artifacts_dir, "global_centroid_pca")
+        rg_dir = os.path.join(artifacts_dir, "repr_geometry")
+        os.makedirs(pca_dir)
+        os.makedirs(rg_dir)
+        for epoch in short_data["epochs"]:
+            p = os.path.join(rg_dir, f"epoch_{int(epoch):05d}.npz")
+            np.savez_compressed(p, dummy=np.array([0]))
+        np.savez_compressed(  # type: ignore[arg-type]
+            os.path.join(pca_dir, "cross_epoch.npz"), **short_data
+        )
+
+        epochs_list = list(short_data["epochs"].astype(int))
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs_list, {})
+        for site in _SITES:
+            assert len(result[f"{site}__windowed__window_starts"]) == 1
+
+    def test_regime_segments_partition_window_space(self, artifacts_with_global_pca):
+        """Detected regime segments must partition [0, n_windows) exactly."""
+        artifacts_dir, epochs, n_epochs, *_ = artifacts_with_global_pca
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs, {})
+        n_windows = n_epochs - 10 + 1
+        for site in _SITES:
+            starts = result[f"{site}__regimes__segment_starts"]
+            ends = result[f"{site}__regimes__segment_ends"]
+            assert starts[0] == 0
+            assert ends[-1] == n_windows
+            np.testing.assert_array_equal(starts[1:], ends[:-1])
+
+    def test_per_regime_dmd_segments_match_regimes(self, artifacts_with_global_pca):
+        """Per-regime DMD must run on the same number of segments as
+        regime detection produced."""
+        artifacts_dir, epochs, *_ = artifacts_with_global_pca
+        result = ActivationDMD().analyze_across_epochs(artifacts_dir, epochs, {})
+        for site in _SITES:
+            n_regimes = len(result[f"{site}__regimes__segment_starts"])
+            n_per_regime = len(result[f"{site}__per_regime__segment_starts"])
+            assert n_regimes == n_per_regime
+
+    def test_missing_global_pca_raises(self, tmp_path):
+        artifacts_dir = str(tmp_path / "artifacts")
+        rg_dir = os.path.join(artifacts_dir, "repr_geometry")
+        os.makedirs(rg_dir)
+        np.savez_compressed(os.path.join(rg_dir, "epoch_00000.npz"), dummy=np.array([0]))
+        with pytest.raises(FileNotFoundError, match="global_centroid_pca"):
+            ActivationDMD().analyze_across_epochs(artifacts_dir, [0], {})
