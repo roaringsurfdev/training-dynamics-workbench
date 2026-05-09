@@ -130,6 +130,7 @@ class AnalysisPipeline:
         self,
         force: bool = False,
         progress_callback: Callable[[float, str], None] | None = None,
+        extra_context: dict[str, Any] | None = None,
     ) -> None:
         """Execute analysis pipeline across checkpoints.
 
@@ -140,6 +141,12 @@ class AnalysisPipeline:
             force: If True, recompute even if artifacts exist
             progress_callback: Optional callback(progress, description) for UI updates.
                                Progress is a float from 0.0 to 1.0.
+            extra_context: Optional dict merged into the analysis context after
+                           ``family.prepare_analysis_context()``. Used to inject
+                           per-experiment config (e.g.,
+                           ``{"parameter_dmd_reference_epoch": 20000}``) without
+                           editing family code. Caller-supplied keys override
+                           any matching family-supplied keys.
         """
         if not self._analyzers and not self._cross_epoch_analyzers:
             return
@@ -159,6 +166,8 @@ class AnalysisPipeline:
             self.variant.params,
             self._device,
         )
+        if extra_context:
+            context = {**context, **extra_context}
 
         if work_queue:
             all_epochs_needed = sorted(set(e for _, needed in work_queue for e in needed))

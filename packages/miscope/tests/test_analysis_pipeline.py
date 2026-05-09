@@ -218,6 +218,65 @@ class TestAnalysisPipelineRun:
         assert manifest["family_name"] == "modulo_addition_1layer"
 
 
+class TestAnalysisPipelineExtraContext:
+    """Tests for the extra_context kwarg on AnalysisPipeline.run() (REQ_117)."""
+
+    def test_extra_context_keys_reach_per_epoch_analyzer(self, trained_variant):
+        """A primary analyzer that reads context.analysis_params should see
+        keys injected via extra_context."""
+        seen: list[Any] = []
+
+        class ContextReadingAnalyzer:
+            name = "ctx_reader"
+
+            def analyze(self, ctx: ActivationContext) -> dict[str, np.ndarray]:
+                seen.append(ctx.analysis_params.get("custom_key"))
+                return {"data": np.ones((1,), dtype=np.float32)}
+
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(ContextReadingAnalyzer())
+        pipeline.run(extra_context={"custom_key": "injected_value"})
+
+        assert seen, "analyzer never ran"
+        assert all(v == "injected_value" for v in seen)
+
+    def test_extra_context_overrides_family_supplied_keys(self, trained_variant):
+        """Caller-supplied extra_context overrides family-supplied keys."""
+        seen: list[Any] = []
+
+        class ContextReadingAnalyzer:
+            name = "ctx_reader"
+
+            def analyze(self, ctx: ActivationContext) -> dict[str, np.ndarray]:
+                # 'fourier_basis' is a key the modadd family always sets.
+                seen.append(ctx.analysis_params.get("fourier_basis"))
+                return {"data": np.ones((1,), dtype=np.float32)}
+
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(ContextReadingAnalyzer())
+        pipeline.run(extra_context={"fourier_basis": "OVERRIDE"})
+
+        assert seen and all(v == "OVERRIDE" for v in seen)
+
+    def test_extra_context_none_uses_family_context_as_is(self, trained_variant):
+        """Default behavior (extra_context=None) leaves family context untouched."""
+        seen: list[Any] = []
+
+        class ContextReadingAnalyzer:
+            name = "ctx_reader"
+
+            def analyze(self, ctx: ActivationContext) -> dict[str, np.ndarray]:
+                # 'fourier_basis' should be the modadd-supplied value, not None.
+                seen.append(ctx.analysis_params.get("fourier_basis"))
+                return {"data": np.ones((1,), dtype=np.float32)}
+
+        pipeline = AnalysisPipeline(trained_variant)
+        pipeline.register(ContextReadingAnalyzer())
+        pipeline.run()  # no extra_context
+
+        assert seen and all(v is not None for v in seen)
+
+
 class TestAnalysisPipelineResumability:
     """Tests for pipeline resumability."""
 
