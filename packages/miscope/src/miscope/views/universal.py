@@ -670,6 +670,67 @@ def _register_all() -> None:
             )
         )
 
+    # --- Parameter DMD views (REQ_117 phase 2) ---
+    # Per-(group, matrix) windowed + per-regime DMD on weight slices
+    # partitioned by neuron_grouping at the analyzer's reference_epoch.
+    # All four views load from parameter_dmd cross_epoch.npz; epoch is a cursor.
+
+    def _load_parameter_dmd(variant: Variant, epoch: int | None) -> dict:
+        return variant.artifacts.load_cross_epoch("parameter_dmd")
+
+    def _render_parameter_dmd_residuals(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        return viz.render_parameter_dmd_residuals_with_regimes(
+            data, current_epoch=epoch
+        )
+
+    def _render_parameter_dmd_eigenvalues(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        return viz.render_parameter_dmd_eigenvalue_migration(data)
+
+    def _render_parameter_dmd_tracks(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        # Caller (dashboard) supplies group_id + matrix via kwargs.
+        # Defaults: first populated group, W_in.
+        group_id = kwargs.pop("group_id", None)
+        matrix = kwargs.pop("matrix", "W_in")
+        if group_id is None:
+            populated = data["populated_groups"]
+            group_id = int(populated[0]) if len(populated) > 0 else 0
+        return viz.render_parameter_dmd_track_trajectories(
+            data, group_id=int(group_id), matrix=matrix, current_epoch=epoch
+        )
+
+    def _render_parameter_dmd_per_regime(
+        data: Any, epoch: int | None, **kwargs: Any
+    ) -> go.Figure:
+        return viz.render_parameter_dmd_per_regime_vs_windowed(
+            data, current_epoch=epoch
+        )
+
+    _parameter_dmd_req = [
+        AnalyzerRequirement("parameter_dmd", ArtifactKind.CROSS_EPOCH)
+    ]
+
+    for name, renderer in [
+        ("parameter_dmd.residuals_with_regimes", _render_parameter_dmd_residuals),
+        ("parameter_dmd.eigenvalue_migration", _render_parameter_dmd_eigenvalues),
+        ("parameter_dmd.track_trajectories", _render_parameter_dmd_tracks),
+        ("parameter_dmd.per_regime_vs_windowed", _render_parameter_dmd_per_regime),
+    ]:
+        _catalog.register(
+            ViewDefinition(
+                name=name,
+                load_data=_load_parameter_dmd,
+                renderer=renderer,
+                epoch_source_analyzer=None,
+                required_analyzers=_parameter_dmd_req,
+            )
+        )
+
     # --- Attention Fourier views (REQ_055) ---
     # Per-epoch heatmaps and stacked temporal alignment trajectory.
 
