@@ -16,8 +16,6 @@ Four views over the activation_dmd cross_epoch artifact:
     one panel per site.
 """
 
-from typing import Any
-
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -181,8 +179,8 @@ def render_activation_dmd_eigenvalue_migration(
         for w_idx in range(len(starts)):
             k = int(n_modes_per_window[w_idx])
             valid = eigs[w_idx, :k]
-            all_real.extend(valid.real.tolist())
-            all_imag.extend(valid.imag.tolist())
+            all_real.extend(valid.real.tolist())  # pyright: ignore[reportAttributeAccessIssue]
+            all_imag.extend(valid.imag.tolist())  # pyright: ignore[reportAttributeAccessIssue]
             all_epoch.extend([int(center_epochs[w_idx])] * k)
 
         if all_real:
@@ -228,12 +226,8 @@ def render_activation_dmd_eigenvalue_migration(
             row=row,
             col=col,
         )
-        fig.update_xaxes(
-            title_text="Re(λ)", row=row, col=col, range=x_range, zeroline=True
-        )
-        fig.update_yaxes(
-            title_text="Im(λ)", row=row, col=col, range=y_range, zeroline=True
-        )
+        fig.update_xaxes(title_text="Re(λ)", row=row, col=col, range=x_range, zeroline=True)
+        fig.update_yaxes(title_text="Im(λ)", row=row, col=col, range=y_range, zeroline=True)
 
     fig.update_layout(
         title="Activation DMD — eigenvalue migration across training (auto-zoom)",
@@ -278,9 +272,7 @@ def render_activation_dmd_track_trajectories(
     center_epochs = epochs[(starts + ends) // 2]
     n_tracks = int(cross_epoch_data[f"{site}__tracks__n_tracks"])
 
-    track_data: dict[int, dict[str, list]] = {
-        t: {"epoch": [], "eig": []} for t in range(n_tracks)
-    }
+    track_data: dict[int, dict[str, list]] = {t: {"epoch": [], "eig": []} for t in range(n_tracks)}
     for w in range(len(starts)):
         k = int(n_modes_per_window[w])
         for slot in range(k):

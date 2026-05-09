@@ -637,36 +637,22 @@ def _register_all() -> None:
     def _load_activation_dmd(variant: Variant, epoch: int | None) -> dict:
         return variant.artifacts.load_cross_epoch("activation_dmd")
 
-    def _render_activation_dmd_residuals(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
-        return viz.render_activation_dmd_residuals_with_regimes(
-            data, current_epoch=epoch
-        )
+    def _render_activation_dmd_residuals(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_activation_dmd_residuals_with_regimes(data, current_epoch=epoch)
 
     def _render_activation_dmd_eigenvalues(
         data: Any, epoch: int | None, **kwargs: Any
     ) -> go.Figure:
         return viz.render_activation_dmd_eigenvalue_migration(data)
 
-    def _render_activation_dmd_tracks(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
+    def _render_activation_dmd_tracks(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
         site = kwargs.pop("site", "mlp_out")
-        return viz.render_activation_dmd_track_trajectories(
-            data, site=site, current_epoch=epoch
-        )
+        return viz.render_activation_dmd_track_trajectories(data, site=site, current_epoch=epoch)
 
-    def _render_activation_dmd_per_regime(
-        data: Any, epoch: int | None, **kwargs: Any
-    ) -> go.Figure:
-        return viz.render_activation_dmd_per_regime_vs_windowed(
-            data, current_epoch=epoch
-        )
+    def _render_activation_dmd_per_regime(data: Any, epoch: int | None, **kwargs: Any) -> go.Figure:
+        return viz.render_activation_dmd_per_regime_vs_windowed(data, current_epoch=epoch)
 
-    _activation_dmd_req = [
-        AnalyzerRequirement("activation_dmd", ArtifactKind.CROSS_EPOCH)
-    ]
+    _activation_dmd_req = [AnalyzerRequirement("activation_dmd", ArtifactKind.CROSS_EPOCH)]
 
     for name, renderer in [
         ("activation_dmd.residuals_with_regimes", _render_activation_dmd_residuals),

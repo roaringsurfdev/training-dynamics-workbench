@@ -79,6 +79,10 @@ def create_sitenav() -> dbc.NavbarSimple:
 
 def register_sitenav_callbacks(app: Dash) -> None:
     """Register URL routing callback."""
+    from dashboard.pages.activation_dmd import (
+        create_activation_dmd_layout,
+        create_activation_dmd_nav,
+    )
     from dashboard.pages.activation_heatmaps import (
         create_activation_heatmap_page_layout,
         create_activation_heatmap_page_nav,
@@ -86,10 +90,6 @@ def register_sitenav_callbacks(app: Dash) -> None:
     from dashboard.pages.analysis_run import (
         create_analysis_run_page_layout,
         create_analysis_run_page_nav,
-    )
-    from dashboard.pages.activation_dmd import (
-        create_activation_dmd_layout,
-        create_activation_dmd_nav,
     )
     from dashboard.pages.centroid_dmd import (
         create_centroid_dmd_layout,

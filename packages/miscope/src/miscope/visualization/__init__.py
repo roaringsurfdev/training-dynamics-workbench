@@ -19,6 +19,12 @@ Usage:
 
 from miscope.visualization.common import get_frequency_color
 from miscope.visualization.line_plot import line
+from miscope.visualization.renderers.activation_dmd import (
+    render_activation_dmd_eigenvalue_migration,
+    render_activation_dmd_per_regime_vs_windowed,
+    render_activation_dmd_residuals_with_regimes,
+    render_activation_dmd_track_trajectories,
+)
 from miscope.visualization.renderers.attention_fourier import (
     render_head_alignment_trajectory,
     render_qk_freq_heatmap,
@@ -51,12 +57,6 @@ from miscope.visualization.renderers.data_compatibility import (
 from miscope.visualization.renderers.dimensionality_dynamics import (
     build_dimensionality_state_space,
     build_dimensionality_timeseries,
-)
-from miscope.visualization.renderers.activation_dmd import (
-    render_activation_dmd_eigenvalue_migration,
-    render_activation_dmd_per_regime_vs_windowed,
-    render_activation_dmd_residuals_with_regimes,
-    render_activation_dmd_track_trajectories,
 )
 from miscope.visualization.renderers.dmd import (
     render_dmd_eigenvalues,

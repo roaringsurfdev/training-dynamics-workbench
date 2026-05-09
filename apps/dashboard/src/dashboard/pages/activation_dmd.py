@@ -78,18 +78,12 @@ def create_activation_dmd_layout(app: Dash) -> html.Div:
                         dbc.Col(_graph_manager.create_graph("activation-dmd-residuals", "900px"))
                     ),
                     dbc.Row(
-                        dbc.Col(
-                            _graph_manager.create_graph("activation-dmd-eigenvalues", "850px")
-                        )
+                        dbc.Col(_graph_manager.create_graph("activation-dmd-eigenvalues", "850px"))
                     ),
                     dbc.Row(
-                        dbc.Col(
-                            _graph_manager.create_graph("activation-dmd-per-regime", "750px")
-                        )
+                        dbc.Col(_graph_manager.create_graph("activation-dmd-per-regime", "750px"))
                     ),
-                    dbc.Row(
-                        dbc.Col(_graph_manager.create_graph("activation-dmd-tracks", "600px"))
-                    ),
+                    dbc.Row(dbc.Col(_graph_manager.create_graph("activation-dmd-tracks", "600px"))),
                 ],
             ),
         ]
