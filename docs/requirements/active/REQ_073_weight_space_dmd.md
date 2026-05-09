@@ -1,8 +1,18 @@
 # REQ_073: Weight-Space DMD Analysis
 
-**Status:** Active
+**Status:** Superseded by [REQ_117](REQ_117_dmd_reorganization.md) (DMD Reorganization — Activation and Parameter, Windowed and Per-Regime).
 **Branch:** TBD
 **Attribution:** Drafted by Engineering Claude
+
+---
+
+## Supersession Note
+
+This REQ specified standard DMD on weight trajectories as a parallel to the existing centroid (activation) DMD. REQ_117 absorbs and extends that scope into a unified, two-track treatment: activation DMD and parameter DMD ship together, both with windowed + per-regime structure. The parameter track in REQ_117 carries forward this REQ's CoS items — per-matrix DMD support, mode-Fourier projection, mode-spectrum and dominant-mode-trajectory views — and adds the windowed and per-regime layers that make the parameter side consistent with the activation side.
+
+Sequencing change: REQ_117's parameter track has a hard dependency on [REQ_118](REQ_118_neuron_grouping.md) (the neuron grouping primitive). Per-group windowed DMD is the architecturally correct shape; this REQ's per-matrix framing remains as a supporting view inside REQ_117 rather than the primary one.
+
+The REQ_073 content below is preserved for archaeology.
 
 ---
 

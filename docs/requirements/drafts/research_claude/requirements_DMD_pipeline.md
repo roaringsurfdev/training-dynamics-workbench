@@ -1,3 +1,7 @@
+**Status:** Absorbed by [REQ_117](../../active/REQ_117_dmd_reorganization.md) (DMD Reorganization — Activation and Parameter, Windowed and Per-Regime). REQ_001 (global PCA) and REQ_002 (standard DMD on centroid trajectories) are folded into REQ_117's activation track. The trajectory-PCA portion of REQ_001 is also picked up by [REQ_111](../../active/REQ_111_parallel_analyzer_buildout.md)'s `representation_trajectory` work. Content preserved below for archaeology.
+
+---
+
 # REQ_001: Global PCA for Cross-Epoch Centroid Analysis
 
 ## Problem Statement
